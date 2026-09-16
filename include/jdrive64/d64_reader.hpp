@@ -4,9 +4,11 @@
 #include <cstdint>
 #include <fstream>
 #include <string>
-#include <vector>
 
 namespace jdrive64 {
+
+class SectorCache;
+
 
 class D64Reader {
  public:
@@ -22,6 +24,7 @@ class D64Reader {
   bool IsOpen() const;
   const std::string& LastError() const;
   std::uint64_t ImageSize() const;
+  void SetSectorCache(SectorCache* cache);
 
  private:
   bool IsValidTrack(std::uint8_t track) const;
@@ -29,6 +32,7 @@ class D64Reader {
   std::ifstream file_;
   std::uint64_t image_size_ = 0;
   std::string last_error_;
+  SectorCache* sector_cache_ = nullptr;
 
   static const std::array<std::uint32_t, 36> kTrackStart;
 };

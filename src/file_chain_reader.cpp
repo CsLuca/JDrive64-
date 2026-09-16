@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "jdrive64/d64_reader.hpp"
+#include "jdrive64/disk_catalog.hpp"
 #include "jdrive64/directory_reader.hpp"
 
 namespace jdrive64 {
@@ -58,6 +59,17 @@ std::vector<std::uint8_t> FileChainReader::ReadFile(const DirectoryEntry& entry)
   }
 
   return out;
+}
+
+std::vector<std::uint8_t> FileChainReader::ReadFile(const CatalogFile& file) {
+  DirectoryEntry entry;
+  entry.file_type = file.file_type;
+  entry.start_track = file.start_track;
+  entry.start_sector = file.start_sector;
+  entry.size_blocks = file.size_blocks;
+  entry.name = file.display_name;
+  entry.extension = file.extension;
+  return ReadFile(entry);
 }
 
 const std::string& FileChainReader::LastError() const { return last_error_; }

@@ -1,6 +1,9 @@
 #include "jdrive64/d64_reader.hpp"
 
 #include <algorithm>
+#include <vector>
+
+#include "jdrive64/sector_cache.hpp"
 
 namespace jdrive64 {
 
@@ -70,9 +73,10 @@ bool D64Reader::Open(const std::string& filename) {
   image_size_ = static_cast<std::uint64_t>(end_pos);
   file_.seekg(0, std::ios::beg);
 
-  constexpr std::uint64_t kMinD64Size = 174848;
-  if (image_size_ < kMinD64Size) {
-    last_error_ = "D64 image too small";
+  constexpr std::uint64_t kD64Size = 174848;
+  constexpr std::uint64_t kD64WithErrorInfoSize = 175531;
+  if (image_size_ != kD64Size && image_size_ != kD64WithErrorInfoSize) {
+    last_error_ = "Unsupported D64 image size";
     return false;
   }
 
@@ -97,6 +101,14 @@ bool D64Reader::ReadSector(std::uint8_t track, std::uint8_t sector, std::uint8_t
     return false;
   }
 
+  if (sector_cache_ != nullptr) {
+    std::vector<std::uint8_t> cached;
+    if (sector_cache_->Get(track, sector, &cached) && cached.size() == kSectorSize) {
+      std::copy(cached.begin(), cached.end(), data);
+      return true;
+    }
+  }
+
   const auto offset = TrackSectorToOffset(track, sector);
   if (offset + kSectorSize > image_size_) {
     last_error_ = "Sector offset out of image bounds";
@@ -114,6 +126,10 @@ bool D64Reader::ReadSector(std::uint8_t track, std::uint8_t sector, std::uint8_t
   if (!file_) {
     last_error_ = "Read failed while reading sector";
     return false;
+  }
+
+  if (sector_cache_ != nullptr) {
+    sector_cache_->Put(track, sector, data, kSectorSize);
   }
 
   return true;
@@ -144,6 +160,8 @@ bool D64Reader::IsOpen() const { return file_.is_open(); }
 const std::string& D64Reader::LastError() const { return last_error_; }
 
 std::uint64_t D64Reader::ImageSize() const { return image_size_; }
+
+void D64Reader::SetSectorCache(SectorCache* cache) { sector_cache_ = cache; }
 
 bool D64Reader::IsValidTrack(std::uint8_t track) const {
   return track >= kMinTrack && track <= kMaxTrack;

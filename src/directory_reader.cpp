@@ -25,7 +25,14 @@ bool DirectoryReader::Load(D64Reader& reader) {
 
   std::array<std::uint8_t, D64Reader::kSectorSize> sector{};
 
+  int sector_chain_guard = 0;
   while (current_track != 0) {
+    ++sector_chain_guard;
+    if (sector_chain_guard > 64) {
+      last_error_ = "Directory sector chain too long";
+      return false;
+    }
+
     if (!reader.ReadSector(current_track, current_sector, sector.data())) {
       last_error_ = reader.LastError();
       return false;
@@ -33,7 +40,7 @@ bool DirectoryReader::Load(D64Reader& reader) {
 
     for (std::size_t offset = 2; offset < D64Reader::kSectorSize; offset += kEntrySize) {
       const std::uint8_t file_type = sector[offset + 2];
-      if ((file_type & 0x0F) == 0) {
+      if ((file_type & 0x0F) == 0 || (file_type & 0x80) == 0) {
         continue;
       }
 
