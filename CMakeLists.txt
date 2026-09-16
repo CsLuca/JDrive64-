@@ -12,6 +12,7 @@ add_library(jdrive64_core
   src/bam_reader.cpp
   src/d64_reader.cpp
   src/disk_catalog.cpp
+  src/disk_image_session.cpp
   src/directory_reader.cpp
   src/file_cache.cpp
   src/file_chain_reader.cpp

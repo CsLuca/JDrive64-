@@ -7,6 +7,7 @@
 
 #include "jdrive64/bam_reader.hpp"
 #include "jdrive64/d64_reader.hpp"
+#include "jdrive64/disk_image_session.hpp"
 #include "jdrive64/directory_reader.hpp"
 #include "jdrive64/file_chain_reader.hpp"
 
@@ -14,6 +15,7 @@ namespace {
 
 using jdrive64::BAMReader;
 using jdrive64::D64Reader;
+using jdrive64::DiskImageSession;
 using jdrive64::DirectoryReader;
 using jdrive64::FileChainReader;
 using jdrive64::tests::CreateGoldenCorpus;
@@ -151,6 +153,38 @@ bool TestCorrupted(const GoldenPaths& p) {
   return ok;
 }
 
+bool TestSharedDomainSession(const GoldenPaths& p) {
+  DiskImageSession session;
+  if (!Check(session.Open(p.valid_multi.string()), "session open valid_multi")) {
+    return false;
+  }
+
+  if (!Check(session.Catalog().Files().size() == 2, "session catalog file count")) {
+    return false;
+  }
+
+  std::vector<std::uint8_t> one;
+  std::vector<std::uint8_t> data;
+  if (!Check(session.ReadFileByWindowsName("ONE.PRG", &one), "session read ONE.PRG")) {
+    return false;
+  }
+  if (!Check(session.ReadFileByWindowsName("DATA.SEQ", &data), "session read DATA.SEQ")) {
+    return false;
+  }
+
+  const std::string s0(one.begin(), one.end());
+  const std::string s1(data.begin(), data.end());
+  if (!Check(s0 == "ONE" && s1 == "DATA", "session read payloads")) {
+    return false;
+  }
+
+  std::vector<std::uint8_t> missing;
+  if (!Check(!session.ReadFileByWindowsName("MISSING.PRG", &missing), "session missing file fails")) {
+    return false;
+  }
+  return Check(session.LastError() == "File not found", "session missing file error");
+}
+
 }  // namespace
 
 int main() {
@@ -163,6 +197,7 @@ int main() {
   ok = ok && TestValidMulti(golden);
   ok = ok && TestValidErrorInfo(golden);
   ok = ok && TestCorrupted(golden);
+  ok = ok && TestSharedDomainSession(golden);
 
   if (!ok) {
     return 1;

@@ -4,11 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "jdrive64/bam_reader.hpp"
-#include "jdrive64/d64_reader.hpp"
-#include "jdrive64/disk_catalog.hpp"
-#include "jdrive64/file_cache.hpp"
-#include "jdrive64/sector_cache.hpp"
+#include "jdrive64/disk_image_session.hpp"
 
 namespace jdrive64 {
 
@@ -28,18 +24,14 @@ class WinFspFilesystem {
   bool RenameByWindowsName(const std::string& old_name, const std::string& new_name);
 
  private:
-  bool LoadImageMetadata();
+  bool LoadImageSession();
 
   std::string image_path_;
   std::string mount_point_;
   bool mounted_ = false;
   std::string last_error_;
 
-  D64Reader reader_;
-  BAMReader bam_;
-  DiskCatalog catalog_;
-  SectorCache sector_cache_;
-  FileCache file_cache_;
+  DiskImageSession session_;
 };
 
 }  // namespace jdrive64

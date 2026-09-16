@@ -56,6 +56,11 @@ ctest --test-dir build -R jdrive64_cli_smoke_tests --output-on-failure
 - Read/write policies and catalog/file read path are in place.
 - Full WinFsp callback binding is the next integration step.
 
+## Domain Layer (Step 3)
+
+- `DiskImageSession` is the shared domain entry point for image open, BAM/catalog access, and file reads.
+- CLI (`ls`, `extract`) and WinFsp facade reuse the same domain model to avoid duplicated parsing logic.
+
 ## Milestones
 
 - `v0.2-core-stable`: core parser + tests.

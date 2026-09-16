@@ -4,8 +4,6 @@
 #include <cctype>
 #include <sstream>
 
-#include "jdrive64/file_chain_reader.hpp"
-
 namespace jdrive64 {
 
 bool WinFspFilesystem::MountReadOnly(const std::string& image_path, const std::string& mount_point) {
@@ -26,7 +24,7 @@ bool WinFspFilesystem::MountReadOnly(const std::string& image_path, const std::s
     return false;
   }
 
-  if (!LoadImageMetadata()) {
+  if (!LoadImageSession()) {
     return false;
   }
 
@@ -64,17 +62,17 @@ const std::string& WinFspFilesystem::LastError() const { return last_error_; }
 
 std::string WinFspFilesystem::GetVolumeInfoText() const {
   std::ostringstream oss;
-  oss << "Label: " << bam_.DiskName() << "\n"
+  oss << "Label: " << session_.Bam().DiskName() << "\n"
       << "File System: JDrive64\n"
       << "Capacity: 664 Blocks\n"
-      << "Free: " << bam_.FreeBlocks() << " Blocks";
+      << "Free: " << session_.Bam().FreeBlocks() << " Blocks";
   return oss.str();
 }
 
 std::vector<std::string> WinFspFilesystem::ReadDirectory() const {
   std::vector<std::string> out;
-  out.reserve(catalog_.Files().size());
-  for (const auto& file : catalog_.Files()) {
+  out.reserve(session_.Catalog().Files().size());
+  for (const auto& file : session_.Catalog().Files()) {
     out.push_back(file.windows_name);
   }
   std::sort(out.begin(), out.end());
@@ -93,25 +91,11 @@ bool WinFspFilesystem::ReadFileByWindowsName(const std::string& windows_name,
     return false;
   }
 
-  if (file_cache_.Get(windows_name, data)) {
-    return true;
-  }
-
-  const auto* file = catalog_.FindByWindowsName(windows_name);
-  if (file == nullptr) {
-    last_error_ = "File not found";
+  if (!session_.ReadFileByWindowsName(windows_name, data)) {
+    last_error_ = session_.LastError();
     return false;
   }
 
-  FileChainReader reader(reader_);
-  auto bytes = reader.ReadFile(*file);
-  if (!reader.LastError().empty()) {
-    last_error_ = reader.LastError();
-    return false;
-  }
-
-  file_cache_.Put(windows_name, bytes);
-  *data = std::move(bytes);
   return true;
 }
 
@@ -137,21 +121,9 @@ bool WinFspFilesystem::RenameByWindowsName(const std::string& old_name,
   return false;
 }
 
-bool WinFspFilesystem::LoadImageMetadata() {
-  reader_.SetSectorCache(&sector_cache_);
-
-  if (!reader_.Open(image_path_)) {
-    last_error_ = reader_.LastError();
-    return false;
-  }
-
-  if (!bam_.Load(reader_)) {
-    last_error_ = bam_.LastError();
-    return false;
-  }
-
-  if (!catalog_.Build(reader_)) {
-    last_error_ = catalog_.LastError();
+bool WinFspFilesystem::LoadImageSession() {
+  if (!session_.Open(image_path_)) {
+    last_error_ = session_.LastError();
     return false;
   }
 

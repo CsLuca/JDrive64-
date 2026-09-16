@@ -5,18 +5,12 @@
 #include <utility>
 #include <vector>
 
-#include "jdrive64/bam_reader.hpp"
-#include "jdrive64/d64_reader.hpp"
-#include "jdrive64/disk_catalog.hpp"
-#include "jdrive64/file_chain_reader.hpp"
+#include "jdrive64/disk_image_session.hpp"
 #include "jdrive64/winfsp_filesystem.hpp"
 
 namespace {
 
-using jdrive64::BAMReader;
-using jdrive64::D64Reader;
-using jdrive64::DiskCatalog;
-using jdrive64::FileChainReader;
+using jdrive64::DiskImageSession;
 using jdrive64::WinFspFilesystem;
 
 std::filesystem::path MountStateRoot() {
@@ -65,14 +59,6 @@ void PrintUsage() {
             << "  jdrive64 read-mounted <drive_letter:> <name.ext>\n";
 }
 
-bool OpenReader(const std::string& image_path, D64Reader& reader) {
-  if (!reader.Open(image_path)) {
-    std::cerr << "Error: " << reader.LastError() << "\n";
-    return false;
-  }
-  return true;
-}
-
 std::string SanitizeFilename(const std::string& base_name, const std::string& ext) {
   std::string out;
   out.reserve(base_name.size() + ext.size() + 1);
@@ -96,37 +82,27 @@ std::string SanitizeFilename(const std::string& base_name, const std::string& ex
 }
 
 int CmdInfo(const std::string& image_path) {
-  D64Reader reader;
-  if (!OpenReader(image_path, reader)) {
+  DiskImageSession session;
+  if (!session.Open(image_path)) {
+    std::cerr << "Error: " << session.LastError() << "\n";
     return 1;
   }
 
-  BAMReader bam;
-  if (!bam.Load(reader)) {
-    std::cerr << "Error: " << bam.LastError() << "\n";
-    return 1;
-  }
-
-  std::cout << "Disk Name : " << bam.DiskName() << "\n";
-  std::cout << "Disk ID   : " << bam.DiskId() << "\n";
-  std::cout << "DOS Type  : " << bam.DosType() << "\n";
-  std::cout << "Blocks    : " << bam.FreeBlocks() << " Free\n";
+  std::cout << "Disk Name : " << session.Bam().DiskName() << "\n";
+  std::cout << "Disk ID   : " << session.Bam().DiskId() << "\n";
+  std::cout << "DOS Type  : " << session.Bam().DosType() << "\n";
+  std::cout << "Blocks    : " << session.Bam().FreeBlocks() << " Free\n";
   return 0;
 }
 
 int CmdLs(const std::string& image_path) {
-  D64Reader reader;
-  if (!OpenReader(image_path, reader)) {
+  DiskImageSession session;
+  if (!session.Open(image_path)) {
+    std::cerr << "Error: " << session.LastError() << "\n";
     return 1;
   }
 
-  DiskCatalog catalog;
-  if (!catalog.Build(reader)) {
-    std::cerr << "Error: " << catalog.LastError() << "\n";
-    return 1;
-  }
-
-  for (const auto& file : catalog.Files()) {
+  for (const auto& file : session.Catalog().Files()) {
     std::cout << file.windows_name << "  " << file.size_blocks << " blocks\n";
   }
 
@@ -134,14 +110,9 @@ int CmdLs(const std::string& image_path) {
 }
 
 int CmdExtract(const std::string& image_path, const std::string& output_dir_arg) {
-  D64Reader reader;
-  if (!OpenReader(image_path, reader)) {
-    return 1;
-  }
-
-  DiskCatalog catalog;
-  if (!catalog.Build(reader)) {
-    std::cerr << "Error: " << catalog.LastError() << "\n";
+  DiskImageSession session;
+  if (!session.Open(image_path)) {
+    std::cerr << "Error: " << session.LastError() << "\n";
     return 1;
   }
 
@@ -160,12 +131,11 @@ int CmdExtract(const std::string& image_path, const std::string& output_dir_arg)
     return 1;
   }
 
-  FileChainReader chain_reader(reader);
   bool had_warnings = false;
-  for (const auto& file : catalog.Files()) {
-    auto file_data = chain_reader.ReadFile(file);
-    if (!chain_reader.LastError().empty()) {
-      std::cerr << "Warning: cannot read " << file.display_name << ": " << chain_reader.LastError()
+  for (const auto& file : session.Catalog().Files()) {
+    std::vector<std::uint8_t> file_data;
+    if (!session.ReadFileByCatalogFile(file, &file_data)) {
+      std::cerr << "Warning: cannot read " << file.display_name << ": " << session.LastError()
                 << "\n";
       had_warnings = true;
       continue;
