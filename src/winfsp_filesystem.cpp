@@ -28,6 +28,8 @@ constexpr std::uint32_t kNtStatusObjectNameCollision = 0xC0000035;
 constexpr std::uint32_t kNtStatusNotSupported = 0xC00000BB;
 constexpr std::uint32_t kNtStatusInvalidHandle = 0xC0000008;
 constexpr std::uint32_t kNtStatusUnsuccessful = 0xC0000001;
+constexpr std::uint32_t kD64BlockSizeBytes = 256;
+constexpr std::uint32_t kD64TotalBlocks = 664;
 
 }  // namespace
 
@@ -88,11 +90,20 @@ std::uint32_t WinFspFilesystem::LastWin32Error() const { return StatusToWin32(la
 std::uint32_t WinFspFilesystem::LastNtStatus() const { return StatusToNtStatus(last_status_); }
 
 std::string WinFspFilesystem::GetVolumeInfoText() const {
+  const std::uint32_t free_blocks = session_.Bam().FreeBlocks();
+  const std::uint32_t used_blocks = kD64TotalBlocks - free_blocks;
+  const std::uint64_t capacity_bytes =
+      static_cast<std::uint64_t>(kD64TotalBlocks) * kD64BlockSizeBytes;
+  const std::uint64_t free_bytes = static_cast<std::uint64_t>(free_blocks) * kD64BlockSizeBytes;
+  const std::uint64_t used_bytes = static_cast<std::uint64_t>(used_blocks) * kD64BlockSizeBytes;
+
   std::ostringstream oss;
   oss << "Label: " << session_.Bam().DiskName() << "\n"
       << "File System: JDrive64\n"
-      << "Capacity: 664 Blocks\n"
-      << "Free: " << session_.Bam().FreeBlocks() << " Blocks";
+      << "Block Size: " << kD64BlockSizeBytes << " Bytes\n"
+      << "Capacity: " << kD64TotalBlocks << " Blocks (" << capacity_bytes << " Bytes)\n"
+      << "Used: " << used_blocks << " Blocks (" << used_bytes << " Bytes)\n"
+      << "Free: " << free_blocks << " Blocks (" << free_bytes << " Bytes)";
   return oss.str();
 }
 
@@ -175,8 +186,13 @@ bool WinFspFilesystem::GetVolumeInfo(VolumeInfo* info) {
 
   info->label = session_.Bam().DiskName();
   info->filesystem = "JDrive64";
-  info->capacity_blocks = 664;
+  info->block_size_bytes = kD64BlockSizeBytes;
+  info->capacity_blocks = kD64TotalBlocks;
   info->free_blocks = session_.Bam().FreeBlocks();
+  info->used_blocks = info->capacity_blocks - info->free_blocks;
+  info->capacity_bytes = static_cast<std::uint64_t>(info->capacity_blocks) * info->block_size_bytes;
+  info->free_bytes = static_cast<std::uint64_t>(info->free_blocks) * info->block_size_bytes;
+  info->used_bytes = static_cast<std::uint64_t>(info->used_blocks) * info->block_size_bytes;
   return true;
 }
 

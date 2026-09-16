@@ -25,7 +25,10 @@ CmdResult Run(const std::string& cmd) {
   CmdResult r;
   std::array<char, 4096> buf{};
 
-  FILE* pipe = _popen((cmd + " 2>&1").c_str(), "r");
+  const std::string wrapped =
+      "cmd /C \"set PATH=C:\\msys64\\ucrt64\\bin;%PATH%&& " + cmd + " 2>&1\"";
+
+  FILE* pipe = _popen(wrapped.c_str(), "r");
   if (pipe == nullptr) {
     r.output = "cannot spawn process";
     return r;
@@ -70,8 +73,9 @@ int main(int argc, char** argv) {
     const auto cmd = Quote(exe_path.string()) + " info " + Quote(golden.valid_small.string());
     const auto r = Run(cmd);
     ok = ok && Check(r.exit_code == 0, "info exits 0");
-    ok = ok && Check(Contains(r.output, "Disk Name"), "info contains Disk Name");
-    ok = ok && Check(Contains(r.output, "Blocks"), "info contains Blocks");
+    ok = ok && Check(Contains(r.output, "Label"), "info contains Label");
+    ok = ok && Check(Contains(r.output, "Capacity"), "info contains Capacity");
+    ok = ok && Check(Contains(r.output, "Free"), "info contains Free");
   }
 
   {

@@ -85,6 +85,13 @@ ctest --test-dir build -R jdrive64_cli_smoke_tests --output-on-failure
 - Mutation operations return `kAccessDenied` with Win32 `ERROR_ACCESS_DENIED` and NTSTATUS `STATUS_ACCESS_DENIED`.
 - Read/open/info paths map failures to consistent status families (`kNotMounted`, `kFileNotFound`, `kInvalidHandle`, `kInvalidParameter`, `kIoError`).
 
+## Volume Metadata (Step 11)
+
+- `WinFspFilesystem::VolumeInfo` now exposes block and byte dimensions:
+  - `block_size_bytes`, `capacity_blocks`, `free_blocks`, `used_blocks`
+  - `capacity_bytes`, `free_bytes`, `used_bytes`
+- CLI `info` now prints volume-oriented fields (`Label`, `FileSystem`, `Capacity`, `Used`, `Free`) in both blocks and bytes.
+
 ## D64 Write Editor (Step 10)
 
 - Experimental write path is available through CLI commands:

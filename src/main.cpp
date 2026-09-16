@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <cstdint>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -15,6 +16,9 @@ namespace {
 using jdrive64::DiskImageSession;
 using jdrive64::WinFspFilesystem;
 using jdrive64::D64ImageEditor;
+
+constexpr std::uint32_t kD64BlockSizeBytes = 256;
+constexpr std::uint32_t kD64TotalBlocks = 664;
 
 std::filesystem::path MountStateRoot() {
   return std::filesystem::temp_directory_path() / "jdrive64_mounts";
@@ -206,10 +210,21 @@ int CmdInfo(const std::string& image_path) {
     return 1;
   }
 
-  std::cout << "Disk Name : " << session.Bam().DiskName() << "\n";
-  std::cout << "Disk ID   : " << session.Bam().DiskId() << "\n";
-  std::cout << "DOS Type  : " << session.Bam().DosType() << "\n";
-  std::cout << "Blocks    : " << session.Bam().FreeBlocks() << " Free\n";
+  const std::uint32_t free_blocks = session.Bam().FreeBlocks();
+  const std::uint32_t used_blocks = kD64TotalBlocks - free_blocks;
+  const std::uint64_t capacity_bytes =
+      static_cast<std::uint64_t>(kD64TotalBlocks) * kD64BlockSizeBytes;
+  const std::uint64_t free_bytes = static_cast<std::uint64_t>(free_blocks) * kD64BlockSizeBytes;
+  const std::uint64_t used_bytes = static_cast<std::uint64_t>(used_blocks) * kD64BlockSizeBytes;
+
+  std::cout << "Label      : " << session.Bam().DiskName() << "\n";
+  std::cout << "Disk ID    : " << session.Bam().DiskId() << "\n";
+  std::cout << "DOS Type   : " << session.Bam().DosType() << "\n";
+  std::cout << "FileSystem : JDrive64\n";
+  std::cout << "Block Size : " << kD64BlockSizeBytes << " bytes\n";
+  std::cout << "Capacity   : " << kD64TotalBlocks << " blocks (" << capacity_bytes << " bytes)\n";
+  std::cout << "Used       : " << used_blocks << " blocks (" << used_bytes << " bytes)\n";
+  std::cout << "Free       : " << free_blocks << " blocks (" << free_bytes << " bytes)\n";
   return 0;
 }
 

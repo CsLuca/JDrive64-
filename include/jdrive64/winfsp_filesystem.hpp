@@ -28,8 +28,13 @@ class WinFspFilesystem {
   struct VolumeInfo {
     std::string label;
     std::string filesystem;
+    std::uint32_t block_size_bytes = 256;
     std::uint32_t capacity_blocks = 664;
     std::uint32_t free_blocks = 0;
+    std::uint32_t used_blocks = 0;
+    std::uint64_t capacity_bytes = 0;
+    std::uint64_t free_bytes = 0;
+    std::uint64_t used_bytes = 0;
   };
 
   struct FileInfo {

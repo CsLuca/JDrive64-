@@ -278,6 +278,27 @@ bool TestWinFspFacade(const std::filesystem::path& image_path) {
   if (!Assert(volume_info.filesystem == "JDrive64", "GetVolumeInfo filesystem")) {
     return false;
   }
+  if (!Assert(volume_info.block_size_bytes == 256, "GetVolumeInfo block size")) {
+    return false;
+  }
+  if (!Assert(volume_info.capacity_blocks == 664, "GetVolumeInfo capacity blocks")) {
+    return false;
+  }
+  if (!Assert(volume_info.free_blocks == 30, "GetVolumeInfo free blocks")) {
+    return false;
+  }
+  if (!Assert(volume_info.used_blocks == 634, "GetVolumeInfo used blocks")) {
+    return false;
+  }
+  if (!Assert(volume_info.capacity_bytes == 169984, "GetVolumeInfo capacity bytes")) {
+    return false;
+  }
+  if (!Assert(volume_info.free_bytes == 7680, "GetVolumeInfo free bytes")) {
+    return false;
+  }
+  if (!Assert(volume_info.used_bytes == 162304, "GetVolumeInfo used bytes")) {
+    return false;
+  }
 
   WinFspFilesystem::FileInfo file_info;
   if (!Assert(fs.GetFileInfo("HELLO.PRG", &file_info), "GetFileInfo for HELLO.PRG")) {

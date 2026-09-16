@@ -7,6 +7,24 @@ namespace jdrive64::tests {
 
 namespace {
 
+std::size_t BamTrackOffset(std::uint8_t track) {
+  return 4 + static_cast<std::size_t>(track - 1) * 4;
+}
+
+void SetSectorBit(std::array<std::uint8_t, D64Reader::kSectorSize>& bam,
+                  std::uint8_t track,
+                  std::uint8_t sector,
+                  bool free_value) {
+  const std::size_t entry = BamTrackOffset(track);
+  const std::size_t byte_index = 1 + static_cast<std::size_t>(sector / 8);
+  const std::uint8_t bit = static_cast<std::uint8_t>(1U << (sector % 8));
+  if (free_value) {
+    bam[entry + byte_index] = static_cast<std::uint8_t>(bam[entry + byte_index] | bit);
+  } else {
+    bam[entry + byte_index] = static_cast<std::uint8_t>(bam[entry + byte_index] & ~bit);
+  }
+}
+
 std::uint8_t SectorsPerTrack(std::uint8_t track) {
   if (track >= 1 && track <= 17) {
     return 21;
@@ -40,6 +58,14 @@ void SaveImage(const std::filesystem::path& path, const D64Image& image) {
 
 void BuildCommonBam(D64Image& image, std::uint8_t free_t1, std::uint8_t free_t2, const std::string& label) {
   std::array<std::uint8_t, D64Reader::kSectorSize> bam{};
+
+  for (std::uint8_t track = D64Reader::kMinTrack; track <= D64Reader::kMaxTrack; ++track) {
+    const auto sectors = SectorsPerTrack(track);
+    for (std::uint8_t sector = 0; sector < sectors; ++sector) {
+      SetSectorBit(bam, track, sector, true);
+    }
+  }
+
   bam[4 + (1 - 1) * 4] = free_t1;
   bam[4 + (2 - 1) * 4] = free_t2;
   FillPetsciiName(bam, 0x90, label, 16);
@@ -48,6 +74,20 @@ void BuildCommonBam(D64Image& image, std::uint8_t free_t1, std::uint8_t free_t2,
   bam[0xA5] = '2';
   bam[0xA6] = 'A';
   WriteSector(image, 18, 0, bam);
+}
+
+void MarkUsedInBam(D64Image& image, std::uint8_t track, std::uint8_t sector) {
+  std::array<std::uint8_t, D64Reader::kSectorSize> bam{};
+  const auto bam_offset = TrackSectorToOffset(18, 0);
+  for (std::size_t i = 0; i < bam.size(); ++i) {
+    bam[i] = image.bytes[bam_offset + i];
+  }
+
+  SetSectorBit(bam, track, sector, false);
+
+  for (std::size_t i = 0; i < bam.size(); ++i) {
+    image.bytes[bam_offset + i] = bam[i];
+  }
 }
 
 }  // namespace
@@ -115,6 +155,10 @@ GoldenPaths CreateGoldenCorpus(const std::filesystem::path& root) {
     file_sector[6] = 'O';
     WriteSector(image, 1, 0, file_sector);
 
+    MarkUsedInBam(image, 18, 0);
+    MarkUsedInBam(image, 18, 1);
+    MarkUsedInBam(image, 1, 0);
+
     SaveImage(paths.valid_small, image);
   }
 
@@ -157,6 +201,11 @@ GoldenPaths CreateGoldenCorpus(const std::filesystem::path& root) {
     s2[5] = 'A';
     WriteSector(image, 1, 1, s2);
 
+    MarkUsedInBam(image, 18, 0);
+    MarkUsedInBam(image, 18, 1);
+    MarkUsedInBam(image, 1, 0);
+    MarkUsedInBam(image, 1, 1);
+
     SaveImage(paths.valid_multi, image);
   }
 
@@ -168,6 +217,9 @@ GoldenPaths CreateGoldenCorpus(const std::filesystem::path& root) {
     dir[0] = 0;
     dir[1] = 0;
     WriteSector(image, 18, 1, dir);
+
+    MarkUsedInBam(image, 18, 0);
+    MarkUsedInBam(image, 18, 1);
 
     SaveImage(paths.valid_errorinfo, image);
   }
@@ -186,6 +238,10 @@ GoldenPaths CreateGoldenCorpus(const std::filesystem::path& root) {
     dir[0] = 36;
     dir[1] = 0;
     WriteSector(image, 18, 1, dir);
+
+    MarkUsedInBam(image, 18, 0);
+    MarkUsedInBam(image, 18, 1);
+
     SaveImage(paths.bad_dir_pointer, image);
   }
 
@@ -207,6 +263,11 @@ GoldenPaths CreateGoldenCorpus(const std::filesystem::path& root) {
     s[1] = 0;
     s[2] = 'X';
     WriteSector(image, 1, 0, s);
+
+    MarkUsedInBam(image, 18, 0);
+    MarkUsedInBam(image, 18, 1);
+    MarkUsedInBam(image, 1, 0);
+
     SaveImage(paths.bad_file_loop, image);
   }
 
@@ -228,6 +289,11 @@ GoldenPaths CreateGoldenCorpus(const std::filesystem::path& root) {
     s[1] = 0;
     s[2] = 'X';
     WriteSector(image, 1, 0, s);
+
+    MarkUsedInBam(image, 18, 0);
+    MarkUsedInBam(image, 18, 1);
+    MarkUsedInBam(image, 1, 0);
+
     SaveImage(paths.bad_file_next_pointer, image);
   }
 
