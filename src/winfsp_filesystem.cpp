@@ -100,10 +100,32 @@ bool WinFspFilesystem::ReadFileByWindowsName(const std::string& windows_name,
   return true;
 }
 
+bool WinFspFilesystem::CreateByWindowsName(const std::string& windows_name) {
+  (void)windows_name;
+  last_error_ = "ACCESS_DENIED";
+  return false;
+}
+
 bool WinFspFilesystem::WriteFileByWindowsName(const std::string& windows_name,
                                               const std::vector<std::uint8_t>& data) {
   (void)windows_name;
   (void)data;
+  last_error_ = "ACCESS_DENIED";
+  return false;
+}
+
+bool WinFspFilesystem::SetFileSizeByWindowsName(const std::string& windows_name,
+                                                std::uint64_t size_bytes) {
+  (void)windows_name;
+  (void)size_bytes;
+  last_error_ = "ACCESS_DENIED";
+  return false;
+}
+
+bool WinFspFilesystem::SetFileAttributesByWindowsName(const std::string& windows_name,
+                                                      std::uint32_t attributes_mask) {
+  (void)windows_name;
+  (void)attributes_mask;
   last_error_ = "ACCESS_DENIED";
   return false;
 }

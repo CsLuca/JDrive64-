@@ -32,9 +32,12 @@ class WinFspFilesystem {
   std::string GetVolumeInfoText() const;
   std::vector<std::string> ReadDirectory() const;
   bool ReadFileByWindowsName(const std::string& windows_name, std::vector<std::uint8_t>* data);
+  bool CreateByWindowsName(const std::string& windows_name);
   bool WriteFileByWindowsName(const std::string& windows_name, const std::vector<std::uint8_t>& data);
   bool DeleteByWindowsName(const std::string& windows_name);
   bool RenameByWindowsName(const std::string& old_name, const std::string& new_name);
+  bool SetFileSizeByWindowsName(const std::string& windows_name, std::uint64_t size_bytes);
+  bool SetFileAttributesByWindowsName(const std::string& windows_name, std::uint32_t attributes_mask);
 
   bool GetVolumeInfo(VolumeInfo* info);
   bool GetFileInfo(const std::string& windows_name, FileInfo* info);

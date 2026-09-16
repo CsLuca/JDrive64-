@@ -307,6 +307,29 @@ bool TestWinFspFacade(const std::filesystem::path& image_path) {
     return false;
   }
 
+  if (!Assert(!fs.CreateByWindowsName("NEWFILE.PRG"), "Create is denied in read-only mode")) {
+    return false;
+  }
+  if (!Assert(fs.LastError() == "ACCESS_DENIED", "Create returns ACCESS_DENIED")) {
+    return false;
+  }
+
+  if (!Assert(!fs.SetFileSizeByWindowsName("HELLO.PRG", 123),
+              "SetFileSize is denied in read-only mode")) {
+    return false;
+  }
+  if (!Assert(fs.LastError() == "ACCESS_DENIED", "SetFileSize returns ACCESS_DENIED")) {
+    return false;
+  }
+
+  if (!Assert(!fs.SetFileAttributesByWindowsName("HELLO.PRG", 0x20),
+              "SetFileAttributes is denied in read-only mode")) {
+    return false;
+  }
+  if (!Assert(fs.LastError() == "ACCESS_DENIED", "SetFileAttributes returns ACCESS_DENIED")) {
+    return false;
+  }
+
   if (!Assert(fs.Unmount("Z:"), "Final unmount succeeds")) {
     return false;
   }
