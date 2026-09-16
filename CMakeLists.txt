@@ -51,4 +51,31 @@ if(BUILD_TESTING)
   )
 
   add_test(NAME jdrive64_tests COMMAND jdrive64_tests)
+
+  add_executable(jdrive64_step2_tests
+    tests/test_step2.cpp
+    tests/d64_test_utils.cpp
+  )
+
+  target_link_libraries(jdrive64_step2_tests
+    PRIVATE
+      jdrive64_core
+  )
+
+  add_test(NAME jdrive64_step2_tests COMMAND jdrive64_step2_tests)
+
+  add_executable(jdrive64_cli_smoke_tests
+    tests/test_cli_smoke.cpp
+    tests/d64_test_utils.cpp
+  )
+
+  target_link_libraries(jdrive64_cli_smoke_tests
+    PRIVATE
+      jdrive64_core
+  )
+
+  add_test(
+    NAME jdrive64_cli_smoke_tests
+    COMMAND jdrive64_cli_smoke_tests $<TARGET_FILE:jdrive64>
+  )
 endif()

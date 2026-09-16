@@ -43,6 +43,13 @@ Run tests:
 ctest --test-dir build --output-on-failure
 ```
 
+Step 2 focused tests:
+
+```powershell
+ctest --test-dir build -R jdrive64_step2_tests --output-on-failure
+ctest --test-dir build -R jdrive64_cli_smoke_tests --output-on-failure
+```
+
 ## Notes on Current WinFsp Status
 
 - `WinFspFilesystem` exists as a read-only integration scaffold.
