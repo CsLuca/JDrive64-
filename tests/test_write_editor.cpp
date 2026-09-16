@@ -90,13 +90,57 @@ bool TestWriteFlow(const std::filesystem::path& base_image, const std::filesyste
   return true;
 }
 
+bool TestRollbackOnFailure(const std::filesystem::path& base_image, const std::filesystem::path& work_root) {
+  const auto image = work_root / "rollback_flow.d64";
+  std::error_code ec;
+  std::filesystem::create_directories(work_root, ec);
+  std::filesystem::copy_file(base_image, image, std::filesystem::copy_options::overwrite_existing, ec);
+
+  const auto host_file = work_root / "host_dup.bin";
+  {
+    std::ofstream out(host_file, std::ios::binary | std::ios::trunc);
+    out << "DUPLICATE";
+  }
+
+  D64ImageEditor editor;
+  if (!Check(editor.Open(image.string()), "editor open rollback")) {
+    return false;
+  }
+
+  if (!Check(!editor.AddFile(host_file.string(), "HELLO.PRG"), "add existing file must fail")) {
+    return false;
+  }
+
+  DiskImageSession session;
+  if (!Check(session.Open(image.string()), "session open rollback image")) {
+    return false;
+  }
+
+  std::vector<std::uint8_t> hello;
+  if (!Check(session.ReadFileByWindowsName("HELLO.PRG", &hello), "HELLO remains readable")) {
+    return false;
+  }
+  if (!Check(std::string(hello.begin(), hello.end()) == "HELLO", "HELLO payload unchanged")) {
+    return false;
+  }
+
+  std::vector<std::uint8_t> dup;
+  if (!Check(!session.ReadFileByWindowsName("DUPLICATE.PRG", &dup), "no partial duplicate entry created")) {
+    return false;
+  }
+
+  return true;
+}
+
 }  // namespace
 
 int main() {
   const auto root = std::filesystem::temp_directory_path() / "jdrive64_write_tests";
   const auto golden = CreateGoldenCorpus(root / "golden");
 
-  const bool ok = TestWriteFlow(golden.valid_small, root / "work");
+  bool ok = true;
+  ok = ok && TestWriteFlow(golden.valid_small, root / "work");
+  ok = ok && TestRollbackOnFailure(golden.valid_small, root / "work");
   if (!ok) {
     return 1;
   }

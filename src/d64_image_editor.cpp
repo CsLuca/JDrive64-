@@ -4,6 +4,7 @@
 #include <array>
 #include <cctype>
 #include <cstring>
+#include <iterator>
 #include <set>
 #include <utility>
 
@@ -20,6 +21,9 @@ constexpr std::size_t kMaxChain = 4096;
 
 bool D64ImageEditor::Open(const std::string& image_path) {
   last_error_.clear();
+  image_path_ = image_path;
+  transaction_active_ = false;
+  image_backup_.clear();
 
   if (!reader_.Open(image_path)) {
     last_error_ = reader_.LastError();
@@ -40,10 +44,15 @@ bool D64ImageEditor::Open(const std::string& image_path) {
 bool D64ImageEditor::AddFile(const std::string& host_file_path, const std::string& windows_name) {
   last_error_.clear();
 
+  if (!BeginTransaction()) {
+    return false;
+  }
+
   std::string base_name;
   std::string ext;
   if (!ParseWindowsName(windows_name, &base_name, &ext)) {
     last_error_ = "Invalid target name, expected NAME.EXT";
+    RollbackTransaction();
     return false;
   }
 
@@ -51,20 +60,24 @@ bool D64ImageEditor::AddFile(const std::string& host_file_path, const std::strin
   std::array<std::uint8_t, D64Reader::kSectorSize> existing_sector{};
   if (FindEntryByName(windows_name, &existing, &existing_sector)) {
     last_error_ = "File already exists";
+    RollbackTransaction();
     return false;
   }
   if (last_error_ != "File not found") {
+    RollbackTransaction();
     return false;
   }
 
   EntryLocation free_entry;
   std::array<std::uint8_t, D64Reader::kSectorSize> dir_sector{};
   if (!FindFreeDirectoryEntry(&free_entry, &dir_sector)) {
+    RollbackTransaction();
     return false;
   }
 
   std::vector<std::uint8_t> host_data;
   if (!OpenHostFile(host_file_path, &host_data)) {
+    RollbackTransaction();
     return false;
   }
 
@@ -72,6 +85,7 @@ bool D64ImageEditor::AddFile(const std::string& host_file_path, const std::strin
 
   std::array<std::uint8_t, D64Reader::kSectorSize> bam{};
   if (!LoadBam(&bam)) {
+    RollbackTransaction();
     return false;
   }
 
@@ -95,6 +109,7 @@ bool D64ImageEditor::AddFile(const std::string& host_file_path, const std::strin
 
   if (alloc.size() != blocks_needed) {
     last_error_ = "Not enough free sectors in D64 image";
+    RollbackTransaction();
     return false;
   }
 
@@ -120,6 +135,7 @@ bool D64ImageEditor::AddFile(const std::string& host_file_path, const std::strin
     }
 
     if (!WriteSector(track, sec, sector)) {
+      RollbackTransaction();
       return false;
     }
     MarkSectorUsed(&bam, track, sec);
@@ -142,32 +158,46 @@ bool D64ImageEditor::AddFile(const std::string& host_file_path, const std::strin
   dir_sector[free_entry.offset + 31] = static_cast<std::uint8_t>((blocks_needed >> 8) & 0xFF);
 
   if (!WriteSector(free_entry.dir_track, free_entry.dir_sector, dir_sector)) {
+    RollbackTransaction();
     return false;
   }
 
   if (!SaveBam(bam)) {
+    RollbackTransaction();
     return false;
   }
 
-  return true;
+  if (!VerifyBamConsistency()) {
+    RollbackTransaction();
+    return false;
+  }
+
+  return CommitTransaction();
 }
 
 bool D64ImageEditor::DeleteFile(const std::string& windows_name) {
   last_error_.clear();
 
+  if (!BeginTransaction()) {
+    return false;
+  }
+
   EntryLocation loc;
   std::array<std::uint8_t, D64Reader::kSectorSize> dir_sector{};
   if (!FindEntryByName(windows_name, &loc, &dir_sector)) {
+    RollbackTransaction();
     return false;
   }
 
   std::vector<std::pair<std::uint8_t, std::uint8_t>> chain;
   if (!CollectFileChain(loc.start_track, loc.start_sector, &chain)) {
+    RollbackTransaction();
     return false;
   }
 
   std::array<std::uint8_t, D64Reader::kSectorSize> bam{};
   if (!LoadBam(&bam)) {
+    RollbackTransaction();
     return false;
   }
 
@@ -179,23 +209,35 @@ bool D64ImageEditor::DeleteFile(const std::string& windows_name) {
   std::memcpy(dir_sector.data() + loc.offset, clear.data(), clear.size());
 
   if (!WriteSector(loc.dir_track, loc.dir_sector, dir_sector)) {
+    RollbackTransaction();
     return false;
   }
 
   if (!SaveBam(bam)) {
+    RollbackTransaction();
     return false;
   }
 
-  return true;
+  if (!VerifyBamConsistency()) {
+    RollbackTransaction();
+    return false;
+  }
+
+  return CommitTransaction();
 }
 
 bool D64ImageEditor::RenameFile(const std::string& old_windows_name, const std::string& new_windows_name) {
   last_error_.clear();
 
+  if (!BeginTransaction()) {
+    return false;
+  }
+
   std::string new_base;
   std::string new_ext;
   if (!ParseWindowsName(new_windows_name, &new_base, &new_ext)) {
     last_error_ = "Invalid target name, expected NAME.EXT";
+    RollbackTransaction();
     return false;
   }
 
@@ -204,15 +246,18 @@ bool D64ImageEditor::RenameFile(const std::string& old_windows_name, const std::
   if (ToUpper(old_windows_name) != ToUpper(new_windows_name) &&
       FindEntryByName(new_windows_name, &existing, &existing_sector)) {
     last_error_ = "Target file already exists";
+    RollbackTransaction();
     return false;
   }
   if (last_error_ != "File not found" && ToUpper(old_windows_name) != ToUpper(new_windows_name)) {
+    RollbackTransaction();
     return false;
   }
 
   EntryLocation loc;
   std::array<std::uint8_t, D64Reader::kSectorSize> dir_sector{};
   if (!FindEntryByName(old_windows_name, &loc, &dir_sector)) {
+    RollbackTransaction();
     return false;
   }
 
@@ -227,7 +272,12 @@ bool D64ImageEditor::RenameFile(const std::string& old_windows_name, const std::
   const auto new_type = ExtensionToFileType(new_ext);
   dir_sector[loc.offset + 2] = static_cast<std::uint8_t>((dir_sector[loc.offset + 2] & 0xF8) | new_type | 0x80);
 
-  return WriteSector(loc.dir_track, loc.dir_sector, dir_sector);
+  if (!WriteSector(loc.dir_track, loc.dir_sector, dir_sector)) {
+    RollbackTransaction();
+    return false;
+  }
+
+  return CommitTransaction();
 }
 
 const std::string& D64ImageEditor::LastError() const { return last_error_; }
@@ -590,6 +640,153 @@ bool D64ImageEditor::OpenHostFile(const std::string& host_file_path, std::vector
     }
   }
 
+  return true;
+}
+
+bool D64ImageEditor::BeginTransaction() {
+  if (transaction_active_) {
+    return true;
+  }
+
+  std::ifstream in(image_path_, std::ios::binary);
+  if (!in) {
+    last_error_ = "Cannot open image for transaction backup";
+    return false;
+  }
+
+  image_backup_.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+  if (in.bad()) {
+    last_error_ = "Cannot read image backup";
+    return false;
+  }
+
+  transaction_active_ = true;
+  return true;
+}
+
+bool D64ImageEditor::CommitTransaction() {
+  transaction_active_ = false;
+  image_backup_.clear();
+  return true;
+}
+
+bool D64ImageEditor::RollbackTransaction() {
+  if (!transaction_active_) {
+    return false;
+  }
+
+  if (!writer_) {
+    writer_.clear();
+    writer_.open(image_path_, std::ios::in | std::ios::out | std::ios::binary);
+  }
+  if (!writer_) {
+    last_error_ = "Cannot rollback image (open failed)";
+    return false;
+  }
+
+  writer_.clear();
+  writer_.seekp(0, std::ios::beg);
+  if (!writer_) {
+    last_error_ = "Cannot rollback image (seek failed)";
+    return false;
+  }
+
+  if (!image_backup_.empty()) {
+    writer_.write(reinterpret_cast<const char*>(image_backup_.data()),
+                  static_cast<std::streamsize>(image_backup_.size()));
+  }
+  writer_.flush();
+  if (!writer_) {
+    last_error_ = "Cannot rollback image (write failed)";
+    return false;
+  }
+
+  transaction_active_ = false;
+  image_backup_.clear();
+  return true;
+}
+
+bool D64ImageEditor::VerifyBamConsistency() {
+  std::array<std::uint8_t, D64Reader::kSectorSize> bam{};
+  if (!LoadBam(&bam)) {
+    return false;
+  }
+
+  std::set<std::pair<std::uint8_t, std::uint8_t>> used;
+  if (!ScanUsedSectorsFromDirectory(&used)) {
+    return false;
+  }
+
+  for (std::uint8_t track = D64Reader::kMinTrack; track <= D64Reader::kMaxTrack; ++track) {
+    std::uint8_t free_count = 0;
+    const auto sectors = reader_.SectorsPerTrack(track);
+    for (std::uint8_t sector = 0; sector < sectors; ++sector) {
+      const auto key = std::make_pair(track, sector);
+      const bool should_be_used = used.find(key) != used.end();
+      const bool is_free = IsSectorFree(bam, track, sector);
+      if (should_be_used && is_free) {
+        last_error_ = "BAM mismatch: used sector marked free";
+        return false;
+      }
+      if (!should_be_used && is_free) {
+        ++free_count;
+      }
+    }
+
+    const std::size_t entry = 4 + static_cast<std::size_t>(track - 1) * 4;
+    if (bam[entry] != free_count) {
+      bam[entry] = free_count;
+    }
+  }
+
+  return SaveBam(bam);
+}
+
+bool D64ImageEditor::ScanUsedSectorsFromDirectory(
+    std::set<std::pair<std::uint8_t, std::uint8_t>>* used_sectors) {
+  if (used_sectors == nullptr) {
+    last_error_ = "Invalid used sector output";
+    return false;
+  }
+  used_sectors->clear();
+
+  std::uint8_t dir_track = kDirStartTrack;
+  std::uint8_t dir_sector = kDirStartSector;
+  std::set<std::pair<std::uint8_t, std::uint8_t>> visited_dir;
+
+  while (dir_track != 0) {
+    const auto dir_key = std::make_pair(dir_track, dir_sector);
+    if (!visited_dir.insert(dir_key).second || visited_dir.size() > kMaxChain) {
+      last_error_ = "Directory chain invalid while scanning used sectors";
+      return false;
+    }
+    used_sectors->insert(dir_key);
+
+    std::array<std::uint8_t, D64Reader::kSectorSize> sector{};
+    if (!ReadSector(dir_track, dir_sector, &sector)) {
+      return false;
+    }
+
+    for (std::size_t offset = 2; offset + kEntrySize <= D64Reader::kSectorSize; offset += kEntrySize) {
+      const auto file_type = sector[offset + 2];
+      if ((file_type & 0x07) == 0) {
+        continue;
+      }
+
+      std::vector<std::pair<std::uint8_t, std::uint8_t>> chain;
+      if (!CollectFileChain(sector[offset + 3], sector[offset + 4], &chain)) {
+        return false;
+      }
+      for (const auto& key : chain) {
+        used_sectors->insert(key);
+      }
+    }
+
+    dir_track = sector[0];
+    dir_sector = sector[1];
+  }
+
+  used_sectors->insert({18, 0});
   return true;
 }
 

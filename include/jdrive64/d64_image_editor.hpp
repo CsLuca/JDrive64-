@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <fstream>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -71,8 +72,17 @@ class D64ImageEditor {
 
   bool OpenHostFile(const std::string& host_file_path, std::vector<std::uint8_t>* data);
 
+  bool BeginTransaction();
+  bool CommitTransaction();
+  bool RollbackTransaction();
+  bool VerifyBamConsistency();
+  bool ScanUsedSectorsFromDirectory(std::set<std::pair<std::uint8_t, std::uint8_t>>* used_sectors);
+
   D64Reader reader_;
   std::fstream writer_;
+  std::string image_path_;
+  bool transaction_active_ = false;
+  std::vector<std::uint8_t> image_backup_;
   std::string last_error_;
 };
 

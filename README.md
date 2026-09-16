@@ -93,6 +93,12 @@ ctest --test-dir build -R jdrive64_cli_smoke_tests --output-on-failure
   - `jdrive64 write-ren <image.d64> <old.ext> <new.ext>`
 - The editor updates BAM, directory entries, and file chains directly inside `.d64`.
 
+### Write Hardening
+
+- Write operations use an in-memory transaction snapshot and rollback on failure.
+- BAM consistency is verified and corrected after write operations.
+- Tests include rollback validation for failed write-add scenarios.
+
 ## Milestones
 
 - `v0.2-core-stable`: core parser + tests.
