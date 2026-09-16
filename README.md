@@ -67,6 +67,12 @@ ctest --test-dir build -R jdrive64_cli_smoke_tests --output-on-failure
 - Runtime cache telemetry is exposed through `WinFspFilesystem::GetRuntimeStats()` and `GetRuntimeStatsText()`.
 - Metrics include sector/file cache hit/miss, cache occupancy, hit rate, read ops, and bytes served.
 
+## Mount/Unmount Robustness (Step 7)
+
+- `mount` persists a versioned mount-state file with mount point, absolute image path, and indexed file list.
+- `unmount` validates mount-state consistency before removal.
+- `dir-mounted` and `read-mounted` re-validate mount-state and read directly from the current image/session.
+
 ## Milestones
 
 - `v0.2-core-stable`: core parser + tests.

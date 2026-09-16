@@ -103,6 +103,35 @@ int main(int argc, char** argv) {
     ok = ok && Check(r.exit_code != 0, "info exits non-zero for invalid image");
   }
 
+  {
+    const auto mount_cmd = Quote(exe_path.string()) + " mount " + Quote(golden.valid_small.string()) +
+                           " Z:";
+    const auto mount_r = Run(mount_cmd);
+    ok = ok && Check(mount_r.exit_code == 0, "mount exits 0");
+    ok = ok && Check(Contains(mount_r.output, "Mounted"), "mount output contains Mounted");
+
+    const auto mount_again_r = Run(mount_cmd);
+    ok = ok && Check(mount_again_r.exit_code != 0, "mount fails when already mounted");
+
+    const auto dir_cmd = Quote(exe_path.string()) + " dir-mounted Z:";
+    const auto dir_r = Run(dir_cmd);
+    ok = ok && Check(dir_r.exit_code == 0, "dir-mounted exits 0");
+    ok = ok && Check(Contains(dir_r.output, "HELLO.PRG"), "dir-mounted contains HELLO.PRG");
+
+    const auto read_cmd = Quote(exe_path.string()) + " read-mounted Z: HELLO.PRG";
+    const auto read_r = Run(read_cmd);
+    ok = ok && Check(read_r.exit_code == 0, "read-mounted exits 0");
+    ok = ok && Check(Contains(read_r.output, "HELLO"), "read-mounted returns HELLO");
+
+    const auto unmount_cmd = Quote(exe_path.string()) + " unmount Z:";
+    const auto unmount_r = Run(unmount_cmd);
+    ok = ok && Check(unmount_r.exit_code == 0, "unmount exits 0");
+    ok = ok && Check(Contains(unmount_r.output, "Unmounted Z:"), "unmount output contains Unmounted");
+
+    const auto unmount_again_r = Run(unmount_cmd);
+    ok = ok && Check(unmount_again_r.exit_code != 0, "unmount fails when not mounted");
+  }
+
   if (!ok) {
     return 1;
   }

@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -37,14 +38,126 @@ std::filesystem::path MountStateFile(const std::string& mount_point) {
   return MountStateRoot() / (mount_point + ".state");
 }
 
-std::vector<std::string> ReadMountStateLines(const std::filesystem::path& state_file) {
+struct MountState {
+  std::string mount_point;
+  std::string image_path;
+  std::vector<std::string> files;
+};
+
+bool ParsePrefixedLine(const std::string& line, const std::string& prefix, std::string* value_out) {
+  if (!line.starts_with(prefix) || value_out == nullptr) {
+    return false;
+  }
+  *value_out = line.substr(prefix.size());
+  return true;
+}
+
+bool LoadMountState(const std::filesystem::path& state_file, MountState* state, std::string* error_out) {
+  if (state == nullptr) {
+    if (error_out != nullptr) {
+      *error_out = "Invalid mount state output";
+    }
+    return false;
+  }
+
   std::ifstream in(state_file, std::ios::binary);
+  if (!in) {
+    if (error_out != nullptr) {
+      *error_out = "Cannot open mount state file";
+    }
+    return false;
+  }
+
   std::vector<std::string> lines;
   std::string line;
   while (std::getline(in, line)) {
     lines.push_back(line);
   }
-  return lines;
+
+  if (lines.size() < 3) {
+    if (error_out != nullptr) {
+      *error_out = "Mount state is incomplete";
+    }
+    return false;
+  }
+
+  if (lines[0] != "VERSION=1") {
+    if (error_out != nullptr) {
+      *error_out = "Unsupported mount state version";
+    }
+    return false;
+  }
+
+  MountState parsed;
+  if (!ParsePrefixedLine(lines[1], "MOUNT_POINT=", &parsed.mount_point) ||
+      !ParsePrefixedLine(lines[2], "IMAGE_PATH=", &parsed.image_path)) {
+    if (error_out != nullptr) {
+      *error_out = "Mount state header is invalid";
+    }
+    return false;
+  }
+
+  if (!IsValidMountPoint(parsed.mount_point) || parsed.image_path.empty()) {
+    if (error_out != nullptr) {
+      *error_out = "Mount state values are invalid";
+    }
+    return false;
+  }
+
+  for (std::size_t i = 3; i < lines.size(); ++i) {
+    std::string file;
+    if (!ParsePrefixedLine(lines[i], "FILE=", &file)) {
+      if (error_out != nullptr) {
+        *error_out = "Mount state file list is invalid";
+      }
+      return false;
+    }
+    if (!file.empty()) {
+      parsed.files.push_back(file);
+    }
+  }
+
+  *state = std::move(parsed);
+  return true;
+}
+
+bool SaveMountState(const std::filesystem::path& state_file, const MountState& state, std::string* error_out) {
+  const auto temp_file = state_file.string() + ".tmp";
+  {
+    std::ofstream out(temp_file, std::ios::binary | std::ios::trunc);
+    if (!out) {
+      if (error_out != nullptr) {
+        *error_out = "Cannot write mount state temp file";
+      }
+      return false;
+    }
+
+    out << "VERSION=1\n";
+    out << "MOUNT_POINT=" << state.mount_point << "\n";
+    out << "IMAGE_PATH=" << state.image_path << "\n";
+    for (const auto& file : state.files) {
+      out << "FILE=" << file << "\n";
+    }
+
+    if (!out) {
+      if (error_out != nullptr) {
+        *error_out = "Failed while writing mount state";
+      }
+      return false;
+    }
+  }
+
+  std::error_code ec;
+  std::filesystem::rename(temp_file, state_file, ec);
+  if (ec) {
+    if (error_out != nullptr) {
+      *error_out = "Cannot finalize mount state file";
+    }
+    std::filesystem::remove(temp_file, ec);
+    return false;
+  }
+
+  return true;
 }
 
 void PrintUsage() {
@@ -183,27 +296,39 @@ int CmdMount(const std::string& image_path, std::string mount_point) {
 
   const auto state_file = MountStateFile(mount_point);
   if (std::filesystem::exists(state_file)) {
-    std::cerr << "Error: mount point already marked as mounted: " << mount_point << "\n";
+    std::cerr << "Error: mount point already marked as mounted: " << mount_point
+              << " (unmount first)\n";
+    return 1;
+  }
+
+  std::error_code fs_ec;
+  auto resolved_image = std::filesystem::absolute(image_path, fs_ec);
+  if (fs_ec) {
+    resolved_image = image_path;
+  }
+  if (!std::filesystem::exists(resolved_image)) {
+    std::cerr << "Error: image file does not exist: " << resolved_image.string() << "\n";
     return 1;
   }
 
   WinFspFilesystem fs;
-  if (!fs.MountReadOnly(image_path, mount_point)) {
+  if (!fs.MountReadOnly(resolved_image.string(), mount_point)) {
     std::cerr << "Error: " << fs.LastError() << "\n";
     return 1;
   }
 
-  std::ofstream out(state_file, std::ios::binary);
-  if (!out) {
-    std::cerr << "Error: cannot persist mount state\n";
+  MountState state;
+  state.mount_point = mount_point;
+  state.image_path = resolved_image.string();
+  state.files = fs.ReadDirectory();
+
+  std::string save_error;
+  if (!SaveMountState(state_file, state, &save_error)) {
+    std::cerr << "Error: cannot persist mount state: " << save_error << "\n";
     return 1;
   }
-  out << image_path << "\n";
-  for (const auto& name : fs.ReadDirectory()) {
-    out << name << "\n";
-  }
 
-  std::cout << "Mounted " << image_path << " on " << mount_point << " (read-only)\n";
+  std::cout << "Mounted " << resolved_image.string() << " on " << mount_point << " (read-only)\n";
   std::cout << fs.GetVolumeInfoText() << "\n";
   return 0;
 }
@@ -218,6 +343,17 @@ int CmdUnmount(std::string mount_point) {
   const auto state_file = MountStateFile(mount_point);
   if (!std::filesystem::exists(state_file)) {
     std::cerr << "Error: mount point is not mounted: " << mount_point << "\n";
+    return 1;
+  }
+
+  MountState state;
+  std::string load_error;
+  if (!LoadMountState(state_file, &state, &load_error)) {
+    std::cerr << "Error: invalid mount state: " << load_error << "\n";
+    return 1;
+  }
+  if (state.mount_point != mount_point) {
+    std::cerr << "Error: mount state mismatch for " << mount_point << "\n";
     return 1;
   }
 
@@ -245,17 +381,23 @@ int CmdDirMounted(std::string mount_point) {
     return 1;
   }
 
-  const auto lines = ReadMountStateLines(state_file);
-  if (lines.empty()) {
-    std::cerr << "Error: invalid mount state\n";
+  MountState state;
+  std::string load_error;
+  if (!LoadMountState(state_file, &state, &load_error)) {
+    std::cerr << "Error: invalid mount state: " << load_error << "\n";
     return 1;
   }
 
-  for (std::size_t i = 1; i < lines.size(); ++i) {
-    if (!lines[i].empty()) {
-      std::cout << lines[i] << "\n";
-    }
+  WinFspFilesystem fs;
+  if (!fs.MountReadOnly(state.image_path, mount_point)) {
+    std::cerr << "Error: " << fs.LastError() << "\n";
+    return 1;
   }
+
+  for (const auto& name : fs.ReadDirectory()) {
+    std::cout << name << "\n";
+  }
+
   return 0;
 }
 
@@ -272,14 +414,19 @@ int CmdReadMounted(std::string mount_point, const std::string& windows_name) {
     return 1;
   }
 
-  const auto lines = ReadMountStateLines(state_file);
-  if (lines.empty() || lines[0].empty()) {
-    std::cerr << "Error: invalid mount state\n";
+  MountState state;
+  std::string load_error;
+  if (!LoadMountState(state_file, &state, &load_error)) {
+    std::cerr << "Error: invalid mount state: " << load_error << "\n";
+    return 1;
+  }
+  if (state.mount_point != mount_point) {
+    std::cerr << "Error: mount state mismatch for " << mount_point << "\n";
     return 1;
   }
 
   WinFspFilesystem fs;
-  if (!fs.MountReadOnly(lines[0], mount_point)) {
+  if (!fs.MountReadOnly(state.image_path, mount_point)) {
     std::cerr << "Error: " << fs.LastError() << "\n";
     return 1;
   }
