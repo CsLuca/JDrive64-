@@ -241,6 +241,49 @@ bool TestWinFspFacade(const std::filesystem::path& image_path) {
     return false;
   }
 
+  if (!Assert(fs.MountReadOnly(image_path.string(), "Z:"), "Remount for callback-like API tests")) {
+    return false;
+  }
+
+  WinFspFilesystem::VolumeInfo volume_info;
+  if (!Assert(fs.GetVolumeInfo(&volume_info), "GetVolumeInfo works")) {
+    return false;
+  }
+  if (!Assert(volume_info.filesystem == "JDrive64", "GetVolumeInfo filesystem")) {
+    return false;
+  }
+
+  WinFspFilesystem::FileInfo file_info;
+  if (!Assert(fs.GetFileInfo("HELLO.PRG", &file_info), "GetFileInfo for HELLO.PRG")) {
+    return false;
+  }
+  if (!Assert(file_info.size_bytes == 5, "GetFileInfo size for HELLO.PRG")) {
+    return false;
+  }
+
+  std::uint64_t handle = 0;
+  if (!Assert(fs.Open("HELLO.PRG", &handle), "Open works")) {
+    return false;
+  }
+
+  std::vector<std::uint8_t> slice;
+  if (!Assert(fs.Read(handle, 1, 3, &slice), "Read works")) {
+    return false;
+  }
+  if (!Assert(std::string(slice.begin(), slice.end()) == "ELL", "Read returns expected range")) {
+    return false;
+  }
+
+  if (!Assert(fs.Close(handle), "Close works")) {
+    return false;
+  }
+  if (!Assert(!fs.Read(handle, 0, 1, &slice), "Read with closed handle fails")) {
+    return false;
+  }
+  if (!Assert(fs.LastError() == "Invalid handle", "Read closed handle error")) {
+    return false;
+  }
+
   if (!Assert(!fs.WriteFileByWindowsName("HELLO.PRG", std::vector<std::uint8_t>{1}),
               "Write is denied in read-only mode")) {
     return false;
@@ -261,6 +304,10 @@ bool TestWinFspFacade(const std::filesystem::path& image_path) {
     return false;
   }
   if (!Assert(fs.LastError() == "ACCESS_DENIED", "Rename returns ACCESS_DENIED")) {
+    return false;
+  }
+
+  if (!Assert(fs.Unmount("Z:"), "Final unmount succeeds")) {
     return false;
   }
 

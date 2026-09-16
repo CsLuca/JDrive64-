@@ -54,7 +54,7 @@ ctest --test-dir build -R jdrive64_cli_smoke_tests --output-on-failure
 
 - `WinFspFilesystem` exists as a read-only integration scaffold.
 - Read/write policies and catalog/file read path are in place.
-- Full WinFsp callback binding is the next integration step.
+- Callback-like methods are now available for integration wiring: `GetVolumeInfo`, `GetFileInfo`, `Open`, `Read`, `Close`, `ReadDirectory`.
 
 ## Domain Layer (Step 3)
 
