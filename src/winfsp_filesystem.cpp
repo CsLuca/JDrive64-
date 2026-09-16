@@ -7,12 +7,35 @@
 
 namespace jdrive64 {
 
+namespace {
+
+constexpr std::uint32_t kErrorSuccess = 0;
+constexpr std::uint32_t kErrorAccessDenied = 5;
+constexpr std::uint32_t kErrorFileNotFound = 2;
+constexpr std::uint32_t kErrorInvalidParameter = 87;
+constexpr std::uint32_t kErrorNotReady = 21;
+constexpr std::uint32_t kErrorAlreadyExists = 183;
+constexpr std::uint32_t kErrorNotSupported = 50;
+constexpr std::uint32_t kErrorInvalidHandle = 6;
+constexpr std::uint32_t kErrorBadCommand = 22;
+
+constexpr std::uint32_t kNtStatusSuccess = 0x00000000;
+constexpr std::uint32_t kNtStatusAccessDenied = 0xC0000022;
+constexpr std::uint32_t kNtStatusObjectNameNotFound = 0xC0000034;
+constexpr std::uint32_t kNtStatusInvalidParameter = 0xC000000D;
+constexpr std::uint32_t kNtStatusDeviceNotReady = 0xC00000A3;
+constexpr std::uint32_t kNtStatusObjectNameCollision = 0xC0000035;
+constexpr std::uint32_t kNtStatusNotSupported = 0xC00000BB;
+constexpr std::uint32_t kNtStatusInvalidHandle = 0xC0000008;
+constexpr std::uint32_t kNtStatusUnsuccessful = 0xC0000001;
+
+}  // namespace
+
 bool WinFspFilesystem::MountReadOnly(const std::string& image_path, const std::string& mount_point) {
-  last_error_.clear();
+  SetSuccess();
 
   if (mounted_) {
-    last_error_ = "Already mounted";
-    return false;
+    return SetError(FsStatus::kAlreadyMounted, "Already mounted");
   }
 
   image_path_ = image_path;
@@ -21,8 +44,7 @@ bool WinFspFilesystem::MountReadOnly(const std::string& image_path, const std::s
     return static_cast<char>(std::toupper(c));
   });
   if (mount_point_.size() != 2 || mount_point_[1] != ':') {
-    last_error_ = "Invalid mount point, expected format X:";
-    return false;
+    return SetError(FsStatus::kInvalidMountPoint, "Invalid mount point, expected format X:");
   }
 
   if (!LoadImageSession()) {
@@ -34,11 +56,10 @@ bool WinFspFilesystem::MountReadOnly(const std::string& image_path, const std::s
 }
 
 bool WinFspFilesystem::Unmount(const std::string& mount_point) {
-  last_error_.clear();
+  SetSuccess();
 
   if (!mounted_) {
-    last_error_ = "Not mounted";
-    return false;
+    return SetError(FsStatus::kNotMounted, "Not mounted");
   }
 
   std::string normalized = mount_point;
@@ -47,8 +68,7 @@ bool WinFspFilesystem::Unmount(const std::string& mount_point) {
   });
 
   if (normalized != mount_point_) {
-    last_error_ = "Mount point mismatch";
-    return false;
+    return SetError(FsStatus::kMountPointMismatch, "Mount point mismatch");
   }
 
   mounted_ = false;
@@ -60,6 +80,12 @@ bool WinFspFilesystem::Unmount(const std::string& mount_point) {
 bool WinFspFilesystem::IsMounted() const { return mounted_; }
 
 const std::string& WinFspFilesystem::LastError() const { return last_error_; }
+
+WinFspFilesystem::FsStatus WinFspFilesystem::LastStatus() const { return last_status_; }
+
+std::uint32_t WinFspFilesystem::LastWin32Error() const { return StatusToWin32(last_status_); }
+
+std::uint32_t WinFspFilesystem::LastNtStatus() const { return StatusToNtStatus(last_status_); }
 
 std::string WinFspFilesystem::GetVolumeInfoText() const {
   std::ostringstream oss;
@@ -82,19 +108,19 @@ std::vector<std::string> WinFspFilesystem::ReadDirectory() const {
 
 bool WinFspFilesystem::ReadFileByWindowsName(const std::string& windows_name,
                                              std::vector<std::uint8_t>* data) {
-  last_error_.clear();
+  SetSuccess();
   if (!mounted_) {
-    last_error_ = "Not mounted";
-    return false;
+    return SetError(FsStatus::kNotMounted, "Not mounted");
   }
   if (data == nullptr) {
-    last_error_ = "Invalid output buffer";
-    return false;
+    return SetError(FsStatus::kInvalidParameter, "Invalid output buffer");
   }
 
   if (!session_.ReadFileByWindowsName(windows_name, data)) {
-    last_error_ = session_.LastError();
-    return false;
+    if (session_.LastError() == "File not found") {
+      return SetError(FsStatus::kFileNotFound, session_.LastError());
+    }
+    return SetError(FsStatus::kIoError, session_.LastError());
   }
 
   return true;
@@ -102,57 +128,49 @@ bool WinFspFilesystem::ReadFileByWindowsName(const std::string& windows_name,
 
 bool WinFspFilesystem::CreateByWindowsName(const std::string& windows_name) {
   (void)windows_name;
-  last_error_ = "ACCESS_DENIED";
-  return false;
+  return SetError(FsStatus::kAccessDenied, "ACCESS_DENIED");
 }
 
 bool WinFspFilesystem::WriteFileByWindowsName(const std::string& windows_name,
                                               const std::vector<std::uint8_t>& data) {
   (void)windows_name;
   (void)data;
-  last_error_ = "ACCESS_DENIED";
-  return false;
+  return SetError(FsStatus::kAccessDenied, "ACCESS_DENIED");
 }
 
 bool WinFspFilesystem::SetFileSizeByWindowsName(const std::string& windows_name,
                                                 std::uint64_t size_bytes) {
   (void)windows_name;
   (void)size_bytes;
-  last_error_ = "ACCESS_DENIED";
-  return false;
+  return SetError(FsStatus::kAccessDenied, "ACCESS_DENIED");
 }
 
 bool WinFspFilesystem::SetFileAttributesByWindowsName(const std::string& windows_name,
                                                       std::uint32_t attributes_mask) {
   (void)windows_name;
   (void)attributes_mask;
-  last_error_ = "ACCESS_DENIED";
-  return false;
+  return SetError(FsStatus::kAccessDenied, "ACCESS_DENIED");
 }
 
 bool WinFspFilesystem::DeleteByWindowsName(const std::string& windows_name) {
   (void)windows_name;
-  last_error_ = "ACCESS_DENIED";
-  return false;
+  return SetError(FsStatus::kAccessDenied, "ACCESS_DENIED");
 }
 
 bool WinFspFilesystem::RenameByWindowsName(const std::string& old_name,
                                            const std::string& new_name) {
   (void)old_name;
   (void)new_name;
-  last_error_ = "ACCESS_DENIED";
-  return false;
+  return SetError(FsStatus::kAccessDenied, "ACCESS_DENIED");
 }
 
 bool WinFspFilesystem::GetVolumeInfo(VolumeInfo* info) {
-  last_error_.clear();
+  SetSuccess();
   if (!mounted_) {
-    last_error_ = "Not mounted";
-    return false;
+    return SetError(FsStatus::kNotMounted, "Not mounted");
   }
   if (info == nullptr) {
-    last_error_ = "Invalid output buffer";
-    return false;
+    return SetError(FsStatus::kInvalidParameter, "Invalid output buffer");
   }
 
   info->label = session_.Bam().DiskName();
@@ -163,14 +181,12 @@ bool WinFspFilesystem::GetVolumeInfo(VolumeInfo* info) {
 }
 
 bool WinFspFilesystem::GetFileInfo(const std::string& windows_name, FileInfo* info) {
-  last_error_.clear();
+  SetSuccess();
   if (!mounted_) {
-    last_error_ = "Not mounted";
-    return false;
+    return SetError(FsStatus::kNotMounted, "Not mounted");
   }
   if (info == nullptr) {
-    last_error_ = "Invalid output buffer";
-    return false;
+    return SetError(FsStatus::kInvalidParameter, "Invalid output buffer");
   }
 
   if (windows_name.empty() || windows_name == "\\" || windows_name == "/") {
@@ -182,14 +198,12 @@ bool WinFspFilesystem::GetFileInfo(const std::string& windows_name, FileInfo* in
 
   const auto* file = session_.Catalog().FindByWindowsName(windows_name);
   if (file == nullptr) {
-    last_error_ = "File not found";
-    return false;
+    return SetError(FsStatus::kFileNotFound, "File not found");
   }
 
   std::vector<std::uint8_t> bytes;
   if (!session_.ReadFileByCatalogFile(*file, &bytes)) {
-    last_error_ = session_.LastError();
-    return false;
+    return SetError(FsStatus::kIoError, session_.LastError());
   }
 
   info->windows_name = file->windows_name;
@@ -199,20 +213,17 @@ bool WinFspFilesystem::GetFileInfo(const std::string& windows_name, FileInfo* in
 }
 
 bool WinFspFilesystem::Open(const std::string& windows_name, std::uint64_t* handle_out) {
-  last_error_.clear();
+  SetSuccess();
   if (!mounted_) {
-    last_error_ = "Not mounted";
-    return false;
+    return SetError(FsStatus::kNotMounted, "Not mounted");
   }
   if (handle_out == nullptr) {
-    last_error_ = "Invalid output buffer";
-    return false;
+    return SetError(FsStatus::kInvalidParameter, "Invalid output buffer");
   }
 
   const auto* file = session_.Catalog().FindByWindowsName(windows_name);
   if (file == nullptr) {
-    last_error_ = "File not found";
-    return false;
+    return SetError(FsStatus::kFileNotFound, "File not found");
   }
 
   open_handles_.push_back(file->windows_name);
@@ -224,25 +235,24 @@ bool WinFspFilesystem::Read(std::uint64_t handle,
                             std::uint64_t offset,
                             std::uint32_t size,
                             std::vector<std::uint8_t>* out_bytes) {
-  last_error_.clear();
+  SetSuccess();
   if (!mounted_) {
-    last_error_ = "Not mounted";
-    return false;
+    return SetError(FsStatus::kNotMounted, "Not mounted");
   }
   if (out_bytes == nullptr) {
-    last_error_ = "Invalid output buffer";
-    return false;
+    return SetError(FsStatus::kInvalidParameter, "Invalid output buffer");
   }
   if (!IsValidHandle(handle)) {
-    last_error_ = "Invalid handle";
-    return false;
+    return SetError(FsStatus::kInvalidHandle, "Invalid handle");
   }
 
   const std::string& windows_name = open_handles_[static_cast<std::size_t>(handle - 1)];
   std::vector<std::uint8_t> file_bytes;
   if (!session_.ReadFileByWindowsName(windows_name, &file_bytes)) {
-    last_error_ = session_.LastError();
-    return false;
+    if (session_.LastError() == "File not found") {
+      return SetError(FsStatus::kFileNotFound, session_.LastError());
+    }
+    return SetError(FsStatus::kIoError, session_.LastError());
   }
 
   out_bytes->clear();
@@ -259,14 +269,12 @@ bool WinFspFilesystem::Read(std::uint64_t handle,
 }
 
 bool WinFspFilesystem::Close(std::uint64_t handle) {
-  last_error_.clear();
+  SetSuccess();
   if (!mounted_) {
-    last_error_ = "Not mounted";
-    return false;
+    return SetError(FsStatus::kNotMounted, "Not mounted");
   }
   if (!IsValidHandle(handle)) {
-    last_error_ = "Invalid handle";
-    return false;
+    return SetError(FsStatus::kInvalidHandle, "Invalid handle");
   }
 
   open_handles_[static_cast<std::size_t>(handle - 1)].clear();
@@ -314,11 +322,75 @@ bool WinFspFilesystem::IsValidHandle(std::uint64_t handle) const {
 
 bool WinFspFilesystem::LoadImageSession() {
   if (!session_.Open(image_path_)) {
-    last_error_ = session_.LastError();
-    return false;
+    return SetError(FsStatus::kIoError, session_.LastError());
   }
 
   return true;
+}
+
+void WinFspFilesystem::SetSuccess() {
+  last_status_ = FsStatus::kSuccess;
+  last_error_.clear();
+}
+
+bool WinFspFilesystem::SetError(FsStatus status, const std::string& message) {
+  last_status_ = status;
+  last_error_ = message;
+  return false;
+}
+
+std::uint32_t WinFspFilesystem::StatusToWin32(FsStatus status) {
+  switch (status) {
+    case FsStatus::kSuccess:
+      return kErrorSuccess;
+    case FsStatus::kAccessDenied:
+      return kErrorAccessDenied;
+    case FsStatus::kFileNotFound:
+      return kErrorFileNotFound;
+    case FsStatus::kInvalidParameter:
+    case FsStatus::kInvalidMountPoint:
+    case FsStatus::kMountPointMismatch:
+      return kErrorInvalidParameter;
+    case FsStatus::kNotMounted:
+      return kErrorNotReady;
+    case FsStatus::kAlreadyMounted:
+      return kErrorAlreadyExists;
+    case FsStatus::kInvalidHandle:
+      return kErrorInvalidHandle;
+    case FsStatus::kNotSupported:
+      return kErrorNotSupported;
+    case FsStatus::kIoError:
+    case FsStatus::kInvalidState:
+    default:
+      return kErrorBadCommand;
+  }
+}
+
+std::uint32_t WinFspFilesystem::StatusToNtStatus(FsStatus status) {
+  switch (status) {
+    case FsStatus::kSuccess:
+      return kNtStatusSuccess;
+    case FsStatus::kAccessDenied:
+      return kNtStatusAccessDenied;
+    case FsStatus::kFileNotFound:
+      return kNtStatusObjectNameNotFound;
+    case FsStatus::kInvalidParameter:
+    case FsStatus::kInvalidMountPoint:
+    case FsStatus::kMountPointMismatch:
+      return kNtStatusInvalidParameter;
+    case FsStatus::kNotMounted:
+      return kNtStatusDeviceNotReady;
+    case FsStatus::kAlreadyMounted:
+      return kNtStatusObjectNameCollision;
+    case FsStatus::kInvalidHandle:
+      return kNtStatusInvalidHandle;
+    case FsStatus::kNotSupported:
+      return kNtStatusNotSupported;
+    case FsStatus::kIoError:
+    case FsStatus::kInvalidState:
+    default:
+      return kNtStatusUnsuccessful;
+  }
 }
 
 }  // namespace jdrive64

@@ -10,6 +10,21 @@ namespace jdrive64 {
 
 class WinFspFilesystem {
  public:
+  enum class FsStatus {
+    kSuccess = 0,
+    kAccessDenied,
+    kNotMounted,
+    kAlreadyMounted,
+    kInvalidMountPoint,
+    kMountPointMismatch,
+    kInvalidParameter,
+    kFileNotFound,
+    kInvalidHandle,
+    kIoError,
+    kInvalidState,
+    kNotSupported,
+  };
+
   struct VolumeInfo {
     std::string label;
     std::string filesystem;
@@ -30,6 +45,9 @@ class WinFspFilesystem {
 
   bool IsMounted() const;
   const std::string& LastError() const;
+  FsStatus LastStatus() const;
+  std::uint32_t LastWin32Error() const;
+  std::uint32_t LastNtStatus() const;
 
   std::string GetVolumeInfoText() const;
   std::vector<std::string> ReadDirectory() const;
@@ -57,6 +75,11 @@ class WinFspFilesystem {
                        std::size_t file_cache_max_item_size);
 
  private:
+  void SetSuccess();
+  bool SetError(FsStatus status, const std::string& message);
+  static std::uint32_t StatusToWin32(FsStatus status);
+  static std::uint32_t StatusToNtStatus(FsStatus status);
+
   bool IsValidHandle(std::uint64_t handle) const;
 
   bool LoadImageSession();
@@ -64,6 +87,7 @@ class WinFspFilesystem {
   std::string image_path_;
   std::string mount_point_;
   bool mounted_ = false;
+  FsStatus last_status_ = FsStatus::kSuccess;
   std::string last_error_;
 
   DiskImageSession session_;

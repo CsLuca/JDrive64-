@@ -340,12 +340,26 @@ bool TestWinFspFacade(const std::filesystem::path& image_path) {
   if (!Assert(fs.LastError() == "Invalid handle", "Read closed handle error")) {
     return false;
   }
+  if (!Assert(fs.LastStatus() == WinFspFilesystem::FsStatus::kInvalidHandle,
+              "Read closed handle status is kInvalidHandle")) {
+    return false;
+  }
+  if (!Assert(fs.LastWin32Error() == 6, "Read closed handle Win32 error is ERROR_INVALID_HANDLE")) {
+    return false;
+  }
 
   if (!Assert(!fs.WriteFileByWindowsName("HELLO.PRG", std::vector<std::uint8_t>{1}),
               "Write is denied in read-only mode")) {
     return false;
   }
   if (!Assert(fs.LastError() == "ACCESS_DENIED", "Write returns ACCESS_DENIED")) {
+    return false;
+  }
+  if (!Assert(fs.LastStatus() == WinFspFilesystem::FsStatus::kAccessDenied,
+              "Write status is kAccessDenied")) {
+    return false;
+  }
+  if (!Assert(fs.LastWin32Error() == 5, "Write Win32 error is ERROR_ACCESS_DENIED")) {
     return false;
   }
 
@@ -384,6 +398,30 @@ bool TestWinFspFacade(const std::filesystem::path& image_path) {
     return false;
   }
   if (!Assert(fs.LastError() == "ACCESS_DENIED", "SetFileAttributes returns ACCESS_DENIED")) {
+    return false;
+  }
+
+  WinFspFilesystem fs2;
+  std::vector<std::uint8_t> tmp;
+  if (!Assert(!fs2.ReadFileByWindowsName("HELLO.PRG", &tmp), "Read before mount fails")) {
+    return false;
+  }
+  if (!Assert(fs2.LastStatus() == WinFspFilesystem::FsStatus::kNotMounted,
+              "Read before mount status is kNotMounted")) {
+    return false;
+  }
+  if (!Assert(fs2.LastWin32Error() == 21, "Read before mount Win32 error is ERROR_NOT_READY")) {
+    return false;
+  }
+
+  if (!Assert(!fs.GetFileInfo("MISSING.PRG", &file_info), "GetFileInfo missing fails")) {
+    return false;
+  }
+  if (!Assert(fs.LastStatus() == WinFspFilesystem::FsStatus::kFileNotFound,
+              "GetFileInfo missing status is kFileNotFound")) {
+    return false;
+  }
+  if (!Assert(fs.LastWin32Error() == 2, "GetFileInfo missing Win32 error is ERROR_FILE_NOT_FOUND")) {
     return false;
   }
 

@@ -79,6 +79,12 @@ ctest --test-dir build -R jdrive64_cli_smoke_tests --output-on-failure
 - `unmount` validates mount-state consistency before removal.
 - `dir-mounted` and `read-mounted` re-validate mount-state and read directly from the current image/session.
 
+## Read-Only Error Contract (Step 9)
+
+- `WinFspFilesystem` now tracks normalized status with `LastStatus()`, `LastWin32Error()`, and `LastNtStatus()`.
+- Mutation operations return `kAccessDenied` with Win32 `ERROR_ACCESS_DENIED` and NTSTATUS `STATUS_ACCESS_DENIED`.
+- Read/open/info paths map failures to consistent status families (`kNotMounted`, `kFileNotFound`, `kInvalidHandle`, `kInvalidParameter`, `kIoError`).
+
 ## Milestones
 
 - `v0.2-core-stable`: core parser + tests.
