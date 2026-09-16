@@ -24,6 +24,7 @@ See `ROADMAP_BASELINE.md` for milestones and final Definition of Done.
 - `jdrive64 ls <image.d64>`
 - `jdrive64 extract <image.d64> [output_dir]`
 - `jdrive64 mount <image.d64> <drive_letter:>`
+- `jdrive64 mounts`
 - `jdrive64 unmount <drive_letter:>`
 - `jdrive64 dir-mounted <drive_letter:>`
 - `jdrive64 read-mounted <drive_letter:> <name.ext>`

@@ -117,6 +117,11 @@ int main(int argc, char** argv) {
     const auto mount_again_r = Run(mount_cmd);
     ok = ok && Check(mount_again_r.exit_code != 0, "mount fails when already mounted");
 
+    const auto mounts_cmd = Quote(exe_path.string()) + " mounts";
+    const auto mounts_r = Run(mounts_cmd);
+    ok = ok && Check(mounts_r.exit_code == 0, "mounts exits 0");
+    ok = ok && Check(Contains(mounts_r.output, "Z:"), "mounts contains drive letter");
+
     const auto dir_cmd = Quote(exe_path.string()) + " dir-mounted Z:";
     const auto dir_r = Run(dir_cmd);
     ok = ok && Check(dir_r.exit_code == 0, "dir-mounted exits 0");
@@ -146,6 +151,11 @@ int main(int argc, char** argv) {
 
     const auto unmount_again_r = Run(unmount_cmd);
     ok = ok && Check(unmount_again_r.exit_code != 0, "unmount fails when not mounted");
+
+    const auto mounts_after_unmount_r = Run(mounts_cmd);
+    ok = ok && Check(mounts_after_unmount_r.exit_code == 0, "mounts exits 0 after unmount");
+    ok = ok && Check(!Contains(mounts_after_unmount_r.output, "Z:"),
+                     "mounts no longer contains drive letter after unmount");
   }
 
   if (!ok) {

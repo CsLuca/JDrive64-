@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstdint>
+#include <algorithm>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -41,7 +42,8 @@ bool IsValidMountPoint(const std::string& mount_point) {
 }
 
 std::filesystem::path MountStateFile(const std::string& mount_point) {
-  return MountStateRoot() / (mount_point + ".state");
+  const std::string file_name(1, mount_point[0]);
+  return MountStateRoot() / (file_name + ".state");
 }
 
 struct MountState {
@@ -173,6 +175,7 @@ void PrintUsage() {
             << "  jdrive64 ls <image.d64>\n"
             << "  jdrive64 extract <image.d64> [output_dir]\n"
             << "  jdrive64 mount <image.d64> <drive_letter:>\n"
+            << "  jdrive64 mounts\n"
             << "  jdrive64 unmount <drive_letter:>\n"
             << "  jdrive64 dir-mounted <drive_letter:>\n"
             << "  jdrive64 read-mounted <drive_letter:> <name.ext>\n"
@@ -352,6 +355,43 @@ int CmdMount(const std::string& image_path, std::string mount_point) {
 
   std::cout << "Mounted " << resolved_image.string() << " on " << mount_point << " (read-only)\n";
   std::cout << fs.GetVolumeInfoText() << "\n";
+  return 0;
+}
+
+int CmdMounts() {
+  std::error_code ec;
+  std::filesystem::create_directories(MountStateRoot(), ec);
+  if (ec) {
+    std::cerr << "Error: cannot access mount state directory\n";
+    return 1;
+  }
+
+  std::vector<std::string> lines;
+  for (const auto& entry : std::filesystem::directory_iterator(MountStateRoot(), ec)) {
+    if (ec) {
+      std::cerr << "Error: cannot enumerate mount state directory\n";
+      return 1;
+    }
+    if (!entry.is_regular_file()) {
+      continue;
+    }
+
+    MountState state;
+    std::string load_error;
+    if (!LoadMountState(entry.path(), &state, &load_error)) {
+      continue;
+    }
+    if (!IsValidMountPoint(state.mount_point)) {
+      continue;
+    }
+
+    lines.push_back(state.mount_point + " -> " + state.image_path);
+  }
+
+  std::sort(lines.begin(), lines.end());
+  for (const auto& line : lines) {
+    std::cout << line << "\n";
+  }
   return 0;
 }
 
@@ -592,6 +632,10 @@ int main(int argc, char** argv) {
       return 1;
     }
     return CmdUnmount(argv[2]);
+  }
+
+  if (command == "mounts") {
+    return CmdMounts();
   }
 
   if (command == "dir-mounted") {
