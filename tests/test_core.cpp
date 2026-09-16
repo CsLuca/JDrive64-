@@ -212,6 +212,30 @@ bool TestCaches() {
     return false;
   }
 
+  if (!Assert(file_cache.Capacity() == 1, "File cache capacity reports value")) {
+    return false;
+  }
+  if (!Assert(file_cache.Size() <= file_cache.Capacity(), "File cache size within capacity")) {
+    return false;
+  }
+  if (!Assert(file_cache.HitRate() >= 0.0 && file_cache.HitRate() <= 1.0,
+              "File cache hit rate in range")) {
+    return false;
+  }
+  file_cache.ResetStats();
+  if (!Assert(file_cache.Hits() == 0 && file_cache.Misses() == 0, "File cache reset stats")) {
+    return false;
+  }
+
+  sector_cache.SetCapacity(2);
+  if (!Assert(sector_cache.Capacity() == 2, "Sector cache capacity can be updated")) {
+    return false;
+  }
+  sector_cache.ResetStats();
+  if (!Assert(sector_cache.Hits() == 0 && sector_cache.Misses() == 0, "Sector cache reset stats")) {
+    return false;
+  }
+
   return true;
 }
 
@@ -244,6 +268,8 @@ bool TestWinFspFacade(const std::filesystem::path& image_path) {
   if (!Assert(fs.MountReadOnly(image_path.string(), "Z:"), "Remount for callback-like API tests")) {
     return false;
   }
+
+  fs.ConfigureCaches(16, 16, 2);
 
   WinFspFilesystem::VolumeInfo volume_info;
   if (!Assert(fs.GetVolumeInfo(&volume_info), "GetVolumeInfo works")) {
@@ -283,6 +309,15 @@ bool TestWinFspFacade(const std::filesystem::path& image_path) {
   }
   if (!Assert(stats.file_cache.hits + stats.file_cache.misses > 0,
               "RuntimeStats file cache telemetry available")) {
+    return false;
+  }
+  if (!Assert(stats.avg_read_latency_us >= 0.0, "RuntimeStats avg latency available")) {
+    return false;
+  }
+  if (!Assert(stats.throughput_bytes_per_sec >= 0.0, "RuntimeStats throughput available")) {
+    return false;
+  }
+  if (!Assert(stats.file_cache_max_item_size == 2, "RuntimeStats reports file cache max item size")) {
     return false;
   }
 

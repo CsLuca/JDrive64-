@@ -64,6 +64,15 @@ void SectorCache::ResetStats() {
   misses_ = 0;
 }
 
+void SectorCache::SetCapacity(std::size_t capacity) {
+  capacity_ = capacity == 0 ? 1 : capacity;
+  while (lru_.size() > capacity_) {
+    const auto& to_remove = lru_.back().key;
+    index_.erase(to_remove);
+    lru_.pop_back();
+  }
+}
+
 std::size_t SectorCache::PairHash::operator()(
     const std::pair<std::uint8_t, std::uint8_t>& v) const {
   return (static_cast<std::size_t>(v.first) << 8U) ^ static_cast<std::size_t>(v.second);

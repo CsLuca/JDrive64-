@@ -22,6 +22,7 @@ class SectorCache {
   std::size_t Size() const;
   double HitRate() const;
   void ResetStats();
+  void SetCapacity(std::size_t capacity);
 
  private:
   struct CacheEntry {

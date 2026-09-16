@@ -287,8 +287,16 @@ std::string WinFspFilesystem::GetRuntimeStatsText() const {
       << " size=" << s.file_cache.size << "/" << s.file_cache.capacity
       << " hitRate=" << s.file_cache.hit_rate << "\n"
       << "ReadOps=" << s.read_ops << " BytesServed=" << s.bytes_served
-      << " OpenCount=" << s.open_count;
+      << " OpenCount=" << s.open_count << " AvgLatencyUs=" << s.avg_read_latency_us
+      << " ThroughputBps=" << s.throughput_bytes_per_sec
+      << " FileCacheMaxItem=" << s.file_cache_max_item_size;
   return oss.str();
+}
+
+void WinFspFilesystem::ConfigureCaches(std::size_t sector_cache_capacity,
+                                       std::size_t file_cache_capacity,
+                                       std::size_t file_cache_max_item_size) {
+  session_.ConfigureCaches(sector_cache_capacity, file_cache_capacity, file_cache_max_item_size);
 }
 
 bool WinFspFilesystem::IsValidHandle(std::uint64_t handle) const {

@@ -67,6 +67,12 @@ ctest --test-dir build -R jdrive64_cli_smoke_tests --output-on-failure
 - Runtime cache telemetry is exposed through `WinFspFilesystem::GetRuntimeStats()` and `GetRuntimeStatsText()`.
 - Metrics include sector/file cache hit/miss, cache occupancy, hit rate, read ops, and bytes served.
 
+## Cache Policy (Step 8)
+
+- Runtime cache policy can be tuned with `WinFspFilesystem::ConfigureCaches(sectorCap, fileCap, fileMaxItemSize)`.
+- File cache stores only items up to `fileMaxItemSize` bytes (small/medium files), while larger files bypass file-cache insertion.
+- Runtime telemetry now includes average read latency (`avg_read_latency_us`) and throughput (`throughput_bytes_per_sec`).
+
 ## Mount/Unmount Robustness (Step 7)
 
 - `mount` persists a versioned mount-state file with mount point, absolute image path, and indexed file list.

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -28,9 +29,15 @@ class DiskImageSession {
     std::uint64_t bytes_served = 0;
     std::uint64_t read_ops = 0;
     std::uint64_t open_count = 0;
+    double avg_read_latency_us = 0.0;
+    double throughput_bytes_per_sec = 0.0;
+    std::size_t file_cache_max_item_size = 0;
   };
 
   bool Open(const std::string& image_path);
+  void ConfigureCaches(std::size_t sector_cache_capacity,
+                       std::size_t file_cache_capacity,
+                       std::size_t file_cache_max_item_size);
 
   const BAMReader& Bam() const;
   const DiskCatalog& Catalog() const;
@@ -52,6 +59,10 @@ class DiskImageSession {
   std::uint64_t bytes_served_ = 0;
   std::uint64_t read_ops_ = 0;
   std::uint64_t open_count_ = 0;
+  std::uint64_t total_read_latency_us_ = 0;
+  std::chrono::steady_clock::time_point first_read_time_{};
+  bool has_first_read_time_ = false;
+  std::size_t file_cache_max_item_size_ = 64 * 1024;
   std::string last_error_;
 };
 

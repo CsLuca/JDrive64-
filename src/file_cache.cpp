@@ -61,4 +61,12 @@ void FileCache::ResetStats() {
   misses_ = 0;
 }
 
+void FileCache::SetCapacity(std::size_t capacity) {
+  capacity_ = capacity == 0 ? 1 : capacity;
+  while (lru_.size() > capacity_) {
+    index_.erase(lru_.back().key);
+    lru_.pop_back();
+  }
+}
+
 }  // namespace jdrive64

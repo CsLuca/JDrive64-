@@ -52,6 +52,9 @@ class WinFspFilesystem {
 
   RuntimeStats GetRuntimeStats() const;
   std::string GetRuntimeStatsText() const;
+  void ConfigureCaches(std::size_t sector_cache_capacity,
+                       std::size_t file_cache_capacity,
+                       std::size_t file_cache_max_item_size);
 
  private:
   bool IsValidHandle(std::uint64_t handle) const;
