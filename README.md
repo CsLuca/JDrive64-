@@ -62,6 +62,11 @@ ctest --test-dir build -R jdrive64_cli_smoke_tests --output-on-failure
 - `DiskImageSession` is the shared domain entry point for image open, BAM/catalog access, and file reads.
 - CLI (`ls`, `extract`) and WinFsp facade reuse the same domain model to avoid duplicated parsing logic.
 
+## Cache Metrics (Step 6)
+
+- Runtime cache telemetry is exposed through `WinFspFilesystem::GetRuntimeStats()` and `GetRuntimeStatsText()`.
+- Metrics include sector/file cache hit/miss, cache occupancy, hit rate, read ops, and bytes served.
+
 ## Milestones
 
 - `v0.2-core-stable`: core parser + tests.

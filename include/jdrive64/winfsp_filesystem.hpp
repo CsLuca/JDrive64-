@@ -23,6 +23,8 @@ class WinFspFilesystem {
     bool is_directory = false;
   };
 
+  using RuntimeStats = DiskImageSession::RuntimeStats;
+
   bool MountReadOnly(const std::string& image_path, const std::string& mount_point);
   bool Unmount(const std::string& mount_point);
 
@@ -47,6 +49,9 @@ class WinFspFilesystem {
             std::uint32_t size,
             std::vector<std::uint8_t>* out_bytes);
   bool Close(std::uint64_t handle);
+
+  RuntimeStats GetRuntimeStats() const;
+  std::string GetRuntimeStatsText() const;
 
  private:
   bool IsValidHandle(std::uint64_t handle) const;

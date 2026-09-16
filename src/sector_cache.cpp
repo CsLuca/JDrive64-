@@ -47,6 +47,23 @@ std::size_t SectorCache::Hits() const { return hits_; }
 
 std::size_t SectorCache::Misses() const { return misses_; }
 
+std::size_t SectorCache::Capacity() const { return capacity_; }
+
+std::size_t SectorCache::Size() const { return lru_.size(); }
+
+double SectorCache::HitRate() const {
+  const auto total = hits_ + misses_;
+  if (total == 0) {
+    return 0.0;
+  }
+  return static_cast<double>(hits_) / static_cast<double>(total);
+}
+
+void SectorCache::ResetStats() {
+  hits_ = 0;
+  misses_ = 0;
+}
+
 std::size_t SectorCache::PairHash::operator()(
     const std::pair<std::uint8_t, std::uint8_t>& v) const {
   return (static_cast<std::size_t>(v.first) << 8U) ^ static_cast<std::size_t>(v.second);

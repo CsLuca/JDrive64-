@@ -274,6 +274,28 @@ bool TestWinFspFacade(const std::filesystem::path& image_path) {
     return false;
   }
 
+  const auto stats = fs.GetRuntimeStats();
+  if (!Assert(stats.read_ops >= 2, "RuntimeStats read_ops increments")) {
+    return false;
+  }
+  if (!Assert(stats.bytes_served >= 8, "RuntimeStats bytes_served increments")) {
+    return false;
+  }
+  if (!Assert(stats.file_cache.hits + stats.file_cache.misses > 0,
+              "RuntimeStats file cache telemetry available")) {
+    return false;
+  }
+
+  const auto stats_text = fs.GetRuntimeStatsText();
+  if (!Assert(stats_text.find("SectorCache") != std::string::npos,
+              "RuntimeStatsText contains SectorCache")) {
+    return false;
+  }
+  if (!Assert(stats_text.find("FileCache") != std::string::npos,
+              "RuntimeStatsText contains FileCache")) {
+    return false;
+  }
+
   if (!Assert(fs.Close(handle), "Close works")) {
     return false;
   }

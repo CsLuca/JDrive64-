@@ -18,6 +18,10 @@ class FileCache {
 
   std::size_t Hits() const;
   std::size_t Misses() const;
+  std::size_t Capacity() const;
+  std::size_t Size() const;
+  double HitRate() const;
+  void ResetStats();
 
  private:
   struct CacheEntry {

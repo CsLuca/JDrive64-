@@ -44,4 +44,21 @@ std::size_t FileCache::Hits() const { return hits_; }
 
 std::size_t FileCache::Misses() const { return misses_; }
 
+std::size_t FileCache::Capacity() const { return capacity_; }
+
+std::size_t FileCache::Size() const { return lru_.size(); }
+
+double FileCache::HitRate() const {
+  const auto total = hits_ + misses_;
+  if (total == 0) {
+    return 0.0;
+  }
+  return static_cast<double>(hits_) / static_cast<double>(total);
+}
+
+void FileCache::ResetStats() {
+  hits_ = 0;
+  misses_ = 0;
+}
+
 }  // namespace jdrive64

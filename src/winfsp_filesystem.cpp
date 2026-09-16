@@ -273,6 +273,24 @@ bool WinFspFilesystem::Close(std::uint64_t handle) {
   return true;
 }
 
+WinFspFilesystem::RuntimeStats WinFspFilesystem::GetRuntimeStats() const {
+  return session_.GetRuntimeStats();
+}
+
+std::string WinFspFilesystem::GetRuntimeStatsText() const {
+  const auto s = session_.GetRuntimeStats();
+  std::ostringstream oss;
+  oss << "SectorCache hits=" << s.sector_cache.hits << " misses=" << s.sector_cache.misses
+      << " size=" << s.sector_cache.size << "/" << s.sector_cache.capacity
+      << " hitRate=" << s.sector_cache.hit_rate << "\n"
+      << "FileCache hits=" << s.file_cache.hits << " misses=" << s.file_cache.misses
+      << " size=" << s.file_cache.size << "/" << s.file_cache.capacity
+      << " hitRate=" << s.file_cache.hit_rate << "\n"
+      << "ReadOps=" << s.read_ops << " BytesServed=" << s.bytes_served
+      << " OpenCount=" << s.open_count;
+  return oss.str();
+}
+
 bool WinFspFilesystem::IsValidHandle(std::uint64_t handle) const {
   if (handle == 0) {
     return false;
