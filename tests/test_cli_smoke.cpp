@@ -127,6 +127,18 @@ int main(int argc, char** argv) {
     ok = ok && Check(read_r.exit_code == 0, "read-mounted exits 0");
     ok = ok && Check(Contains(read_r.output, "HELLO"), "read-mounted returns HELLO");
 
+    const auto volume_cmd = Quote(exe_path.string()) + " volume-mounted Z:";
+    const auto volume_r = Run(volume_cmd);
+    ok = ok && Check(volume_r.exit_code == 0, "volume-mounted exits 0");
+    ok = ok && Check(Contains(volume_r.output, "Label:"), "volume-mounted contains Label");
+    ok = ok && Check(Contains(volume_r.output, "Capacity:"), "volume-mounted contains Capacity");
+
+    const auto stats_cmd = Quote(exe_path.string()) + " stats-mounted Z:";
+    const auto stats_r = Run(stats_cmd);
+    ok = ok && Check(stats_r.exit_code == 0, "stats-mounted exits 0");
+    ok = ok && Check(Contains(stats_r.output, "SectorCache"), "stats-mounted contains SectorCache");
+    ok = ok && Check(Contains(stats_r.output, "ReadOps="), "stats-mounted contains ReadOps");
+
     const auto unmount_cmd = Quote(exe_path.string()) + " unmount Z:";
     const auto unmount_r = Run(unmount_cmd);
     ok = ok && Check(unmount_r.exit_code == 0, "unmount exits 0");
