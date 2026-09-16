@@ -2,6 +2,7 @@
 
 #include <array>
 #include <set>
+#include <sstream>
 #include <utility>
 
 #include "jdrive64/d64_reader.hpp"
@@ -16,8 +17,20 @@ std::vector<std::uint8_t> FileChainReader::ReadFile(const DirectoryEntry& entry)
   last_error_.clear();
   std::vector<std::uint8_t> out;
 
+  constexpr std::size_t kMaxChainSectors = 1024;
+  constexpr std::size_t kMaxOutputBytes = 16 * 1024 * 1024;
+
   if (entry.start_track == 0) {
     return out;
+  }
+
+  if (entry.start_track < D64Reader::kMinTrack || entry.start_track > D64Reader::kMaxTrack) {
+    last_error_ = "Invalid start track in directory entry";
+    return {};
+  }
+  if (entry.start_sector >= reader_.SectorsPerTrack(entry.start_track)) {
+    last_error_ = "Invalid start sector in directory entry";
+    return {};
   }
 
   std::array<std::uint8_t, D64Reader::kSectorSize> sector{};
@@ -25,8 +38,29 @@ std::vector<std::uint8_t> FileChainReader::ReadFile(const DirectoryEntry& entry)
 
   std::uint8_t track = entry.start_track;
   std::uint8_t sec = entry.start_sector;
+  std::size_t chain_count = 0;
 
   while (track != 0) {
+    ++chain_count;
+    if (chain_count > kMaxChainSectors) {
+      last_error_ = "File sector chain exceeds safety limit";
+      return {};
+    }
+
+    if (track < D64Reader::kMinTrack || track > D64Reader::kMaxTrack) {
+      std::ostringstream oss;
+      oss << "Invalid track in file chain: " << static_cast<int>(track);
+      last_error_ = oss.str();
+      return {};
+    }
+    if (sec >= reader_.SectorsPerTrack(track)) {
+      std::ostringstream oss;
+      oss << "Invalid sector in file chain: " << static_cast<int>(sec) << " on track "
+          << static_cast<int>(track);
+      last_error_ = oss.str();
+      return {};
+    }
+
     const auto key = std::make_pair(track, sec);
     if (!visited.insert(key).second) {
       last_error_ = "Detected loop in file sector chain";
@@ -49,10 +83,27 @@ std::vector<std::uint8_t> FileChainReader::ReadFile(const DirectoryEntry& entry)
       }
 
       const auto payload_size = used_bytes - 2;
+      if (out.size() + payload_size > kMaxOutputBytes) {
+        last_error_ = "File output exceeds safety limit";
+        return {};
+      }
       out.insert(out.end(), sector.begin() + 2, sector.begin() + 2 + payload_size);
       break;
     }
 
+    if (next_track < D64Reader::kMinTrack || next_track > D64Reader::kMaxTrack ||
+        next_sector >= reader_.SectorsPerTrack(next_track)) {
+      std::ostringstream oss;
+      oss << "Invalid next pointer in file chain: " << static_cast<int>(next_track) << "/"
+          << static_cast<int>(next_sector);
+      last_error_ = oss.str();
+      return {};
+    }
+
+    if (out.size() + (D64Reader::kSectorSize - 2) > kMaxOutputBytes) {
+      last_error_ = "File output exceeds safety limit";
+      return {};
+    }
     out.insert(out.end(), sector.begin() + 2, sector.end());
     track = next_track;
     sec = next_sector;

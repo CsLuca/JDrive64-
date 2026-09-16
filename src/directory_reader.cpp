@@ -14,6 +14,23 @@ constexpr std::uint8_t kDirStartTrack = 18;
 constexpr std::uint8_t kDirStartSector = 1;
 constexpr std::size_t kEntrySize = 32;
 
+bool IsValidDirectoryNextPointer(const D64Reader& reader,
+                                 std::uint8_t next_track,
+                                 std::uint8_t next_sector) {
+  if (next_track == 0) {
+    return true;
+  }
+  if (next_track < D64Reader::kMinTrack || next_track > D64Reader::kMaxTrack) {
+    return false;
+  }
+  return next_sector < reader.SectorsPerTrack(next_track);
+}
+
+bool IsSupportedFileType(std::uint8_t file_type) {
+  const auto kind = static_cast<std::uint8_t>(file_type & 0x07);
+  return kind <= 4;
+}
+
 }  // namespace
 
 bool DirectoryReader::Load(D64Reader& reader) {
@@ -38,16 +55,28 @@ bool DirectoryReader::Load(D64Reader& reader) {
       return false;
     }
 
-    for (std::size_t offset = 2; offset < D64Reader::kSectorSize; offset += kEntrySize) {
+    for (std::size_t offset = 2; offset + kEntrySize <= D64Reader::kSectorSize; offset += kEntrySize) {
       const std::uint8_t file_type = sector[offset + 2];
       if ((file_type & 0x0F) == 0 || (file_type & 0x80) == 0) {
         continue;
       }
 
+      if (!IsSupportedFileType(file_type)) {
+        continue;
+      }
+
+      const std::uint8_t start_track = sector[offset + 3];
+      const std::uint8_t start_sector = sector[offset + 4];
+      if (start_track != 0 &&
+          (start_track < D64Reader::kMinTrack || start_track > D64Reader::kMaxTrack ||
+           start_sector >= reader.SectorsPerTrack(start_track))) {
+        continue;
+      }
+
       DirectoryEntry entry;
       entry.file_type = file_type;
-      entry.start_track = sector[offset + 3];
-      entry.start_sector = sector[offset + 4];
+      entry.start_track = start_track;
+      entry.start_sector = start_sector;
       entry.name = PetsciiToUtf8(&sector[offset + 5], 16);
       entry.extension = FileTypeToExtension(file_type);
       entry.size_blocks = static_cast<std::uint16_t>(sector[offset + 30]) |
@@ -56,8 +85,15 @@ bool DirectoryReader::Load(D64Reader& reader) {
       entries_.push_back(std::move(entry));
     }
 
-    current_track = sector[0];
-    current_sector = sector[1];
+    const auto next_track = sector[0];
+    const auto next_sector = sector[1];
+    if (!IsValidDirectoryNextPointer(reader, next_track, next_sector)) {
+      last_error_ = "Invalid directory sector chain pointer";
+      return false;
+    }
+
+    current_track = next_track;
+    current_sector = next_sector;
   }
 
   return true;
@@ -80,7 +116,7 @@ std::string DirectoryReader::FileTypeToExtension(std::uint8_t file_type) {
     case 4:
       return "REL";
     default:
-      return "BIN";
+      return "UNK";
   }
 }
 

@@ -1,6 +1,7 @@
 #include "jdrive64/d64_reader.hpp"
 
 #include <algorithm>
+#include <sstream>
 #include <vector>
 
 #include "jdrive64/sector_cache.hpp"
@@ -54,7 +55,7 @@ bool D64Reader::Open(const std::string& filename) {
   file_.clear();
   file_.open(filename, std::ios::binary);
   if (!file_) {
-    last_error_ = "Cannot open D64 file";
+    last_error_ = "Cannot open D64 file: " + filename;
     return false;
   }
 
@@ -76,7 +77,10 @@ bool D64Reader::Open(const std::string& filename) {
   constexpr std::uint64_t kD64Size = 174848;
   constexpr std::uint64_t kD64WithErrorInfoSize = 175531;
   if (image_size_ != kD64Size && image_size_ != kD64WithErrorInfoSize) {
-    last_error_ = "Unsupported D64 image size";
+    std::ostringstream oss;
+    oss << "Unsupported D64 image size: " << image_size_
+        << " bytes (expected 174848 or 175531)";
+    last_error_ = oss.str();
     return false;
   }
 
@@ -86,18 +90,29 @@ bool D64Reader::Open(const std::string& filename) {
 bool D64Reader::ReadSector(std::uint8_t track, std::uint8_t sector, std::uint8_t* data) {
   last_error_.clear();
 
+  if (data == nullptr) {
+    last_error_ = "ReadSector called with null output buffer";
+    return false;
+  }
+
   if (!IsOpen()) {
     last_error_ = "D64 file is not open";
     return false;
   }
 
   if (!IsValidTrack(track)) {
-    last_error_ = "Invalid track";
+    std::ostringstream oss;
+    oss << "Invalid track " << static_cast<int>(track) << " (valid range 1-35)";
+    last_error_ = oss.str();
     return false;
   }
 
   if (sector >= SectorsPerTrack(track)) {
-    last_error_ = "Invalid sector";
+    std::ostringstream oss;
+    oss << "Invalid sector " << static_cast<int>(sector) << " for track "
+        << static_cast<int>(track) << " (valid range 0-"
+        << static_cast<int>(SectorsPerTrack(track) - 1) << ")";
+    last_error_ = oss.str();
     return false;
   }
 
@@ -136,6 +151,9 @@ bool D64Reader::ReadSector(std::uint8_t track, std::uint8_t sector, std::uint8_t
 }
 
 std::uint32_t D64Reader::TrackSectorToOffset(std::uint8_t track, std::uint8_t sector) const {
+  if (!IsValidTrack(track)) {
+    return 0;
+  }
   return (kTrackStart[track] + sector) * static_cast<std::uint32_t>(kSectorSize);
 }
 

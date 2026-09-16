@@ -161,11 +161,13 @@ int CmdExtract(const std::string& image_path, const std::string& output_dir_arg)
   }
 
   FileChainReader chain_reader(reader);
+  bool had_warnings = false;
   for (const auto& file : catalog.Files()) {
     auto file_data = chain_reader.ReadFile(file);
     if (!chain_reader.LastError().empty()) {
       std::cerr << "Warning: cannot read " << file.display_name << ": " << chain_reader.LastError()
                 << "\n";
+      had_warnings = true;
       continue;
     }
 
@@ -174,6 +176,7 @@ int CmdExtract(const std::string& image_path, const std::string& output_dir_arg)
     std::ofstream out(file_path, std::ios::binary);
     if (!out) {
       std::cerr << "Warning: cannot write " << file_path.string() << "\n";
+      had_warnings = true;
       continue;
     }
 
@@ -184,13 +187,14 @@ int CmdExtract(const std::string& image_path, const std::string& output_dir_arg)
 
     if (!out) {
       std::cerr << "Warning: write failed for " << file_path.string() << "\n";
+      had_warnings = true;
       continue;
     }
 
     std::cout << file_name << "\n";
   }
 
-  return 0;
+  return had_warnings ? 2 : 0;
 }
 
 int CmdMount(const std::string& image_path, std::string mount_point) {
