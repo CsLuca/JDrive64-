@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "jdrive64/d64_image_editor.hpp"
 #include "jdrive64/disk_image_session.hpp"
 #include "jdrive64/winfsp_filesystem.hpp"
 
@@ -13,6 +14,7 @@ namespace {
 
 using jdrive64::DiskImageSession;
 using jdrive64::WinFspFilesystem;
+using jdrive64::D64ImageEditor;
 
 std::filesystem::path MountStateRoot() {
   return std::filesystem::temp_directory_path() / "jdrive64_mounts";
@@ -169,7 +171,10 @@ void PrintUsage() {
             << "  jdrive64 mount <image.d64> <drive_letter:>\n"
             << "  jdrive64 unmount <drive_letter:>\n"
             << "  jdrive64 dir-mounted <drive_letter:>\n"
-            << "  jdrive64 read-mounted <drive_letter:> <name.ext>\n";
+            << "  jdrive64 read-mounted <drive_letter:> <name.ext>\n"
+            << "  jdrive64 write-add <image.d64> <host_file> <name.ext>\n"
+            << "  jdrive64 write-del <image.d64> <name.ext>\n"
+            << "  jdrive64 write-ren <image.d64> <old.ext> <new.ext>\n";
 }
 
 std::string SanitizeFilename(const std::string& base_name, const std::string& ext) {
@@ -442,6 +447,50 @@ int CmdReadMounted(std::string mount_point, const std::string& windows_name) {
   return 0;
 }
 
+int CmdWriteAdd(const std::string& image_path, const std::string& host_file, const std::string& windows_name) {
+  D64ImageEditor editor;
+  if (!editor.Open(image_path)) {
+    std::cerr << "Error: " << editor.LastError() << "\n";
+    return 1;
+  }
+  if (!editor.AddFile(host_file, windows_name)) {
+    std::cerr << "Error: " << editor.LastError() << "\n";
+    return 1;
+  }
+  std::cout << "Added " << windows_name << "\n";
+  return 0;
+}
+
+int CmdWriteDel(const std::string& image_path, const std::string& windows_name) {
+  D64ImageEditor editor;
+  if (!editor.Open(image_path)) {
+    std::cerr << "Error: " << editor.LastError() << "\n";
+    return 1;
+  }
+  if (!editor.DeleteFile(windows_name)) {
+    std::cerr << "Error: " << editor.LastError() << "\n";
+    return 1;
+  }
+  std::cout << "Deleted " << windows_name << "\n";
+  return 0;
+}
+
+int CmdWriteRen(const std::string& image_path,
+                const std::string& old_windows_name,
+                const std::string& new_windows_name) {
+  D64ImageEditor editor;
+  if (!editor.Open(image_path)) {
+    std::cerr << "Error: " << editor.LastError() << "\n";
+    return 1;
+  }
+  if (!editor.RenameFile(old_windows_name, new_windows_name)) {
+    std::cerr << "Error: " << editor.LastError() << "\n";
+    return 1;
+  }
+  std::cout << "Renamed " << old_windows_name << " -> " << new_windows_name << "\n";
+  return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -474,6 +523,30 @@ int main(int argc, char** argv) {
       return 1;
     }
     return CmdReadMounted(argv[2], argv[3]);
+  }
+
+  if (command == "write-add") {
+    if (argc < 5) {
+      PrintUsage();
+      return 1;
+    }
+    return CmdWriteAdd(argv[2], argv[3], argv[4]);
+  }
+
+  if (command == "write-del") {
+    if (argc < 4) {
+      PrintUsage();
+      return 1;
+    }
+    return CmdWriteDel(argv[2], argv[3]);
+  }
+
+  if (command == "write-ren") {
+    if (argc < 5) {
+      PrintUsage();
+      return 1;
+    }
+    return CmdWriteRen(argv[2], argv[3], argv[4]);
   }
 
   if (argc < 3) {

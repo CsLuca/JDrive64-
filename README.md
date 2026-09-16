@@ -85,6 +85,14 @@ ctest --test-dir build -R jdrive64_cli_smoke_tests --output-on-failure
 - Mutation operations return `kAccessDenied` with Win32 `ERROR_ACCESS_DENIED` and NTSTATUS `STATUS_ACCESS_DENIED`.
 - Read/open/info paths map failures to consistent status families (`kNotMounted`, `kFileNotFound`, `kInvalidHandle`, `kInvalidParameter`, `kIoError`).
 
+## D64 Write Editor (Step 10)
+
+- Experimental write path is available through CLI commands:
+  - `jdrive64 write-add <image.d64> <host_file> <name.ext>`
+  - `jdrive64 write-del <image.d64> <name.ext>`
+  - `jdrive64 write-ren <image.d64> <old.ext> <new.ext>`
+- The editor updates BAM, directory entries, and file chains directly inside `.d64`.
+
 ## Milestones
 
 - `v0.2-core-stable`: core parser + tests.

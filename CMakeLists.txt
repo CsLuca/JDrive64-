@@ -12,6 +12,7 @@ add_library(jdrive64_core
   src/bam_reader.cpp
   src/d64_reader.cpp
   src/disk_catalog.cpp
+  src/d64_image_editor.cpp
   src/disk_image_session.cpp
   src/directory_reader.cpp
   src/file_cache.cpp
@@ -79,4 +80,16 @@ if(BUILD_TESTING)
     NAME jdrive64_cli_smoke_tests
     COMMAND jdrive64_cli_smoke_tests $<TARGET_FILE:jdrive64>
   )
+
+  add_executable(jdrive64_write_editor_tests
+    tests/test_write_editor.cpp
+    tests/d64_test_utils.cpp
+  )
+
+  target_link_libraries(jdrive64_write_editor_tests
+    PRIVATE
+      jdrive64_core
+  )
+
+  add_test(NAME jdrive64_write_editor_tests COMMAND jdrive64_write_editor_tests)
 endif()
