@@ -2681,7 +2681,7 @@ Status: done
 
 ## K51 - Query-plan Confidence Metadata Scaffold
 
-Status: in progress
+Status: done
 
 ### K51.1 Confidence field
 
@@ -2713,6 +2713,41 @@ Status: in progress
 
 - Query-plan confidence metadata is integrated and test-covered.
 - Ready for K52 query-plan warning tags scaffold.
+
+## K52 - Query-plan Warning Tags Scaffold
+
+Status: in progress
+
+### K52.1 Warning tags field
+
+- Task: add warning tags list in explain output.
+- PASS:
+  - explain output includes `query_plan_warnings` array.
+  - array emits deterministic tags from planner characteristics.
+- FAIL:
+  - explain output has no warning tags.
+
+### K52.2 Regression coverage
+
+- Task: validate warning tags field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_warnings` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for warning tags metadata.
+
+### K52 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K52 exit criteria
+
+- Query-plan warning tags are integrated and test-covered.
+- Ready for K53 query-plan profile metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

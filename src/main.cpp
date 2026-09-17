@@ -2008,6 +2008,26 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
                                     ? 1.0
                                     : std::max(0.1, 1.0 - (static_cast<double>(planner_score) / 100.0));
       std::cout << "  \"query_plan_confidence\": " << confidence << ",\n";
+      std::cout << "  \"query_plan_warnings\": [";
+      bool first_warning = true;
+      if (confidence < 0.6) {
+        std::cout << "\"low_confidence\"";
+        first_warning = false;
+      }
+      if (rpn_or >= 3) {
+        if (!first_warning) {
+          std::cout << ", ";
+        }
+        std::cout << "\"high_disjunction\"";
+        first_warning = false;
+      }
+      if (pred_detail > pred_event) {
+        if (!first_warning) {
+          std::cout << ", ";
+        }
+        std::cout << "\"detail_heavy_filter\"";
+      }
+      std::cout << "],\n";
       std::cout << "  \"query_plan_complexity\": \"" << complexity << "\",\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";

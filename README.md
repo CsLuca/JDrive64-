@@ -141,6 +141,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K49 explainability scaffold adds `query_plan_order` to document stable planner-metadata field ordering.
 - K50 schema scaffold splits query and explain schema markers (`schema_version`, `explain_schema_version`).
 - K51 explainability scaffold adds numeric `query_plan_confidence` derived from plan score.
+- K52 explainability scaffold adds `query_plan_warnings` tags for complex/low-confidence plans.
 
 ## Domain Layer (Step 3)
 
