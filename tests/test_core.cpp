@@ -15,6 +15,7 @@
 #include "jdrive64/file_chain_reader.hpp"
 #include "jdrive64/sector_cache.hpp"
 #include "jdrive64/winfsp_filesystem.hpp"
+#include "jdrive64/winfsp_runtime.hpp"
 
 namespace {
 
@@ -26,6 +27,7 @@ using jdrive64::FileCache;
 using jdrive64::FileChainReader;
 using jdrive64::SectorCache;
 using jdrive64::WinFspFilesystem;
+using jdrive64::WinFspRuntime;
 
 bool Assert(bool condition, const std::string& message) {
   if (!condition) {
@@ -453,6 +455,42 @@ bool TestWinFspFacade(const std::filesystem::path& image_path) {
   return true;
 }
 
+bool TestWinFspRuntimeScaffold(const std::filesystem::path& image_path) {
+  WinFspRuntime runtime;
+#if defined(JDRIVE64_ENABLE_WINFSP)
+  if (!Assert(runtime.StartReadOnly(image_path.string(), "Y:"),
+              "WinFspRuntime start succeeds when WinFsp support is enabled")) {
+    return false;
+  }
+  if (!Assert(runtime.IsRunning(), "WinFspRuntime running state after start")) {
+    return false;
+  }
+  if (!Assert(runtime.Stop(), "WinFspRuntime stop succeeds")) {
+    return false;
+  }
+  if (!Assert(!runtime.IsRunning(), "WinFspRuntime not running after stop")) {
+    return false;
+  }
+#else
+  if (!Assert(!runtime.StartReadOnly(image_path.string(), "Y:"),
+              "WinFspRuntime start fails when WinFsp support is disabled")) {
+    return false;
+  }
+  if (!Assert(runtime.LastError().find("disabled") != std::string::npos,
+              "WinFspRuntime returns disabled error")) {
+    return false;
+  }
+  if (!Assert(!runtime.Stop(), "WinFspRuntime stop fails when not running")) {
+    return false;
+  }
+  if (!Assert(runtime.LastError() == "Runtime is not running",
+              "WinFspRuntime stop reports not running")) {
+    return false;
+  }
+#endif
+  return true;
+}
+
 }  // namespace
 
 int main() {
@@ -462,6 +500,7 @@ int main() {
   ok = ok && TestCoreParsers(image_path);
   ok = ok && TestCaches();
   ok = ok && TestWinFspFacade(image_path);
+  ok = ok && TestWinFspRuntimeScaffold(image_path);
 
   std::error_code ec;
   std::filesystem::remove(image_path, ec);

@@ -11,6 +11,7 @@ Current implementation status is an advanced core/parser stage with a read-only 
 - CLI-driven mount and unmount.
 
 See `ROADMAP_BASELINE.md` for milestones and final Definition of Done.
+Execution tracking is in `ROADMAP_EXECUTABLE.md`.
 
 ## Versioning
 
