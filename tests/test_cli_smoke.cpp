@@ -223,6 +223,22 @@ int main(int argc, char** argv) {
     ok = ok && Check(Contains(telemetry_dump_json_r.output, "\"entries\":"),
                      "telemetry-dump-mounted --json reports entries field");
 
+    const auto telemetry_dump_dsl_cmd = Quote(exe_path.string()) +
+                                        " telemetry-dump-mounted Z: --event-prefix send. --event-contains loop --exclude-event connect.loopback --success true --tail 2";
+    const auto telemetry_dump_dsl_r = Run(telemetry_dump_dsl_cmd);
+    ok = ok && Check(telemetry_dump_dsl_r.exit_code == 0,
+                     "telemetry-dump-mounted DSL filters exit 0");
+
+    const auto telemetry_dump_bundle_cmd = Quote(exe_path.string()) +
+                                           " telemetry-dump-mounted Z: --event-prefix send. --bundle";
+    const auto telemetry_dump_bundle_r = Run(telemetry_dump_bundle_cmd);
+    ok = ok && Check(telemetry_dump_bundle_r.exit_code == 0,
+                     "telemetry-dump-mounted --bundle exits 0");
+    ok = ok && Check(Contains(telemetry_dump_bundle_r.output, "\"stats\":"),
+                     "telemetry-dump-mounted --bundle reports stats field");
+    ok = ok && Check(Contains(telemetry_dump_bundle_r.output, "\"files_scanned\":"),
+                     "telemetry-dump-mounted --bundle reports files_scanned field");
+
     const auto telemetry_clear_cmd = Quote(exe_path.string()) + " telemetry-clear-mounted Z:";
     const auto telemetry_clear_r = Run(telemetry_clear_cmd);
     ok = ok && Check(telemetry_clear_r.exit_code == 0, "telemetry-clear-mounted exits 0");

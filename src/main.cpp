@@ -317,12 +317,16 @@ int CmdTelemetryListMounted(std::string mount_point);
 int CmdTelemetryStatsMounted(std::string mount_point, bool as_json);
 
 struct TelemetryDumpOptions {
-  std::string event_name;
+  std::vector<std::string> include_events;
+  std::vector<std::string> exclude_events;
+  std::string event_prefix;
+  std::string event_contains;
   int success_filter = -1;
   std::size_t tail = 0;
   std::size_t offset = 0;
   std::size_t limit = 0;
   bool as_json = false;
+  bool bundle = false;
 };
 
 int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDumpOptions& opt);
@@ -435,12 +439,35 @@ int ExtractJsonBoolField(const std::string& line, const std::string& field_name)
 }
 
 bool TelemetryLineMatchesFilter(const std::string& line, const TelemetryDumpOptions& opt) {
-  if (!opt.event_name.empty()) {
-    const std::string name = ExtractJsonStringField(line, "name");
-    if (name != opt.event_name) {
+  const std::string name = ExtractJsonStringField(line, "name");
+
+  if (!opt.include_events.empty()) {
+    bool matched_include = false;
+    for (const auto& include_event : opt.include_events) {
+      if (name == include_event) {
+        matched_include = true;
+        break;
+      }
+    }
+    if (!matched_include) {
       return false;
     }
   }
+
+  for (const auto& exclude_event : opt.exclude_events) {
+    if (name == exclude_event) {
+      return false;
+    }
+  }
+
+  if (!opt.event_prefix.empty() && !name.starts_with(opt.event_prefix)) {
+    return false;
+  }
+
+  if (!opt.event_contains.empty() && name.find(opt.event_contains) == std::string::npos) {
+    return false;
+  }
+
   if (opt.success_filter != -1) {
     const int success = ExtractJsonBoolField(line, "success");
     if (success != opt.success_filter) {
@@ -468,7 +495,7 @@ void PrintUsage() {
             << "  jdrive64 check-mounted <drive_letter:>\n"
             << "  jdrive64 backend-diag <image.d64> [--backend <winfsp|kdrv>] [--json]\n"
             << "  jdrive64 backend-diag-mounted <drive_letter:> [--json]\n"
-            << "  jdrive64 telemetry-dump-mounted <drive_letter:> [--event <name>] [--success <true|false>] [--tail N] [--offset N] [--limit N] [--json]\n"
+            << "  jdrive64 telemetry-dump-mounted <drive_letter:> [--event <name>] [--exclude-event <name>] [--event-prefix <prefix>] [--event-contains <text>] [--success <true|false>] [--tail N] [--offset N] [--limit N] [--json] [--bundle]\n"
             << "  jdrive64 telemetry-clear-mounted <drive_letter:>\n"
             << "  jdrive64 telemetry-list-mounted <drive_letter:>\n"
             << "  jdrive64 telemetry-stats-mounted <drive_letter:> [--json]\n"
@@ -1092,9 +1119,28 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
     page_end = page_start + opt.limit;
   }
 
+  std::map<std::string, std::uint64_t> total_by_event;
+  std::map<std::string, std::uint64_t> success_by_event;
+  std::uint64_t total_success = 0;
+  for (const auto& line : sliced) {
+    const std::string name = ExtractJsonStringField(line, "name");
+    const int success = ExtractJsonBoolField(line, "success");
+    if (name.empty() || success == -1) {
+      continue;
+    }
+    ++total_by_event[name];
+    if (success == 1) {
+      ++total_success;
+      ++success_by_event[name];
+    }
+  }
+
   if (opt.as_json) {
     std::cout << "{\n";
+    std::cout << "  \"mount\": \"" << EscapeJson(mount_point) << "\",\n";
+    std::cout << "  \"files_scanned\": " << files.size() << ",\n";
     std::cout << "  \"total_matched\": " << sliced.size() << ",\n";
+    std::cout << "  \"total_success\": " << total_success << ",\n";
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";
     std::cout << "  \"entries\": [";
@@ -1104,7 +1150,26 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
       }
       std::cout << "\"" << EscapeJson(sliced[i]) << "\"";
     }
+    std::cout << "],\n";
+    std::cout << "  \"stats\": {\n";
+    std::cout << "    \"events\": [";
+    bool first = true;
+    for (const auto& kv : total_by_event) {
+      if (!first) {
+        std::cout << ", ";
+      }
+      first = false;
+      const std::uint64_t success_count =
+          success_by_event.count(kv.first) > 0 ? success_by_event[kv.first] : 0;
+      const double success_rate = kv.second == 0 ? 0.0
+                                                 : static_cast<double>(success_count) /
+                                                       static_cast<double>(kv.second);
+      std::cout << "{\"name\":\"" << EscapeJson(kv.first) << "\"," << "\"count\":" << kv.second
+                << "," << "\"success_count\":" << success_count << "," << "\"success_rate\":"
+                << success_rate << "}";
+    }
     std::cout << "]\n";
+    std::cout << "  }\n";
     std::cout << "}\n";
     return 0;
   }
@@ -1422,7 +1487,31 @@ int main(int argc, char** argv) {
           PrintUsage();
           return 1;
         }
-        opt.event_name = argv[++i];
+        opt.include_events.push_back(argv[++i]);
+        continue;
+      }
+      if (arg == "--exclude-event") {
+        if (i + 1 >= argc) {
+          PrintUsage();
+          return 1;
+        }
+        opt.exclude_events.push_back(argv[++i]);
+        continue;
+      }
+      if (arg == "--event-prefix") {
+        if (i + 1 >= argc) {
+          PrintUsage();
+          return 1;
+        }
+        opt.event_prefix = argv[++i];
+        continue;
+      }
+      if (arg == "--event-contains") {
+        if (i + 1 >= argc) {
+          PrintUsage();
+          return 1;
+        }
+        opt.event_contains = argv[++i];
         continue;
       }
       if (arg == "--success") {
@@ -1484,11 +1573,17 @@ int main(int argc, char** argv) {
         opt.as_json = true;
         continue;
       }
+      if (arg == "--bundle") {
+        opt.bundle = true;
+        opt.as_json = true;
+        continue;
+      }
       PrintUsage();
       return 1;
     }
-    if (opt.event_name.empty() && opt.success_filter == -1 && opt.tail == 0 && opt.offset == 0 &&
-        opt.limit == 0 && !opt.as_json) {
+    if (opt.include_events.empty() && opt.exclude_events.empty() && opt.event_prefix.empty() &&
+        opt.event_contains.empty() && opt.success_filter == -1 && opt.tail == 0 && opt.offset == 0 &&
+        opt.limit == 0 && !opt.as_json && !opt.bundle) {
       return CmdTelemetryDumpMounted(argv[2]);
     }
     return CmdTelemetryDumpMountedFiltered(argv[2], opt);

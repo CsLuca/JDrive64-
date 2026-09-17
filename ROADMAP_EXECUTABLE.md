@@ -1565,7 +1565,7 @@ Status: done
 
 ## K24 - Telemetry Aggregation Stats Scaffold
 
-Status: in progress
+Status: done
 
 ### K24.1 Aggregation command
 
@@ -1615,6 +1615,50 @@ Status: in progress
 
 - Telemetry aggregation stats are integrated and test-covered.
 - Ready for K25 query DSL refinements and export bundling.
+
+## K25 - Telemetry Query DSL and Export Bundle Scaffold
+
+Status: in progress
+
+### K25.1 Query DSL refinements
+
+- Task: extend telemetry query filtering to support include/exclude/pattern matching.
+- PASS:
+  - `telemetry-dump-mounted` supports repeated `--event <name>` includes.
+  - command supports `--exclude-event <name>`, `--event-prefix <prefix>`, and `--event-contains <text>`.
+- FAIL:
+  - query filter supports exact single event only.
+
+### K25.2 Export bundle mode
+
+- Task: add bundle output that combines query entries with stats metadata in a single JSON result.
+- PASS:
+  - `telemetry-dump-mounted ... --bundle` emits JSON with entries + stats.
+  - bundle includes scope metadata (`mount`, `files_scanned`, `total_matched`).
+- FAIL:
+  - no single-command bundled export is available.
+
+### K25.3 Regression coverage
+
+- Task: validate refined DSL and bundle export in CLI smoke tests.
+- PASS:
+  - smoke runs commands with new DSL options successfully.
+  - smoke asserts bundle JSON contains stats metadata fields.
+- FAIL:
+  - no test coverage for DSL/bundle behavior.
+
+### K25 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K25 exit criteria
+
+- Query DSL refinements and bundled export are integrated and test-covered.
+- Ready for K26 advanced selectors and export schema stabilization.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
