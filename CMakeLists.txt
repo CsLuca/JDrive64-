@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(JDRIVE64_ENABLE_WINFSP "Enable WinFsp integration" OFF)
 option(JDRIVE64_ENABLE_KDRV "Enable kernel backend scaffolding" ON)
+option(JDRIVE64_STATIC_MINGW_RUNTIME "Link MinGW runtime statically for jdrive64.exe" ON)
 
 add_library(jdrive64_core
   src/bam_reader.cpp
@@ -53,6 +54,10 @@ target_link_libraries(jdrive64
   PRIVATE
     jdrive64_core
 )
+
+if(MINGW AND JDRIVE64_STATIC_MINGW_RUNTIME)
+  target_link_options(jdrive64 PRIVATE -static -static-libgcc -static-libstdc++)
+endif()
 
 include(CTest)
 

@@ -59,6 +59,9 @@ cmake -S . -B build
 cmake --build build --config Release
 ```
 
+MinGW runtime static linking is enabled by default (`JDRIVE64_STATIC_MINGW_RUNTIME=ON`) so
+`jdrive64.exe` does not depend on `libgcc_s_seh-1.dll` / `libstdc++-6.dll` at runtime.
+
 Run tests:
 
 ```powershell
