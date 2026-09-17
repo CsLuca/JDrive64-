@@ -6,6 +6,7 @@
 #include <string>
 
 #include "jdrive64/kernel_backend.hpp"
+#include "jdrive64/kernel_mount_manager.hpp"
 #include "jdrive64/winfsp_filesystem.hpp"
 
 namespace jdrive64 {
@@ -44,8 +45,15 @@ class KernelMountBackend final : public IMountBackend {
       return false;
     }
 
+    if (!mount_manager_.AssignDriveLetter(mount_point)) {
+      last_error_ = mount_manager_.LastError();
+      controller_.StopService();
+      controller_.RemoveService();
+      return false;
+    }
+
     mounted_ = true;
-    last_error_ = "Kernel backend skeleton started but mount manager integration is not implemented";
+    last_error_ = mount_manager_.LastError();
     return false;
   }
 
@@ -54,6 +62,10 @@ class KernelMountBackend final : public IMountBackend {
 
     if (!mounted_) {
       last_error_ = "Kernel backend not mounted";
+      return false;
+    }
+    if (!mount_manager_.ReleaseDriveLetter(mount_point)) {
+      last_error_ = mount_manager_.LastError();
       return false;
     }
     if (!controller_.StopService()) {
@@ -83,6 +95,7 @@ class KernelMountBackend final : public IMountBackend {
  private:
   bool mounted_ = false;
   KernelBackendController controller_;
+  KernelMountManager mount_manager_;
   std::string last_error_;
 };
 

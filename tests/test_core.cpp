@@ -13,6 +13,7 @@
 #include "jdrive64/directory_reader.hpp"
 #include "jdrive64/file_cache.hpp"
 #include "jdrive64/file_chain_reader.hpp"
+#include "jdrive64/kernel_mount_manager.hpp"
 #include "jdrive64/mount_backend.hpp"
 #include "jdrive64/sector_cache.hpp"
 #include "jdrive64/winfsp_adapter.hpp"
@@ -30,6 +31,7 @@ using jdrive64::DirectoryReader;
 using jdrive64::FileCache;
 using jdrive64::FileChainReader;
 using jdrive64::IMountBackend;
+using jdrive64::KernelMountManager;
 using jdrive64::SectorCache;
 using jdrive64::WinFspAdapter;
 using jdrive64::WinFspCallbacks;
@@ -834,6 +836,50 @@ bool TestMountBackendFactory(const std::filesystem::path& image_path) {
   return true;
 }
 
+bool TestKernelMountManagerScaffold() {
+  KernelMountManager manager;
+
+  if (!Assert(!manager.AssignDriveLetter("BAD"), "KernelMountManager rejects invalid mount point")) {
+    return false;
+  }
+  if (!Assert(manager.LastError() == "Invalid mount point", "KernelMountManager invalid mount point error")) {
+    return false;
+  }
+
+  if (!Assert(!manager.AssignDriveLetter("R:"),
+              "KernelMountManager returns deterministic not-implemented on assign")) {
+    return false;
+  }
+  if (!Assert(manager.LastError().find("not implemented") != std::string::npos,
+              "KernelMountManager assign not-implemented error")) {
+    return false;
+  }
+  if (!Assert(manager.IsAssigned(), "KernelMountManager tracks assigned state")) {
+    return false;
+  }
+  if (!Assert(manager.AssignedMountPoint() == "R:", "KernelMountManager tracks assigned mount point")) {
+    return false;
+  }
+
+  if (!Assert(!manager.ReleaseDriveLetter("Q:"),
+              "KernelMountManager rejects mismatched release mount point")) {
+    return false;
+  }
+  if (!Assert(manager.LastError() == "Assigned drive letter mismatch",
+              "KernelMountManager mismatch release error")) {
+    return false;
+  }
+
+  if (!Assert(manager.ReleaseDriveLetter("R:"), "KernelMountManager releases assigned mount point")) {
+    return false;
+  }
+  if (!Assert(!manager.IsAssigned(), "KernelMountManager clears assigned state")) {
+    return false;
+  }
+
+  return true;
+}
+
 }  // namespace
 
 int main() {
@@ -848,6 +894,7 @@ int main() {
   ok = ok && TestWinFspNativeBridgeProviderInjection(image_path);
   ok = ok && TestWinFspDefaultNativeApiContract(image_path);
   ok = ok && TestMountBackendFactory(image_path);
+  ok = ok && TestKernelMountManagerScaffold();
   ok = ok && TestWinFspAdapterScaffold(image_path);
   ok = ok && TestWinFspRuntimeScaffold(image_path);
 

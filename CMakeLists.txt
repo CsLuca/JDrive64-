@@ -19,6 +19,7 @@ add_library(jdrive64_core
   src/file_cache.cpp
   src/file_chain_reader.cpp
   src/kernel_backend.cpp
+  src/kernel_mount_manager.cpp
   src/mount_backend.cpp
   src/petscii_converter.cpp
   src/sector_cache.cpp
