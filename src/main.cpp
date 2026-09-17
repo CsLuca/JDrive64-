@@ -368,6 +368,7 @@ struct TelemetryDumpOptions {
   std::size_t limit = 0;
   bool as_json = false;
   bool bundle = false;
+  bool explain = false;
   bool where_enabled = false;
 };
 
@@ -1073,7 +1074,7 @@ void PrintUsage() {
             << "  jdrive64 check-mounted <drive_letter:>\n"
             << "  jdrive64 backend-diag <image.d64> [--backend <winfsp|kdrv>] [--json]\n"
             << "  jdrive64 backend-diag-mounted <drive_letter:> [--json]\n"
-            << "  jdrive64 telemetry-dump-mounted <drive_letter:> [--event <name>] [--exclude-event <name>] [--event-prefix <prefix>] [--event-contains <text>] [--selector-mode <all|any>] [--where <expr>] [--success <true|false>] [--tail N] [--offset N] [--limit N] [--json] [--bundle]\n"
+            << "  jdrive64 telemetry-dump-mounted <drive_letter:> [--event <name>] [--exclude-event <name>] [--event-prefix <prefix>] [--event-contains <text>] [--selector-mode <all|any>] [--where <expr>] [--success <true|false>] [--tail N] [--offset N] [--limit N] [--json] [--bundle] [--explain]\n"
             << "  jdrive64 telemetry-clear-mounted <drive_letter:>\n"
             << "  jdrive64 telemetry-list-mounted <drive_letter:>\n"
             << "  jdrive64 telemetry-stats-mounted <drive_letter:> [--json]\n"
@@ -1756,6 +1757,20 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
     }
     std::cout << "    \"tail\": " << opt.tail << "\n";
     std::cout << "  },\n";
+    if (opt.explain) {
+      std::cout << "  \"query_plan\": {\n";
+      std::cout << "    \"where_enabled\": " << (opt.where_enabled ? "true" : "false") << ",\n";
+      std::cout << "    \"selector_mode\": \""
+                << (opt.selector_mode == TelemetryDumpOptions::SelectorMode::kAll ? "all" : "any")
+                << "\",\n";
+      std::cout << "    \"positive_selector_count\": "
+                << (opt.include_events.size() + (opt.event_prefix.empty() ? 0 : 1) +
+                    (opt.event_contains.empty() ? 0 : 1))
+                << ",\n";
+      std::cout << "    \"negative_selector_count\": " << opt.exclude_events.size() << ",\n";
+      std::cout << "    \"where_rpn_tokens\": " << opt.where_compiled.rpn.size() << "\n";
+      std::cout << "  },\n";
+    }
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";
     std::cout << "  \"entries\": [";
@@ -2215,6 +2230,11 @@ int main(int argc, char** argv) {
       }
       if (arg == "--bundle") {
         opt.bundle = true;
+        opt.as_json = true;
+        continue;
+      }
+      if (arg == "--explain") {
+        opt.explain = true;
         opt.as_json = true;
         continue;
       }

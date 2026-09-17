@@ -306,6 +306,16 @@ int main(int argc, char** argv) {
                               "\"where\": \"event_suffix==loopback AND success==true\""),
                      "telemetry-dump-mounted suffix --where preserves suffix expression");
 
+    const auto telemetry_dump_explain_cmd = Quote(exe_path.string()) +
+                                            " telemetry-dump-mounted Z: --where \"event_suffix==loopback AND success==true\" --explain";
+    const auto telemetry_dump_explain_r = Run(telemetry_dump_explain_cmd);
+    ok = ok && Check(telemetry_dump_explain_r.exit_code == 0,
+                     "telemetry-dump-mounted --explain exits 0");
+    ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"query_plan\":"),
+                     "telemetry-dump-mounted --explain reports query_plan");
+    ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"where_rpn_tokens\":"),
+                     "telemetry-dump-mounted --explain reports where_rpn_tokens");
+
     const auto telemetry_clear_cmd = Quote(exe_path.string()) + " telemetry-clear-mounted Z:";
     const auto telemetry_clear_r = Run(telemetry_clear_cmd);
     ok = ok && Check(telemetry_clear_r.exit_code == 0, "telemetry-clear-mounted exits 0");

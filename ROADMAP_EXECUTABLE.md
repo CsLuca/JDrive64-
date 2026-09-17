@@ -1935,7 +1935,7 @@ Status: done
 
 ## K32 - Additional Predicate Family Scaffold
 
-Status: in progress
+Status: done
 
 ### K32.1 Event suffix predicate
 
@@ -1967,6 +1967,50 @@ Status: in progress
 
 - Additional suffix predicate support is integrated and test-covered.
 - Ready for K33 query plan explainability scaffold.
+
+## K33 - Query Plan Explainability Scaffold
+
+Status: in progress
+
+### K33.1 Explain mode option
+
+- Task: add telemetry query explain mode for machine-readable diagnostics.
+- PASS:
+  - `telemetry-dump-mounted` accepts `--explain`.
+  - explain mode forces JSON output and includes query-plan metadata.
+- FAIL:
+  - no explain mode for telemetry query behavior.
+
+### K33.2 Query plan metadata
+
+- Task: surface normalized planner characteristics for current query.
+- PASS:
+  - JSON includes `query_plan` object with selector/where summary.
+  - plan metadata includes compiled where token count.
+- FAIL:
+  - query diagnostics have no plan-level metadata.
+
+### K33.3 Regression coverage
+
+- Task: validate explain mode in CLI smoke.
+- PASS:
+  - smoke executes `--explain` successfully.
+  - smoke asserts `query_plan` and `where_rpn_tokens` fields.
+- FAIL:
+  - no tests for explain mode.
+
+### K33 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K33 exit criteria
+
+- Explain mode and query plan metadata are integrated and test-covered.
+- Ready for K34 richer detail predicates.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
