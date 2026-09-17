@@ -2431,7 +2431,9 @@ int CmdTray() {
   constexpr UINT kMenuDiagR = 2006;
   constexpr UINT kMenuDiagS = 2007;
   constexpr UINT kMenuListMounts = 2008;
+  constexpr UINT kMenuSupportMyWork = 2009;
   constexpr UINT kMenuExit = 2010;
+  constexpr const char* kSupportPaypalUrl = "https://paypal.me/LucadrBiondi";
 
   struct TrayState {
     std::string image_path;
@@ -2605,6 +2607,24 @@ int CmdTray() {
     }
   };
 
+  auto run_support_my_work = [&](HWND hwnd) {
+    const std::string message =
+        std::string("Support my work via PayPal:\n") + kSupportPaypalUrl +
+        "\n\nOpen this link in your browser now?";
+    const int choice = MessageBoxA(hwnd,
+                                   message.c_str(),
+                                   "Support my work",
+                                   MB_YESNO | MB_ICONINFORMATION | MB_TOPMOST);
+    if (choice == IDYES) {
+      const auto result = reinterpret_cast<std::intptr_t>(
+          ShellExecuteA(hwnd, "open", kSupportPaypalUrl, nullptr, nullptr, SW_SHOWNORMAL));
+      if (result <= 32) {
+        show_error(hwnd, "Unable to open browser.\nCopy this link manually:\n" +
+                             std::string(kSupportPaypalUrl));
+      }
+    }
+  };
+
   auto show_menu = [&](HWND hwnd, TrayState* state) {
     HMENU menu = CreatePopupMenu();
     if (menu == nullptr) {
@@ -2621,6 +2641,7 @@ int CmdTray() {
     AppendMenuA(menu, MF_STRING, kMenuDiagS, "Backend diag S:");
     AppendMenuA(menu, MF_STRING, kMenuListMounts, "List mounts");
     AppendMenuA(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuA(menu, MF_STRING, kMenuSupportMyWork, "Support my work");
     AppendMenuA(menu, MF_STRING, kMenuExit, "Exit");
 
     POINT pt{};
@@ -2654,6 +2675,9 @@ int CmdTray() {
         break;
       case kMenuListMounts:
         run_list_mounts(hwnd);
+        break;
+      case kMenuSupportMyWork:
+        run_support_my_work(hwnd);
         break;
       case kMenuExit:
         PostMessageA(hwnd, WM_CLOSE, 0, 0);
