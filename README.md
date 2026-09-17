@@ -158,6 +158,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K66 explainability scaffold adds `query_plan_diagnostics_envelope` metadata for diagnostics payload compatibility tracking.
 - K67 explainability scaffold adds `query_plan_predicate_density` to quantify predicate share in compiled RPN plans.
 - K68 explainability scaffold adds `query_plan_negation_ratio` to measure unary negation intensity relative to predicates.
+- K69 explainability scaffold adds `query_plan_stage_budget_ratio` to expose worst-stage budget pressure.
 
 ## Domain Layer (Step 3)
 

@@ -3276,7 +3276,7 @@ Status: done
 
 ## K68 - Query-plan Negation Ratio Scaffold
 
-Status: in progress
+Status: done
 
 ### K68.1 Negation ratio field
 
@@ -3308,6 +3308,41 @@ Status: in progress
 
 - Query-plan negation ratio metadata is integrated and test-covered.
 - Ready for K69 stage budget ratio metadata scaffold.
+
+## K69 - Query-plan Stage Budget Ratio Scaffold
+
+Status: in progress
+
+### K69.1 Stage budget ratio field
+
+- Task: add metadata for worst-case phase budget pressure.
+- PASS:
+  - explain output includes `query_plan_stage_budget_ratio`.
+  - value deterministically reflects the max ratio across parse/filter/aggregate phase budget pairs.
+- FAIL:
+  - explain output has no stage budget ratio metadata.
+
+### K69.2 Regression coverage
+
+- Task: validate stage budget ratio field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_stage_budget_ratio` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for stage budget ratio metadata.
+
+### K69 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K69 exit criteria
+
+- Query-plan stage budget ratio metadata is integrated and test-covered.
+- Ready for K70 rule fingerprint metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

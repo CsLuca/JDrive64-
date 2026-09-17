@@ -2129,6 +2129,12 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
                                         : static_cast<double>(rpn_not) /
                                               static_cast<double>(rpn_predicates);
       std::cout << "  \"query_plan_negation_ratio\": " << negation_ratio << ",\n";
+      const double parse_budget_ratio = static_cast<double>(phase_parse_ms) / 5.0;
+      const double filter_budget_ratio = static_cast<double>(phase_filter_ms) / 12.0;
+      const double aggregate_budget_ratio = static_cast<double>(phase_aggregate_ms) / 8.0;
+      const double stage_budget_ratio = std::max(parse_budget_ratio,
+                                                 std::max(filter_budget_ratio, aggregate_budget_ratio));
+      std::cout << "  \"query_plan_stage_budget_ratio\": " << stage_budget_ratio << ",\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";
