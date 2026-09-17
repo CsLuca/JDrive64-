@@ -357,6 +357,9 @@ Status: in progress
 - FAIL:
   - Missing actionable E2E closure criteria.
 
+Reference checklist:
+- `A8_EXPLORER_CHECKLIST.md`
+
 ### A8 verification commands
 
 - Build:
