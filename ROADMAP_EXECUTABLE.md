@@ -1521,7 +1521,7 @@ Status: done
 
 ## K23 - Cross-file Telemetry Query Scaffold
 
-Status: in progress
+Status: done
 
 ### K23.1 Cross-file telemetry merge
 
@@ -1562,6 +1562,59 @@ Status: in progress
 
 - Cross-file telemetry query and retention tuning are integrated and test-covered.
 - Ready for K24 richer query DSL and aggregation stats.
+
+## K24 - Telemetry Aggregation Stats Scaffold
+
+Status: in progress
+
+### K24.1 Aggregation command
+
+- Task: provide mounted telemetry aggregation command with per-event metrics.
+- PASS:
+  - `telemetry-stats-mounted <drive_letter:>` exists.
+  - command reports global totals and per-event counts/success counts.
+- FAIL:
+  - no mounted telemetry aggregation command.
+
+### K24.2 JSON aggregation output
+
+- Task: support machine-readable stats output.
+- PASS:
+  - `telemetry-stats-mounted ... --json` emits totals and events array.
+  - each event includes `count`, `success_count`, `success_rate`.
+- FAIL:
+  - aggregation command has text output only.
+
+### K24.3 Cross-file aggregation scope
+
+- Task: aggregate over full retention chain (base + rotated files).
+- PASS:
+  - stats command scans collected telemetry files from retention chain.
+  - missing files are tolerated without crashes.
+- FAIL:
+  - aggregation only uses base telemetry file.
+
+### K24.4 Regression coverage
+
+- Task: validate stats command text/json in CLI smoke.
+- PASS:
+  - smoke validates text totals and JSON events field.
+  - existing dump/list/clear/query coverage remains green.
+- FAIL:
+  - no tests for telemetry stats command.
+
+### K24 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K24 exit criteria
+
+- Telemetry aggregation stats are integrated and test-covered.
+- Ready for K25 query DSL refinements and export bundling.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

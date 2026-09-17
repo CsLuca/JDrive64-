@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <algorithm>
+#include <map>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -313,6 +314,7 @@ int CmdBackendDiagMounted(std::string mount_point, bool as_json);
 int CmdTelemetryDumpMounted(std::string mount_point);
 int CmdTelemetryClearMounted(std::string mount_point);
 int CmdTelemetryListMounted(std::string mount_point);
+int CmdTelemetryStatsMounted(std::string mount_point, bool as_json);
 
 struct TelemetryDumpOptions {
   std::string event_name;
@@ -469,6 +471,7 @@ void PrintUsage() {
             << "  jdrive64 telemetry-dump-mounted <drive_letter:> [--event <name>] [--success <true|false>] [--tail N] [--offset N] [--limit N] [--json]\n"
             << "  jdrive64 telemetry-clear-mounted <drive_letter:>\n"
             << "  jdrive64 telemetry-list-mounted <drive_letter:>\n"
+            << "  jdrive64 telemetry-stats-mounted <drive_letter:> [--json]\n"
             << "  jdrive64 winfsp-preflight <image.d64> <drive_letter:>\n"
             << "  jdrive64 write-add <image.d64> <host_file> <name.ext>\n"
             << "  jdrive64 write-del <image.d64> <name.ext>\n"
@@ -1188,6 +1191,98 @@ int CmdTelemetryListMounted(std::string mount_point) {
   return 0;
 }
 
+int CmdTelemetryStatsMounted(std::string mount_point, bool as_json) {
+  mount_point = NormalizeMountPoint(std::move(mount_point));
+  if (!IsValidMountPoint(mount_point)) {
+    std::cerr << "Error: invalid mount point, expected format X:\n";
+    return 1;
+  }
+
+  const auto state_file = MountStateFile(mount_point);
+  if (!std::filesystem::exists(state_file)) {
+    std::cerr << "Error: mount point is not mounted: " << mount_point << "\n";
+    return 1;
+  }
+
+  MountState state;
+  std::string load_error;
+  if (!LoadMountState(state_file, &state, &load_error)) {
+    std::cerr << "Error: invalid mount state: " << load_error << "\n";
+    return 1;
+  }
+  if (state.telemetry_jsonl_path.empty()) {
+    std::cerr << "Error: telemetry JSONL path is not configured for mount " << mount_point << "\n";
+    return 1;
+  }
+
+  const auto files = CollectTelemetryFiles(state.telemetry_jsonl_path);
+  std::map<std::string, std::uint64_t> total_by_event;
+  std::map<std::string, std::uint64_t> success_by_event;
+  std::uint64_t total_events = 0;
+  std::uint64_t total_success = 0;
+
+  for (auto it = files.rbegin(); it != files.rend(); ++it) {
+    std::ifstream in(*it, std::ios::binary);
+    if (!in) {
+      continue;
+    }
+    std::string line;
+    while (std::getline(in, line)) {
+      const std::string name = ExtractJsonStringField(line, "name");
+      const int success = ExtractJsonBoolField(line, "success");
+      if (name.empty() || success == -1) {
+        continue;
+      }
+      ++total_events;
+      ++total_by_event[name];
+      if (success == 1) {
+        ++total_success;
+        ++success_by_event[name];
+      }
+    }
+  }
+
+  if (as_json) {
+    std::cout << "{\n";
+    std::cout << "  \"mount\": \"" << EscapeJson(mount_point) << "\",\n";
+    std::cout << "  \"total_events\": " << total_events << ",\n";
+    std::cout << "  \"total_success\": " << total_success << ",\n";
+    std::cout << "  \"events\": [";
+    bool first = true;
+    for (const auto& kv : total_by_event) {
+      if (!first) {
+        std::cout << ", ";
+      }
+      first = false;
+      const std::uint64_t success_count =
+          success_by_event.count(kv.first) > 0 ? success_by_event[kv.first] : 0;
+      const double success_rate = kv.second == 0 ? 0.0 :
+          static_cast<double>(success_count) / static_cast<double>(kv.second);
+      std::cout << "{\"name\":\"" << EscapeJson(kv.first) << "\","
+                << "\"count\":" << kv.second << ","
+                << "\"success_count\":" << success_count << ","
+                << "\"success_rate\":" << success_rate << "}";
+    }
+    std::cout << "]\n";
+    std::cout << "}\n";
+    return 0;
+  }
+
+  std::cout << "Telemetry stats for " << mount_point << "\n";
+  std::cout << "Total events: " << total_events << "\n";
+  std::cout << "Total success: " << total_success << "\n";
+  for (const auto& kv : total_by_event) {
+    const std::uint64_t success_count =
+        success_by_event.count(kv.first) > 0 ? success_by_event[kv.first] : 0;
+    const double success_rate = kv.second == 0 ? 0.0 :
+        static_cast<double>(success_count) / static_cast<double>(kv.second);
+    std::cout << kv.first << " count=" << kv.second << " success=" << success_count
+              << " success_rate=" << success_rate << "\n";
+  }
+
+  return 0;
+}
+
 int CmdWriteAdd(const std::string& image_path, const std::string& host_file, const std::string& windows_name) {
   D64ImageEditor editor;
   if (!editor.Open(image_path)) {
@@ -1413,6 +1508,22 @@ int main(int argc, char** argv) {
       return 1;
     }
     return CmdTelemetryListMounted(argv[2]);
+  }
+
+  if (command == "telemetry-stats-mounted") {
+    if (argc != 3 && argc != 4) {
+      PrintUsage();
+      return 1;
+    }
+    bool as_json = false;
+    if (argc == 4) {
+      if (std::string(argv[3]) != "--json") {
+        PrintUsage();
+        return 1;
+      }
+      as_json = true;
+    }
+    return CmdTelemetryStatsMounted(argv[2], as_json);
   }
 
   if (command == "write-add") {

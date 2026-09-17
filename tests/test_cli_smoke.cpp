@@ -235,6 +235,19 @@ int main(int argc, char** argv) {
     ok = ok && Check(Contains(telemetry_list_r.output, "Telemetry files for Z:"),
                      "telemetry-list-mounted reports header");
 
+    const auto telemetry_stats_cmd = Quote(exe_path.string()) + " telemetry-stats-mounted Z:";
+    const auto telemetry_stats_r = Run(telemetry_stats_cmd);
+    ok = ok && Check(telemetry_stats_r.exit_code == 0, "telemetry-stats-mounted exits 0");
+    ok = ok && Check(Contains(telemetry_stats_r.output, "Total events:"),
+                     "telemetry-stats-mounted reports totals");
+
+    const auto telemetry_stats_json_cmd = Quote(exe_path.string()) + " telemetry-stats-mounted Z: --json";
+    const auto telemetry_stats_json_r = Run(telemetry_stats_json_cmd);
+    ok = ok && Check(telemetry_stats_json_r.exit_code == 0,
+                     "telemetry-stats-mounted --json exits 0");
+    ok = ok && Check(Contains(telemetry_stats_json_r.output, "\"events\":"),
+                     "telemetry-stats-mounted --json reports events array");
+
     const auto preflight_cmd = Quote(exe_path.string()) + " winfsp-preflight " +
                                Quote(golden.valid_small.string()) + " Y:";
     const auto preflight_r = Run(preflight_cmd);
