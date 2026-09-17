@@ -159,6 +159,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K67 explainability scaffold adds `query_plan_predicate_density` to quantify predicate share in compiled RPN plans.
 - K68 explainability scaffold adds `query_plan_negation_ratio` to measure unary negation intensity relative to predicates.
 - K69 explainability scaffold adds `query_plan_stage_budget_ratio` to expose worst-stage budget pressure.
+- K70 explainability scaffold adds deterministic `query_plan_rule_fingerprint` derived from plan signature, rule count, and score.
 
 ## Domain Layer (Step 3)
 

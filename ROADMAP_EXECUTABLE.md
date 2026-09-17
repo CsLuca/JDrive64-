@@ -3311,7 +3311,7 @@ Status: done
 
 ## K69 - Query-plan Stage Budget Ratio Scaffold
 
-Status: in progress
+Status: done
 
 ### K69.1 Stage budget ratio field
 
@@ -3343,6 +3343,41 @@ Status: in progress
 
 - Query-plan stage budget ratio metadata is integrated and test-covered.
 - Ready for K70 rule fingerprint metadata scaffold.
+
+## K70 - Query-plan Rule Fingerprint Scaffold
+
+Status: in progress
+
+### K70.1 Rule fingerprint field
+
+- Task: add compact deterministic fingerprint for activated-rule plan shape.
+- PASS:
+  - explain output includes `query_plan_rule_fingerprint`.
+  - fingerprint deterministically derives from plan signature and rule metadata.
+- FAIL:
+  - explain output has no rule fingerprint metadata.
+
+### K70.2 Regression coverage
+
+- Task: validate rule fingerprint field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_rule_fingerprint` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for rule fingerprint metadata.
+
+### K70 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K70 exit criteria
+
+- Query-plan rule fingerprint metadata is integrated and test-covered.
+- Ready for K71 selector signature metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

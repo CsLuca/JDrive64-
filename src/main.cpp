@@ -2114,6 +2114,9 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
       signature_stream << "p" << rpn_predicates << "-n" << rpn_not << "-a" << rpn_and
                        << "-o" << rpn_or << "-d" << pred_detail << "-s" << pred_success;
       std::cout << "  \"query_plan_signature\": \"" << signature_stream.str() << "\",\n";
+      const std::uint64_t rule_fingerprint = StableWhereHash(signature_stream.str()) ^
+                                             static_cast<std::uint64_t>((rule_count * 17) + planner_score);
+      std::cout << "  \"query_plan_rule_fingerprint\": " << rule_fingerprint << ",\n";
       std::cout << "  \"query_plan_diagnostics_envelope\": {\n";
       std::cout << "    \"version\": \"diag.v1\",\n";
       std::cout << "    \"compatibility\": \"backward-additive\",\n";
