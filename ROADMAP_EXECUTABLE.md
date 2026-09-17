@@ -1706,7 +1706,7 @@ Status: done
 
 ## K27 - Query Normalization and Schema Policy Scaffold
 
-Status: in progress
+Status: done
 
 ### K27.1 Query normalization
 
@@ -1747,6 +1747,50 @@ Status: in progress
 
 - Query normalization and schema policy metadata are integrated and test-covered.
 - Ready for K28 structured expression parser scaffold.
+
+## K28 - Structured Query Expression Parser Scaffold
+
+Status: in progress
+
+### K28.1 Where expression syntax
+
+- Task: add compact expression syntax for telemetry query filtering.
+- PASS:
+  - `telemetry-dump-mounted` supports `--where <expr>`.
+  - expression supports `AND`/`OR` over supported predicates (`event==...`, `event_prefix==...`, `event_contains==...`, `success==true|false`).
+- FAIL:
+  - no parser for structured telemetry query expressions.
+
+### K28.2 Normalized expression export
+
+- Task: expose canonicalized expression string in query JSON metadata.
+- PASS:
+  - JSON query object includes normalized `where` field.
+  - invalid expressions fail with explicit parse error.
+- FAIL:
+  - expression metadata missing or parser errors are non-actionable.
+
+### K28.3 Regression coverage
+
+- Task: validate where-expression mode in CLI smoke.
+- PASS:
+  - smoke executes `--where` query successfully.
+  - smoke asserts normalized `query.where` field.
+- FAIL:
+  - no tests for expression parser path.
+
+### K28 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K28 exit criteria
+
+- Structured expression parser scaffold is integrated and test-covered.
+- Ready for K29 expression precedence/grouping scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

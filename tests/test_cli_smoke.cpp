@@ -257,6 +257,14 @@ int main(int argc, char** argv) {
     ok = ok && Check(Contains(telemetry_dump_norm_r.output, "\"selector_mode\": \"all\""),
                      "telemetry-dump-mounted normalizes selector mode without positive selectors");
 
+    const auto telemetry_dump_where_cmd = Quote(exe_path.string()) +
+                                          " telemetry-dump-mounted Z: --where \"event_prefix==send. AND success==true\" --bundle";
+    const auto telemetry_dump_where_r = Run(telemetry_dump_where_cmd);
+    ok = ok && Check(telemetry_dump_where_r.exit_code == 0,
+                     "telemetry-dump-mounted --where exits 0");
+    ok = ok && Check(Contains(telemetry_dump_where_r.output, "\"where\": \"event_prefix==send. AND success==true\""),
+                     "telemetry-dump-mounted --where reports normalized expression");
+
     const auto telemetry_clear_cmd = Quote(exe_path.string()) + " telemetry-clear-mounted Z:";
     const auto telemetry_clear_r = Run(telemetry_clear_cmd);
     ok = ok && Check(telemetry_clear_r.exit_code == 0, "telemetry-clear-mounted exits 0");

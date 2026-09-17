@@ -4,7 +4,9 @@
 #include <cstdlib>
 #include <cstdint>
 #include <algorithm>
+#include <cctype>
 #include <map>
+#include <sstream>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -326,6 +328,8 @@ struct TelemetryDumpOptions {
   std::vector<std::string> exclude_events;
   std::string event_prefix;
   std::string event_contains;
+  std::string where_expression;
+  std::string where_expression_normalized;
   SelectorMode selector_mode = SelectorMode::kAll;
   int success_filter = -1;
   std::size_t tail = 0;
@@ -333,7 +337,194 @@ struct TelemetryDumpOptions {
   std::size_t limit = 0;
   bool as_json = false;
   bool bundle = false;
+  bool where_enabled = false;
 };
+
+struct TelemetryWherePredicate {
+  enum class Kind {
+    kEventEquals,
+    kEventPrefix,
+    kEventContains,
+    kSuccessEquals,
+  };
+
+  Kind kind = Kind::kEventEquals;
+  std::string value;
+  int success = -1;
+};
+
+struct TelemetryWhereExpression {
+  std::vector<TelemetryWherePredicate> predicates;
+  std::vector<bool> is_or;
+};
+
+bool ParseWherePredicateToken(const std::string& token,
+                              TelemetryWherePredicate* predicate_out,
+                              std::string* normalized_out,
+                              std::string* error_out) {
+  if (predicate_out == nullptr || normalized_out == nullptr || error_out == nullptr) {
+    return false;
+  }
+
+  auto parse_value = [&](const std::string& prefix, TelemetryWherePredicate::Kind kind,
+                         const std::string& normalized_prefix) -> bool {
+    if (!token.starts_with(prefix)) {
+      return false;
+    }
+    const std::string raw = TrimAsciiWhitespace(token.substr(prefix.size()));
+    if (raw.empty()) {
+      *error_out = "where predicate value cannot be empty";
+      return true;
+    }
+    predicate_out->kind = kind;
+    predicate_out->value = raw;
+    *normalized_out = normalized_prefix + raw;
+    return true;
+  };
+
+  if (parse_value("event==", TelemetryWherePredicate::Kind::kEventEquals, "event==")) {
+    return error_out->empty();
+  }
+  if (parse_value("event_prefix==", TelemetryWherePredicate::Kind::kEventPrefix, "event_prefix==")) {
+    return error_out->empty();
+  }
+  if (parse_value("event_contains==", TelemetryWherePredicate::Kind::kEventContains,
+                  "event_contains==")) {
+    return error_out->empty();
+  }
+
+  if (token.starts_with("success==")) {
+    const std::string raw = TrimAsciiWhitespace(token.substr(std::string("success==").size()));
+    if (raw == "true") {
+      predicate_out->kind = TelemetryWherePredicate::Kind::kSuccessEquals;
+      predicate_out->success = 1;
+      *normalized_out = "success==true";
+      return true;
+    }
+    if (raw == "false") {
+      predicate_out->kind = TelemetryWherePredicate::Kind::kSuccessEquals;
+      predicate_out->success = 0;
+      *normalized_out = "success==false";
+      return true;
+    }
+    *error_out = "where success predicate must be success==true or success==false";
+    return false;
+  }
+
+  *error_out = "unsupported where predicate token: " + token;
+  return false;
+}
+
+bool ParseWhereExpression(const std::string& expression,
+                          TelemetryWhereExpression* where_out,
+                          std::string* normalized_out,
+                          std::string* error_out) {
+  if (where_out == nullptr || normalized_out == nullptr || error_out == nullptr) {
+    return false;
+  }
+
+  const std::string trimmed = TrimAsciiWhitespace(expression);
+  if (trimmed.empty()) {
+    *error_out = "where expression cannot be empty";
+    return false;
+  }
+
+  std::istringstream in(trimmed);
+  std::vector<std::string> tokens;
+  std::string token;
+  while (in >> token) {
+    tokens.push_back(token);
+  }
+
+  if (tokens.empty()) {
+    *error_out = "where expression cannot be empty";
+    return false;
+  }
+
+  TelemetryWhereExpression parsed;
+  std::string normalized;
+  bool expect_predicate = true;
+  for (const auto& t : tokens) {
+    if (expect_predicate) {
+      TelemetryWherePredicate predicate;
+      std::string normalized_predicate;
+      std::string parse_error;
+      if (!ParseWherePredicateToken(t, &predicate, &normalized_predicate, &parse_error)) {
+        *error_out = parse_error;
+        return false;
+      }
+      parsed.predicates.push_back(std::move(predicate));
+      if (!normalized.empty()) {
+        normalized += " ";
+      }
+      normalized += normalized_predicate;
+      expect_predicate = false;
+      continue;
+    }
+
+    std::string upper = t;
+    for (char& c : upper) {
+      c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    }
+    if (upper == "AND") {
+      parsed.is_or.push_back(false);
+      normalized += " AND";
+    } else if (upper == "OR") {
+      parsed.is_or.push_back(true);
+      normalized += " OR";
+    } else {
+      *error_out = "where expression expects AND or OR, got: " + t;
+      return false;
+    }
+    expect_predicate = true;
+  }
+
+  if (expect_predicate) {
+    *error_out = "where expression cannot end with logical operator";
+    return false;
+  }
+  if (parsed.is_or.size() + 1 != parsed.predicates.size()) {
+    *error_out = "where expression is malformed";
+    return false;
+  }
+
+  *where_out = std::move(parsed);
+  *normalized_out = std::move(normalized);
+  return true;
+}
+
+bool EvaluateWherePredicate(const std::string& name, int success, const TelemetryWherePredicate& predicate) {
+  switch (predicate.kind) {
+    case TelemetryWherePredicate::Kind::kEventEquals:
+      return name == predicate.value;
+    case TelemetryWherePredicate::Kind::kEventPrefix:
+      return name.starts_with(predicate.value);
+    case TelemetryWherePredicate::Kind::kEventContains:
+      return name.find(predicate.value) != std::string::npos;
+    case TelemetryWherePredicate::Kind::kSuccessEquals:
+      return success != -1 && success == predicate.success;
+  }
+  return false;
+}
+
+bool EvaluateWhereExpression(const std::string& name,
+                            int success,
+                            const TelemetryWhereExpression& where_expression) {
+  if (where_expression.predicates.empty()) {
+    return true;
+  }
+
+  bool acc = EvaluateWherePredicate(name, success, where_expression.predicates[0]);
+  for (std::size_t i = 1; i < where_expression.predicates.size(); ++i) {
+    const bool rhs = EvaluateWherePredicate(name, success, where_expression.predicates[i]);
+    if (where_expression.is_or[i - 1]) {
+      acc = acc || rhs;
+    } else {
+      acc = acc && rhs;
+    }
+  }
+  return acc;
+}
 
 bool HasPositiveSelectors(const TelemetryDumpOptions& opt) {
   return !opt.include_events.empty() || !opt.event_prefix.empty() || !opt.event_contains.empty();
@@ -358,15 +549,33 @@ void NormalizeStringList(std::vector<std::string>* values) {
   *values = std::move(filtered);
 }
 
-TelemetryDumpOptions NormalizeTelemetryDumpOptions(TelemetryDumpOptions opt) {
-  NormalizeStringList(&opt.include_events);
-  NormalizeStringList(&opt.exclude_events);
-  opt.event_prefix = TrimAsciiWhitespace(opt.event_prefix);
-  opt.event_contains = TrimAsciiWhitespace(opt.event_contains);
-  if (!HasPositiveSelectors(opt)) {
-    opt.selector_mode = TelemetryDumpOptions::SelectorMode::kAll;
+bool NormalizeTelemetryDumpOptions(TelemetryDumpOptions* opt, std::string* error_out) {
+  if (opt == nullptr || error_out == nullptr) {
+    return false;
   }
-  return opt;
+
+  NormalizeStringList(&opt->include_events);
+  NormalizeStringList(&opt->exclude_events);
+  opt->event_prefix = TrimAsciiWhitespace(opt->event_prefix);
+  opt->event_contains = TrimAsciiWhitespace(opt->event_contains);
+
+  if (opt->where_enabled) {
+    TelemetryWhereExpression parsed_where;
+    std::string normalized_where;
+    std::string parse_error;
+    if (!ParseWhereExpression(opt->where_expression, &parsed_where, &normalized_where, &parse_error)) {
+      *error_out = parse_error;
+      return false;
+    }
+    opt->where_expression_normalized = std::move(normalized_where);
+  } else {
+    opt->where_expression_normalized.clear();
+  }
+
+  if (!HasPositiveSelectors(*opt)) {
+    opt->selector_mode = TelemetryDumpOptions::SelectorMode::kAll;
+  }
+  return true;
 }
 
 int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDumpOptions& opt);
@@ -480,6 +689,22 @@ int ExtractJsonBoolField(const std::string& line, const std::string& field_name)
 
 bool TelemetryLineMatchesFilter(const std::string& line, const TelemetryDumpOptions& opt) {
   const std::string name = ExtractJsonStringField(line, "name");
+  const int success = ExtractJsonBoolField(line, "success");
+
+  if (opt.where_enabled) {
+    TelemetryWhereExpression parsed_where;
+    std::string normalized_where;
+    std::string parse_error;
+    const std::string& expression = opt.where_expression_normalized.empty()
+                                        ? opt.where_expression
+                                        : opt.where_expression_normalized;
+    if (!ParseWhereExpression(expression, &parsed_where, &normalized_where, &parse_error)) {
+      return false;
+    }
+    if (!EvaluateWhereExpression(name, success, parsed_where)) {
+      return false;
+    }
+  }
 
   for (const auto& exclude_event : opt.exclude_events) {
     if (name == exclude_event) {
@@ -520,7 +745,6 @@ bool TelemetryLineMatchesFilter(const std::string& line, const TelemetryDumpOpti
   }
 
   if (opt.success_filter != -1) {
-    const int success = ExtractJsonBoolField(line, "success");
     if (success != opt.success_filter) {
       return false;
     }
@@ -546,7 +770,7 @@ void PrintUsage() {
             << "  jdrive64 check-mounted <drive_letter:>\n"
             << "  jdrive64 backend-diag <image.d64> [--backend <winfsp|kdrv>] [--json]\n"
             << "  jdrive64 backend-diag-mounted <drive_letter:> [--json]\n"
-            << "  jdrive64 telemetry-dump-mounted <drive_letter:> [--event <name>] [--exclude-event <name>] [--event-prefix <prefix>] [--event-contains <text>] [--selector-mode <all|any>] [--success <true|false>] [--tail N] [--offset N] [--limit N] [--json] [--bundle]\n"
+            << "  jdrive64 telemetry-dump-mounted <drive_letter:> [--event <name>] [--exclude-event <name>] [--event-prefix <prefix>] [--event-contains <text>] [--selector-mode <all|any>] [--where <expr>] [--success <true|false>] [--tail N] [--offset N] [--limit N] [--json] [--bundle]\n"
             << "  jdrive64 telemetry-clear-mounted <drive_letter:>\n"
             << "  jdrive64 telemetry-list-mounted <drive_letter:>\n"
             << "  jdrive64 telemetry-stats-mounted <drive_letter:> [--json]\n"
@@ -1220,6 +1444,8 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
     std::cout << "],\n";
     std::cout << "    \"event_prefix\": \"" << EscapeJson(opt.event_prefix) << "\",\n";
     std::cout << "    \"event_contains\": \"" << EscapeJson(opt.event_contains) << "\",\n";
+    std::cout << "    \"where\": \""
+              << EscapeJson(opt.where_enabled ? opt.where_expression_normalized : std::string()) << "\",\n";
     if (opt.success_filter == -1) {
       std::cout << "    \"success\": \"any\",\n";
     } else {
@@ -1616,6 +1842,15 @@ int main(int argc, char** argv) {
         }
         continue;
       }
+      if (arg == "--where") {
+        if (i + 1 >= argc) {
+          PrintUsage();
+          return 1;
+        }
+        opt.where_expression = argv[++i];
+        opt.where_enabled = true;
+        continue;
+      }
       if (arg == "--success") {
         if (i + 1 >= argc) {
           PrintUsage();
@@ -1683,9 +1918,14 @@ int main(int argc, char** argv) {
       PrintUsage();
       return 1;
     }
-    opt = NormalizeTelemetryDumpOptions(std::move(opt));
+    std::string normalize_error;
+    if (!NormalizeTelemetryDumpOptions(&opt, &normalize_error)) {
+      std::cerr << "Error: invalid telemetry query options: " << normalize_error << "\n";
+      return 1;
+    }
 
-    if (!HasPositiveSelectors(opt) && opt.exclude_events.empty() && opt.success_filter == -1 && opt.tail == 0 &&
+    if (!opt.where_enabled && !HasPositiveSelectors(opt) && opt.exclude_events.empty() && opt.success_filter == -1 &&
+        opt.tail == 0 &&
         opt.offset == 0 && opt.limit == 0 && !opt.as_json && !opt.bundle) {
       return CmdTelemetryDumpMounted(argv[2]);
     }
