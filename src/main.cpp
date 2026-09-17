@@ -325,6 +325,7 @@ struct TelemetryWherePredicate {
     kEventSuffix,
     kEventContains,
     kDetailPrefix,
+    kDetailSuffix,
     kDetailContains,
     kSuccessEquals,
   };
@@ -546,6 +547,9 @@ bool JsonStringFieldContains(const std::string& line,
 bool JsonStringFieldStartsWith(const std::string& line,
                                const std::string& field_name,
                                const std::string& prefix);
+bool JsonStringFieldEndsWith(const std::string& line,
+                             const std::string& field_name,
+                             const std::string& suffix);
 
 bool ParseWherePredicateToken(const std::string& token,
                               TelemetryWherePredicate* predicate_out,
@@ -590,6 +594,10 @@ bool ParseWherePredicateToken(const std::string& token,
   }
   if (parse_value("detail_prefix==", TelemetryWherePredicate::Kind::kDetailPrefix,
                   "detail_prefix==")) {
+    return error_out->empty();
+  }
+  if (parse_value("detail_suffix==", TelemetryWherePredicate::Kind::kDetailSuffix,
+                  "detail_suffix==")) {
     return error_out->empty();
   }
 
@@ -809,6 +817,8 @@ bool EvaluateWherePredicate(const std::string& line,
       return name.find(predicate.value) != std::string::npos;
     case TelemetryWherePredicate::Kind::kDetailPrefix:
       return JsonStringFieldStartsWith(line, "detail", predicate.value);
+    case TelemetryWherePredicate::Kind::kDetailSuffix:
+      return JsonStringFieldEndsWith(line, "detail", predicate.value);
     case TelemetryWherePredicate::Kind::kDetailContains:
       return JsonStringFieldContains(line, "detail", predicate.value);
     case TelemetryWherePredicate::Kind::kSuccessEquals:
@@ -1040,6 +1050,14 @@ bool JsonStringFieldStartsWith(const std::string& line,
                                const std::string& prefix) {
   const std::string value = ExtractJsonStringField(line, field_name);
   return value.starts_with(prefix);
+}
+
+bool JsonStringFieldEndsWith(const std::string& line,
+                             const std::string& field_name,
+                             const std::string& suffix) {
+  const std::string value = ExtractJsonStringField(line, field_name);
+  return value.size() >= suffix.size() &&
+         value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 bool TelemetryLineMatchesFilter(const std::string& line, const TelemetryDumpOptions& opt) {

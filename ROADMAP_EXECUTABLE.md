@@ -2058,7 +2058,7 @@ Status: done
 
 ## K35 - Detail Prefix Predicate Scaffold
 
-Status: in progress
+Status: done
 
 ### K35.1 Detail prefix parser support
 
@@ -2099,6 +2099,50 @@ Status: in progress
 
 - Detail prefix predicate is integrated and test-covered.
 - Ready for K36 detail suffix predicate scaffold.
+
+## K36 - Detail Suffix Predicate Scaffold
+
+Status: in progress
+
+### K36.1 Detail suffix parser support
+
+- Task: add detail suffix predicate for where expressions.
+- PASS:
+  - parser accepts `detail_suffix==...`.
+  - normalized where output preserves detail-suffix predicate.
+- FAIL:
+  - parser rejects detail suffix predicate.
+
+### K36.2 Detail suffix evaluator support
+
+- Task: evaluate detail suffix predicate against telemetry detail field.
+- PASS:
+  - evaluator performs ends-with match on `detail` value.
+  - missing detail field yields deterministic false.
+- FAIL:
+  - detail suffix predicate is ignored or mis-evaluated.
+
+### K36.3 Regression coverage
+
+- Task: validate detail suffix predicate in CLI smoke.
+- PASS:
+  - smoke executes detail-suffix query successfully.
+  - smoke asserts normalized output contains `detail_suffix` predicate.
+- FAIL:
+  - no tests for detail-suffix predicate.
+
+### K36 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K36 exit criteria
+
+- Detail suffix predicate is integrated and test-covered.
+- Ready for K37 case-insensitive event equality predicate scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
