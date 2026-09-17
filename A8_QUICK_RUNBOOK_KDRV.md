@@ -7,6 +7,14 @@ Use this quick sequence to close A8 evidence on a target Windows host.
 - Replace `<IMAGE>` with a valid `.d64` file path.
 - Use drive letter `R:` (or any free letter).
 
+Optional automation script:
+
+```powershell
+python .\scripts\a8_kdrv_automation.py --image "<IMAGE>" --drive R:
+```
+
+This generates `A8_EVIDENCE_YYYY-MM-DD_AUTO.md` with command transcript and pass/fail summary.
+
 ## 1) Command transcript (copy/paste as-is)
 
 ```powershell

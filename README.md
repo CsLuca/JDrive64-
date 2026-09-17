@@ -75,6 +75,12 @@ Release readiness helper:
 powershell -ExecutionPolicy Bypass -File .\scripts\release-readiness.ps1
 ```
 
+A8 kdrv command-level automation helper:
+
+```powershell
+python .\scripts\a8_kdrv_automation.py --image "<path-to-image.d64>" --drive R:
+```
+
 K1 lab self-check helper:
 
 ```powershell
