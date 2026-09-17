@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(JDRIVE64_ENABLE_WINFSP "Enable WinFsp integration" OFF)
+option(JDRIVE64_ENABLE_KDRV "Enable kernel backend scaffolding" ON)
 
 add_library(jdrive64_core
   src/bam_reader.cpp
@@ -17,6 +18,7 @@ add_library(jdrive64_core
   src/directory_reader.cpp
   src/file_cache.cpp
   src/file_chain_reader.cpp
+  src/kernel_backend.cpp
   src/mount_backend.cpp
   src/petscii_converter.cpp
   src/sector_cache.cpp

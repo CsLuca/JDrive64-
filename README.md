@@ -15,6 +15,7 @@ Execution tracking is in `ROADMAP_EXECUTABLE.md`.
 Explorer host validation checklist is in `A8_EXPLORER_CHECKLIST.md`.
 Release gate checklist is in `V1_RELEASE_CHECKLIST.md`.
 Evidence template is in `A8_EVIDENCE_TEMPLATE.md`.
+Kernel lab setup docs are in `K1_DRIVER_LAB_SETUP.md` and `K1_LAB_VALIDATION.md`.
 
 ## Versioning
 
@@ -74,12 +75,23 @@ Release readiness helper:
 powershell -ExecutionPolicy Bypass -File .\scripts\release-readiness.ps1
 ```
 
+K1 lab self-check helper:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
+```
+
 ## Notes on Current WinFsp Status
 
 - `WinFspFilesystem` exists as a read-only integration scaffold.
 - Read/write policies and catalog/file read path are in place.
 - Callback-like methods are now available for integration wiring: `GetVolumeInfo`, `GetFileInfo`, `Open`, `Read`, `Close`, `ReadDirectory`.
 - Mutation-oriented methods are hard-blocked in read-only mode and return `ACCESS_DENIED` (`Create`, `Write`, `Delete`, `Rename`, `SetFileSize`, `SetFileAttributes`).
+
+## Kernel Backend Status
+
+- `kdrv` backend is scaffolded for K2 and currently returns a deterministic not-implemented mount error.
+- Driver/service binaries (`jdrive64k.sys`, `jdrive64ksvc.exe`) are not wired yet.
 
 ## Domain Layer (Step 3)
 

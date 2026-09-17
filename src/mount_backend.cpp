@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "jdrive64/kernel_backend.hpp"
 #include "jdrive64/winfsp_filesystem.hpp"
 
 namespace jdrive64 {
@@ -34,30 +35,54 @@ class WinFspMountBackend final : public IMountBackend {
 class KernelMountBackend final : public IMountBackend {
  public:
   bool MountReadOnly(const std::string& image_path, const std::string& mount_point) override {
-    (void)image_path;
-    (void)mount_point;
-    last_error_ = "Kernel backend not implemented";
+    if (!controller_.InstallService("jdrive64ksvc.exe")) {
+      last_error_ = controller_.LastError();
+      return false;
+    }
+    if (!controller_.StartService(image_path, mount_point)) {
+      last_error_ = controller_.LastError();
+      return false;
+    }
+
+    mounted_ = true;
+    last_error_ = "Kernel backend skeleton started but mount manager integration is not implemented";
     return false;
   }
 
   bool Unmount(const std::string& mount_point) override {
     (void)mount_point;
-    last_error_ = "Kernel backend not implemented";
-    return false;
+
+    if (!mounted_) {
+      last_error_ = "Kernel backend not mounted";
+      return false;
+    }
+    if (!controller_.StopService()) {
+      last_error_ = controller_.LastError();
+      return false;
+    }
+    if (!controller_.RemoveService()) {
+      last_error_ = controller_.LastError();
+      return false;
+    }
+
+    mounted_ = false;
+    last_error_.clear();
+    return true;
   }
 
-  bool HealthCheck() override {
-    last_error_ = "Kernel backend not implemented";
-    return false;
-  }
+  bool HealthCheck() override { return mounted_ && controller_.IsServiceRunning(); }
 
   std::vector<std::string> ReadDirectory() const override { return {}; }
 
-  std::string GetVolumeInfoText() const override { return ""; }
+  std::string GetVolumeInfoText() const override {
+    return "Kernel backend scaffold active (K2, read path not implemented)";
+  }
 
   const std::string& LastError() const override { return last_error_; }
 
  private:
+  bool mounted_ = false;
+  KernelBackendController controller_;
   std::string last_error_;
 };
 

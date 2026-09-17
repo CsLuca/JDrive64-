@@ -817,8 +817,8 @@ bool TestMountBackendFactory(const std::filesystem::path& image_path) {
   if (!Assert(!kdrv->MountReadOnly(image_path.string(), "Q:"), "Kdrv backend not implemented yet")) {
     return false;
   }
-  if (!Assert(kdrv->LastError() == "Kernel backend not implemented",
-              "Kdrv backend returns not implemented error")) {
+  if (!Assert(kdrv->LastError().find("not implemented") != std::string::npos,
+              "Kdrv backend returns scaffold not implemented error")) {
     return false;
   }
 

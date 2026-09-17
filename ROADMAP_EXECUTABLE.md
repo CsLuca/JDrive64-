@@ -431,5 +431,97 @@ Status: done
 - WinFsp behavior remains backward-compatible.
 - Kernel backend path is stubbed and ready for K1/K2 work.
 
+## K1 - Secure Driver Dev Lab
+
+Status: in progress
+
+### K1.1 VM and safety baseline
+
+- Task: establish isolated VM workflow for kernel driver work.
+- PASS:
+  - Dedicated VM and snapshot process documented.
+  - Policy forbids testing experimental drivers on host workstation.
+- FAIL:
+  - No isolated lab process.
+
+### K1.2 Tooling baseline
+
+- Task: install and verify WDK + WinDbg toolchain in VM.
+- PASS:
+  - VS + WDK installed and verified.
+  - WinDbg kernel attach and symbol resolution verified.
+- FAIL:
+  - Debug tooling not operational.
+
+### K1.3 Verifier baseline
+
+- Task: configure Driver Verifier baseline and evidence capture process.
+- PASS:
+  - Verifier config recorded.
+  - Session artifact collection process documented.
+- FAIL:
+  - No verifier baseline or no artifact process.
+
+### K1 references
+
+- Setup guide: `K1_DRIVER_LAB_SETUP.md`
+- Validation record: `K1_LAB_VALIDATION.md`
+
+Current status note:
+- Local automated self-check is in place via `scripts/k1-lab-selfcheck.ps1`.
+- K1 remains open until VM-only checks in `K1_LAB_VALIDATION.md` are completed.
+
+### K1 exit criteria
+
+- K1 validation record completed with PASS on all mandatory checks.
+- Kernel dev lab repeatable and safe for K2 skeleton driver work.
+
+## K2 - Kernel Service Skeleton
+
+Status: in progress
+
+### K2.1 Kernel controller abstraction
+
+- Task: introduce skeleton controller for kernel service install/start/stop/remove lifecycle.
+- PASS:
+  - `include/jdrive64/kernel_backend.hpp` exists.
+  - `src/kernel_backend.cpp` exists.
+  - Lifecycle methods return deterministic errors/states.
+- FAIL:
+  - No service control abstraction for kdrv path.
+
+### K2.2 kdrv backend scaffold wiring
+
+- Task: connect kdrv mount backend to controller skeleton with deterministic failure contract.
+- PASS:
+  - `kdrv` mount path executes controller flow and returns explicit not-implemented mount integration error.
+  - `kdrv` unmount path handles not-mounted and cleanup states predictably.
+- FAIL:
+  - kdrv path remains hard-coded placeholder with no lifecycle structure.
+
+### K2.3 Build/test/docs baseline
+
+- Task: wire K2 sources into build and update tests/docs.
+- PASS:
+  - New kernel backend sources are compiled in core target.
+  - Core + CLI smoke tests assert kdrv deterministic failure behavior.
+  - README documents kdrv scaffold status.
+- FAIL:
+  - K2 scaffold not covered in tests/docs.
+
+### K2 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K2 exit criteria
+
+- Service control skeleton exists and is wired in kdrv backend.
+- Deterministic not-implemented contract is tested and documented.
+- Ready for K3 mount manager + real drive-letter integration.
+
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
