@@ -1878,6 +1878,11 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
     std::cout << "{\n";
     std::cout << "  \"schema_version\": \"telemetry-query.v1\",\n";
     std::cout << "  \"explain_schema_version\": \"telemetry-explain.v1\",\n";
+    std::cout << "  \"explain_schema_policy\": {\n";
+    std::cout << "    \"versioning\": \"semver-compatible\",\n";
+    std::cout << "    \"major_breaking_changes\": true,\n";
+    std::cout << "    \"minor_additive_changes\": true\n";
+    std::cout << "  },\n";
     std::cout << "  \"schema_policy\": {\n";
     std::cout << "    \"versioning\": \"semver-compatible\",\n";
     std::cout << "    \"major_breaking_changes\": true,\n";

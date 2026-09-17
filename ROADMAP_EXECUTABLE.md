@@ -2961,7 +2961,7 @@ Status: done
 
 ## K59 - Query Trace-id Metadata Scaffold
 
-Status: in progress
+Status: done
 
 ### K59.1 Trace-id field
 
@@ -2993,6 +2993,41 @@ Status: in progress
 
 - Query trace-id metadata is integrated and test-covered.
 - Ready for K60 explain schema policy metadata scaffold.
+
+## K60 - Explain Schema Policy Metadata Scaffold
+
+Status: in progress
+
+### K60.1 Explain schema policy object
+
+- Task: add explicit explain-schema policy metadata.
+- PASS:
+  - output includes `explain_schema_policy` object.
+  - policy reports compatibility model and major/minor evolution rules.
+- FAIL:
+  - explain schema has no dedicated policy metadata.
+
+### K60.2 Regression coverage
+
+- Task: validate explain schema policy field in CLI smoke.
+- PASS:
+  - smoke asserts `explain_schema_policy` field presence.
+  - existing explain/schema assertions remain green.
+- FAIL:
+  - no tests for explain schema policy metadata.
+
+### K60 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K60 exit criteria
+
+- Explain schema policy metadata is integrated and test-covered.
+- Ready for K61 planner diagnostics export hardening.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
