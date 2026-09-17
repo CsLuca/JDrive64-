@@ -1909,6 +1909,13 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
       std::cout << "    \"rpn_and\": " << rpn_and << ",\n";
       std::cout << "    \"rpn_or\": " << rpn_or << "\n";
       std::cout << "  },\n";
+      std::string complexity = "simple";
+      if (opt.where_compiled.rpn.size() >= 12 || rpn_or >= 3 || rpn_and >= 4) {
+        complexity = "complex";
+      } else if (opt.where_compiled.rpn.size() >= 6 || rpn_or >= 1 || rpn_and >= 2 || rpn_not >= 1) {
+        complexity = "moderate";
+      }
+      std::cout << "  \"query_plan_complexity\": \"" << complexity << "\",\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";

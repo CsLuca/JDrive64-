@@ -2392,7 +2392,7 @@ Status: done
 
 ## K43 - Case-insensitive Detail Contains Scaffold
 
-Status: in progress
+Status: done
 
 ### K43.1 Parser support
 
@@ -2433,6 +2433,41 @@ Status: in progress
 
 - Case-insensitive detail contains is integrated and test-covered.
 - Ready for K44 query-plan complexity metadata scaffold.
+
+## K44 - Query-plan Complexity Metadata Scaffold
+
+Status: in progress
+
+### K44.1 Explain complexity field
+
+- Task: add coarse query-plan complexity classification to explain output.
+- PASS:
+  - explain output includes `query_plan_complexity`.
+  - complexity is emitted as one of `simple`, `moderate`, `complex`.
+- FAIL:
+  - explain output has no complexity classification.
+
+### K44.2 Regression coverage
+
+- Task: validate complexity field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_complexity` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for complexity metadata.
+
+### K44 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K44 exit criteria
+
+- Query-plan complexity metadata is integrated and test-covered.
+- Ready for K45 explain planner score metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

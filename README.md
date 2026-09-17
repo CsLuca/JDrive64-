@@ -133,6 +133,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K41 predicate-family scaffold adds `event_starts_with==...` for explicit event prefix matching.
 - K42 predicate-family scaffold adds `event_ends_with==...` for explicit event suffix matching.
 - K43 predicate-family scaffold adds case-insensitive detail contains via `detail_icontains==...`.
+- K44 explainability scaffold adds `query_plan_complexity` classification (`simple|moderate|complex`).
 
 ## Domain Layer (Step 3)
 

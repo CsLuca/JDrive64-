@@ -321,6 +321,8 @@ int main(int argc, char** argv) {
                      "telemetry-dump-mounted --explain reports rpn_or");
     ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"normalized_where_hash\":"),
                      "telemetry-dump-mounted --explain reports normalized_where_hash");
+    ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"query_plan_complexity\":"),
+                     "telemetry-dump-mounted --explain reports query_plan_complexity");
 
     const auto telemetry_dump_where_detail_cmd = Quote(exe_path.string()) +
                                                  " telemetry-dump-mounted Z: --where \"detail_contains==success\" --bundle";
