@@ -615,7 +615,7 @@ Status: done
 
 ## K5 - IOCTL Bridge Scaffold
 
-Status: in progress
+Status: done
 
 ### K5.1 Message protocol
 
@@ -657,6 +657,60 @@ Status: in progress
 
 - IOCTL-like protocol and dispatcher scaffolds are integrated and test-covered.
 - Ready for K6 real service IPC wiring to kernel driver channel.
+
+## K6 - Service IPC Channel Scaffold
+
+Status: in progress
+
+### K6.1 IPC channel abstraction
+
+- Task: introduce service IPC channel object over K5 protocol dispatcher.
+- PASS:
+  - `include/jdrive64/kernel_ipc_channel.hpp` exists.
+  - `src/kernel_ipc_channel.cpp` exists.
+  - API includes connect/disconnect/send and connection-state/error accessors.
+- FAIL:
+  - No dedicated IPC channel abstraction.
+
+### K6.2 Controller lifecycle integration
+
+- Task: wire `KernelBackendController` to own IPC channel lifecycle and request dispatch.
+- PASS:
+  - controller `StartService` connects IPC.
+  - controller `StopService` disconnects IPC.
+  - controller exposes read-directory dispatch through IPC.
+- FAIL:
+  - controller does not use IPC channel for request flow.
+
+### K6.3 kdrv backend path update
+
+- Task: route kdrv directory read through controller IPC dispatch.
+- PASS:
+  - kdrv `ReadDirectory()` calls controller IPC-backed path.
+- FAIL:
+  - kdrv still reads directly from K4 object.
+
+### K6.4 Test coverage
+
+- Task: add IPC channel regression tests.
+- PASS:
+  - tests cover send-before-connect fail, connect/send success, disconnect state.
+- FAIL:
+  - no test coverage for IPC channel lifecycle.
+
+### K6 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K6 exit criteria
+
+- IPC channel scaffold is integrated in controller and kdrv dispatch path.
+- Lifecycle and dispatch behavior are test-covered.
+- Ready for K7 real kernel driver transport channel implementation.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

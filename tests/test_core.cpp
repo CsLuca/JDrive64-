@@ -14,6 +14,7 @@
 #include "jdrive64/file_cache.hpp"
 #include "jdrive64/file_chain_reader.hpp"
 #include "jdrive64/kernel_mount_manager.hpp"
+#include "jdrive64/kernel_ipc_channel.hpp"
 #include "jdrive64/kernel_ioctl_protocol.hpp"
 #include "jdrive64/kernel_readonly_fs.hpp"
 #include "jdrive64/kernel_user_bridge.hpp"
@@ -35,6 +36,7 @@ using jdrive64::FileCache;
 using jdrive64::FileChainReader;
 using jdrive64::IMountBackend;
 using jdrive64::KernelMountManager;
+using jdrive64::KernelIpcChannel;
 using jdrive64::KernelOpcode;
 using jdrive64::KernelRequest;
 using jdrive64::KernelResponse;
@@ -988,6 +990,41 @@ bool TestKernelUserBridgeScaffold(const std::filesystem::path& image_path) {
   return true;
 }
 
+bool TestKernelIpcChannelScaffold(const std::filesystem::path& image_path) {
+  KernelIpcChannel channel;
+
+  KernelResponse response;
+  if (!Assert(!channel.Send(KernelRequest{KernelOpcode::kReadDirectory, "", 0, 0, 0}, &response),
+              "KernelIpcChannel send fails before connect")) {
+    return false;
+  }
+
+  if (!Assert(channel.Connect(image_path.string()), "KernelIpcChannel connect")) {
+    return false;
+  }
+  if (!Assert(channel.IsConnected(), "KernelIpcChannel connected state")) {
+    return false;
+  }
+
+  if (!Assert(channel.Send(KernelRequest{KernelOpcode::kReadDirectory, "", 0, 0, 0}, &response),
+              "KernelIpcChannel send read directory")) {
+    return false;
+  }
+  if (!Assert(response.success && response.directory_entries.size() == 1,
+              "KernelIpcChannel read directory response")) {
+    return false;
+  }
+
+  if (!Assert(channel.Disconnect(), "KernelIpcChannel disconnect")) {
+    return false;
+  }
+  if (!Assert(!channel.IsConnected(), "KernelIpcChannel disconnected state")) {
+    return false;
+  }
+
+  return true;
+}
+
 }  // namespace
 
 int main() {
@@ -1005,6 +1042,7 @@ int main() {
   ok = ok && TestKernelMountManagerScaffold();
   ok = ok && TestKernelReadOnlyFilesystemScaffold(image_path);
   ok = ok && TestKernelUserBridgeScaffold(image_path);
+  ok = ok && TestKernelIpcChannelScaffold(image_path);
   ok = ok && TestWinFspAdapterScaffold(image_path);
   ok = ok && TestWinFspRuntimeScaffold(image_path);
 

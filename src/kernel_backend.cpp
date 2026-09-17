@@ -43,6 +43,11 @@ bool KernelBackendController::StartService(const std::string& image_path,
     return false;
   }
 
+  if (!ipc_channel_.Connect(image_path)) {
+    last_error_ = ipc_channel_.LastError();
+    return false;
+  }
+
   service_running_ = true;
   last_error_.clear();
   return true;
@@ -54,7 +59,34 @@ bool KernelBackendController::StopService() {
     return false;
   }
 
+  if (!ipc_channel_.Disconnect()) {
+    last_error_ = ipc_channel_.LastError();
+    return false;
+  }
+
   service_running_ = false;
+  last_error_.clear();
+  return true;
+}
+
+bool KernelBackendController::ReadDirectory(std::vector<std::string>* entries) {
+  if (entries == nullptr) {
+    last_error_ = "Invalid output entries";
+    return false;
+  }
+  if (!service_running_) {
+    last_error_ = "Kernel service is not running";
+    return false;
+  }
+
+  KernelResponse response;
+  const KernelRequest request{KernelOpcode::kReadDirectory, "", 0, 0, 0};
+  if (!ipc_channel_.Send(request, &response)) {
+    last_error_ = ipc_channel_.LastError();
+    return false;
+  }
+
+  *entries = response.directory_entries;
   last_error_.clear();
   return true;
 }
