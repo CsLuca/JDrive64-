@@ -53,6 +53,69 @@ using jdrive64::WinFspNativeApi;
 using jdrive64::WinFspNativeBridge;
 using jdrive64::WinFspRuntime;
 
+class FakeDeviceIoApi final : public KernelTransport::DeviceIoApi {
+ public:
+  bool open_ok = true;
+  bool close_ok = true;
+  bool ioctl_ok = true;
+
+  std::string open_error = "Kernel device channel not available";
+  std::string close_error = "Failed to close device handle";
+  std::string ioctl_error = "DeviceIoControl failed";
+
+  std::vector<std::uint8_t> next_response_frame;
+  std::vector<std::uint8_t> last_request_frame;
+  void* fake_handle = reinterpret_cast<void*>(0x1234);
+  int open_calls = 0;
+  int close_calls = 0;
+  int ioctl_calls = 0;
+
+  bool Open(const std::string& device_path, void** handle, std::string* error) override {
+    ++open_calls;
+    if (device_path != "\\\\.\\JDrive64Kdrv" || handle == nullptr || error == nullptr) {
+      return false;
+    }
+    if (!open_ok) {
+      *error = open_error;
+      return false;
+    }
+    *handle = fake_handle;
+    error->clear();
+    return true;
+  }
+
+  bool Close(void* handle, std::string* error) override {
+    ++close_calls;
+    if (error == nullptr || handle != fake_handle) {
+      return false;
+    }
+    if (!close_ok) {
+      *error = close_error;
+      return false;
+    }
+    error->clear();
+    return true;
+  }
+
+  bool Ioctl(void* handle,
+             const std::vector<std::uint8_t>& request_frame,
+             std::vector<std::uint8_t>* response_frame,
+             std::string* error) override {
+    ++ioctl_calls;
+    if (error == nullptr || response_frame == nullptr || handle != fake_handle) {
+      return false;
+    }
+    last_request_frame = request_frame;
+    if (!ioctl_ok) {
+      *error = ioctl_error;
+      return false;
+    }
+    *response_frame = next_response_frame;
+    error->clear();
+    return true;
+  }
+};
+
 bool Assert(bool condition, const std::string& message) {
   if (!condition) {
     std::cerr << "FAIL: " << message << "\n";
@@ -1227,6 +1290,110 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
     return false;
   }
   if (!Assert(parsed.error == error_text, "KernelTransport parsed error text")) {
+    return false;
+  }
+
+  FakeDeviceIoApi fake_api;
+  KernelTransport device_transport;
+  if (!Assert(device_transport.SetMode(KernelTransport::Mode::kDevice),
+              "KernelTransport test instance switches to device mode")) {
+    return false;
+  }
+  if (!Assert(device_transport.SetDeviceIoApiForTesting(&fake_api),
+              "KernelTransport accepts injected device IO API")) {
+    return false;
+  }
+  if (!Assert(device_transport.Connect(image_path.string()),
+              "KernelTransport connects with injected device IO API")) {
+    return false;
+  }
+  if (!Assert(fake_api.open_calls == 1, "KernelTransport invokes device open once")) {
+    return false;
+  }
+  if (!Assert(!device_transport.SetDeviceIoApiForTesting(&fake_api),
+              "KernelTransport rejects changing device API while connected")) {
+    return false;
+  }
+
+  const std::string ioctl_payload = "DATA";
+  std::vector<std::uint8_t> ioctl_response(KernelTransport::kDeviceResponseHeaderSize +
+                                           ioctl_payload.size(),
+                                           0);
+  const std::uint32_t ioctl_success = 1;
+  const std::uint32_t ioctl_payload_bytes = static_cast<std::uint32_t>(ioctl_payload.size());
+  const std::uint64_t ioctl_handle = 123;
+  const std::uint32_t ioctl_error_bytes = 0;
+  std::memcpy(ioctl_response.data() + 0, &ioctl_success, sizeof(ioctl_success));
+  std::memcpy(ioctl_response.data() + sizeof(std::uint32_t),
+              &ioctl_payload_bytes,
+              sizeof(ioctl_payload_bytes));
+  std::memcpy(ioctl_response.data() + sizeof(std::uint32_t) + sizeof(std::uint32_t),
+              &ioctl_handle,
+              sizeof(ioctl_handle));
+  std::memcpy(ioctl_response.data() + sizeof(std::uint32_t) + sizeof(std::uint32_t) +
+                  sizeof(std::uint64_t),
+              &ioctl_error_bytes,
+              sizeof(ioctl_error_bytes));
+  std::memcpy(ioctl_response.data() + KernelTransport::kDeviceResponseHeaderSize,
+              ioctl_payload.data(),
+              ioctl_payload.size());
+  fake_api.next_response_frame = ioctl_response;
+
+  KernelResponse ioctl_result;
+  if (!Assert(device_transport.Send(KernelRequest{KernelOpcode::kReadFile, "HELLO.PRG", 1, 0, 4},
+                                  &ioctl_result),
+              "KernelTransport device send succeeds with injected IOCTL response")) {
+    return false;
+  }
+  if (!Assert(fake_api.ioctl_calls == 1, "KernelTransport invokes IOCTL once")) {
+    return false;
+  }
+  if (!Assert(!fake_api.last_request_frame.empty(), "KernelTransport passes encoded request frame to IOCTL")) {
+    return false;
+  }
+  if (!Assert(ioctl_result.success && ioctl_result.handle == ioctl_handle,
+              "KernelTransport parses IOCTL success and handle")) {
+    return false;
+  }
+  if (!Assert(std::string(ioctl_result.data.begin(), ioctl_result.data.end()) == ioctl_payload,
+              "KernelTransport parses IOCTL payload data")) {
+    return false;
+  }
+
+  if (!Assert(device_transport.Disconnect(), "KernelTransport disconnects injected device API")) {
+    return false;
+  }
+  if (!Assert(fake_api.close_calls == 1, "KernelTransport invokes device close once")) {
+    return false;
+  }
+
+  FakeDeviceIoApi failing_api;
+  failing_api.ioctl_ok = false;
+  failing_api.ioctl_error = "fake ioctl failure";
+  KernelTransport failing_transport;
+  if (!Assert(failing_transport.SetMode(KernelTransport::Mode::kDevice),
+              "KernelTransport failing instance switches to device mode")) {
+    return false;
+  }
+  if (!Assert(failing_transport.SetDeviceIoApiForTesting(&failing_api),
+              "KernelTransport failing instance accepts injected API")) {
+    return false;
+  }
+  if (!Assert(failing_transport.Connect(image_path.string()),
+              "KernelTransport failing instance connects")) {
+    return false;
+  }
+  KernelResponse failing_result;
+  if (!Assert(!failing_transport.Send(KernelRequest{KernelOpcode::kReadDirectory, "", 0, 0, 0},
+                                   &failing_result),
+              "KernelTransport surfaces IOCTL failure")) {
+    return false;
+  }
+  if (!Assert(failing_result.error == "fake ioctl failure",
+              "KernelTransport returns IOCTL failure text")) {
+    return false;
+  }
+  if (!Assert(failing_transport.Disconnect(), "KernelTransport failing instance disconnects")) {
     return false;
   }
 

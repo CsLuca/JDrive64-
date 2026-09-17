@@ -768,7 +768,7 @@ Status: done
 
 ## K8 - Device Frame Contract Scaffold
 
-Status: in progress
+Status: done
 
 ### K8.1 Request frame contract
 
@@ -818,6 +818,59 @@ Status: in progress
 
 - Device frame contracts are codified and regression-tested.
 - Transport layer is ready for K9 real `DeviceIoControl` wiring.
+
+## K9 - DeviceIo Pipeline Scaffold
+
+Status: in progress
+
+### K9.1 Injectable device IO abstraction
+
+- Task: add explicit device-IO abstraction for open/ioctl/close to make transport testable.
+- PASS:
+  - `KernelTransport::DeviceIoApi` exposes `Open`, `Ioctl`, `Close`.
+  - transport supports test injection via `SetDeviceIoApiForTesting`.
+- FAIL:
+  - device path remains hard-wired and untestable.
+
+### K9.2 Device-mode send pipeline
+
+- Task: wire device mode send through request encode -> ioctl -> response parse.
+- PASS:
+  - device mode send builds request frame, invokes IOCTL API, parses response frame.
+  - deterministic error propagation for encode/ioctl/parse failures.
+- FAIL:
+  - send path does not exercise IOCTL stage.
+
+### K9.3 Windows default implementation
+
+- Task: provide default Windows implementation using `CreateFileA`/`DeviceIoControl`/`CloseHandle`.
+- PASS:
+  - default API opens `\\.\JDrive64Kdrv` and issues a dedicated control code placeholder.
+  - non-Windows path returns explicit unsupported message.
+- FAIL:
+  - no default Windows device I/O implementation.
+
+### K9.4 Regression tests
+
+- Task: add tests for injected API success/failure behavior.
+- PASS:
+  - tests validate open/ioctl/close call flow and request frame forwarding.
+  - tests validate surfaced IOCTL failure text.
+- FAIL:
+  - no tests around device-mode IO pipeline.
+
+### K9 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K9 exit criteria
+
+- Device-mode transport pipeline is integrated and test-covered.
+- Ready for K10 driver-side protocol/version handshake alignment.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

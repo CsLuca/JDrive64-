@@ -21,6 +21,82 @@ constexpr std::size_t kPayloadBytesOffset = kSuccessOffset + sizeof(std::uint32_
 constexpr std::size_t kHandleOutOffset = kPayloadBytesOffset + sizeof(std::uint32_t);
 constexpr std::size_t kErrorBytesOffset = kHandleOutOffset + sizeof(std::uint64_t);
 
+constexpr const char* kDevicePath = "\\\\.\\JDrive64Kdrv";
+
+#if defined(_WIN32)
+constexpr DWORD kIoctlJDrive64Request = 0x00222000;
+
+class WinDeviceIoApi final : public KernelTransport::DeviceIoApi {
+ public:
+  bool Open(const std::string& device_path, void** handle, std::string* error) override {
+    if (handle == nullptr || error == nullptr) {
+      return false;
+    }
+
+    HANDLE h = CreateFileA(device_path.c_str(),
+                           GENERIC_READ | GENERIC_WRITE,
+                           FILE_SHARE_READ | FILE_SHARE_WRITE,
+                           nullptr,
+                           OPEN_EXISTING,
+                           FILE_ATTRIBUTE_NORMAL,
+                           nullptr);
+    if (h == INVALID_HANDLE_VALUE) {
+      *error = "Kernel device channel not available";
+      return false;
+    }
+
+    *handle = h;
+    error->clear();
+    return true;
+  }
+
+  bool Close(void* handle, std::string* error) override {
+    if (error == nullptr) {
+      return false;
+    }
+    if (handle == nullptr) {
+      *error = "Invalid device handle";
+      return false;
+    }
+    if (!CloseHandle(static_cast<HANDLE>(handle))) {
+      *error = "Failed to close device handle";
+      return false;
+    }
+    error->clear();
+    return true;
+  }
+
+  bool Ioctl(void* handle,
+             const std::vector<std::uint8_t>& request_frame,
+             std::vector<std::uint8_t>* response_frame,
+             std::string* error) override {
+    if (handle == nullptr || response_frame == nullptr || error == nullptr) {
+      return false;
+    }
+
+    std::vector<std::uint8_t> out(64 * 1024, 0);
+    DWORD bytes_returned = 0;
+    const BOOL ok = DeviceIoControl(static_cast<HANDLE>(handle),
+                                    kIoctlJDrive64Request,
+                                    const_cast<std::uint8_t*>(request_frame.data()),
+                                    static_cast<DWORD>(request_frame.size()),
+                                    out.data(),
+                                    static_cast<DWORD>(out.size()),
+                                    &bytes_returned,
+                                    nullptr);
+    if (!ok) {
+      *error = "DeviceIoControl failed";
+      return false;
+    }
+
+    out.resize(bytes_returned);
+    *response_frame = std::move(out);
+    error->clear();
+    return true;
+  }
+};
+#endif
+
 }  // namespace
 
 bool KernelTransport::SetMode(Mode mode) {
@@ -35,6 +111,32 @@ bool KernelTransport::SetMode(Mode mode) {
 }
 
 KernelTransport::Mode KernelTransport::GetMode() const { return mode_; }
+
+bool KernelTransport::SetDeviceIoApiForTesting(DeviceIoApi* api) {
+  if (connected_) {
+    last_error_ = "Cannot change device IO API while connected";
+    return false;
+  }
+  device_io_api_ = api;
+  last_error_.clear();
+  return true;
+}
+
+KernelTransport::DeviceIoApi* KernelTransport::ResolveDeviceIoApi() {
+  if (device_io_api_ != nullptr) {
+    return device_io_api_;
+  }
+
+#if defined(_WIN32)
+  if (!default_device_io_api_) {
+    default_device_io_api_ = std::make_unique<WinDeviceIoApi>();
+  }
+  device_io_api_ = default_device_io_api_.get();
+  return device_io_api_;
+#else
+  return nullptr;
+#endif
+}
 
 bool KernelTransport::Connect(const std::string& image_path) {
   if (connected_) {
@@ -52,28 +154,24 @@ bool KernelTransport::Connect(const std::string& image_path) {
     return true;
   }
 
-#if defined(_WIN32)
-  HANDLE h = CreateFileA("\\\\.\\JDrive64Kdrv",
-                         GENERIC_READ | GENERIC_WRITE,
-                         FILE_SHARE_READ | FILE_SHARE_WRITE,
-                         nullptr,
-                         OPEN_EXISTING,
-                         FILE_ATTRIBUTE_NORMAL,
-                         nullptr);
-  if (h == INVALID_HANDLE_VALUE) {
-    last_error_ = "Kernel device channel not available";
+  (void)image_path;
+  DeviceIoApi* api = ResolveDeviceIoApi();
+  if (api == nullptr) {
+    last_error_ = "Device transport is only supported on Windows";
     return false;
   }
 
-  device_handle_ = h;
+  std::string error;
+  void* handle = nullptr;
+  if (!api->Open(kDevicePath, &handle, &error)) {
+    last_error_ = error.empty() ? "Kernel device channel not available" : error;
+    return false;
+  }
+
+  device_handle_ = handle;
   connected_ = true;
   last_error_.clear();
   return true;
-#else
-  (void)image_path;
-  last_error_ = "Device transport is only supported on Windows";
-  return false;
-#endif
 }
 
 bool KernelTransport::Disconnect() {
@@ -88,18 +186,22 @@ bool KernelTransport::Disconnect() {
     return true;
   }
 
-#if defined(_WIN32)
-  if (device_handle_ != nullptr) {
-    CloseHandle(static_cast<HANDLE>(device_handle_));
-    device_handle_ = nullptr;
+  DeviceIoApi* api = ResolveDeviceIoApi();
+  if (api == nullptr) {
+    last_error_ = "Device transport is only supported on Windows";
+    return false;
   }
+
+  std::string error;
+  if (!api->Close(device_handle_, &error)) {
+    last_error_ = error.empty() ? "Failed to close device handle" : error;
+    return false;
+  }
+
+  device_handle_ = nullptr;
   connected_ = false;
   last_error_.clear();
   return true;
-#else
-  last_error_ = "Device transport is only supported on Windows";
-  return false;
-#endif
 }
 
 bool KernelTransport::Send(const KernelRequest& request, KernelResponse* response) {
@@ -121,28 +223,53 @@ bool KernelTransport::Send(const KernelRequest& request, KernelResponse* respons
     return true;
   }
 
-  if (response != nullptr) {
-    std::vector<std::uint8_t> frame;
-    if (!BuildDeviceFrame(request, &frame)) {
-      response->success = false;
-      response->error = "Device request encoding failed";
-      last_error_ = response->error;
-      return false;
-    }
-
-    KernelResponse parsed;
-    if (!ParseDeviceFrame({}, &parsed)) {
-      response->success = false;
-      response->error = "Device response parsing failed";
-      last_error_ = response->error;
-      return false;
-    }
-
-    response->success = false;
-    response->error = "Device transport request path not implemented";
+  if (response == nullptr) {
+    last_error_ = "Invalid response output";
+    return false;
   }
-  last_error_ = "Device transport request path not implemented";
-  return false;
+
+  std::vector<std::uint8_t> request_frame;
+  if (!BuildDeviceFrame(request, &request_frame)) {
+    response->success = false;
+    response->error = "Device request encoding failed";
+    last_error_ = response->error;
+    return false;
+  }
+
+  DeviceIoApi* api = ResolveDeviceIoApi();
+  if (api == nullptr) {
+    response->success = false;
+    response->error = "Device transport is only supported on Windows";
+    last_error_ = response->error;
+    return false;
+  }
+
+  std::vector<std::uint8_t> response_frame;
+  std::string error;
+  if (!api->Ioctl(device_handle_, request_frame, &response_frame, &error)) {
+    response->success = false;
+    response->error = error.empty() ? "DeviceIoControl failed" : error;
+    last_error_ = response->error;
+    return false;
+  }
+
+  if (!ParseDeviceFrame(response_frame, response)) {
+    response->success = false;
+    response->error = "Device response parsing failed";
+    last_error_ = response->error;
+    return false;
+  }
+
+  if (!response->success) {
+    if (response->error.empty()) {
+      response->error = "Device request failed";
+    }
+    last_error_ = response->error;
+    return false;
+  }
+
+  last_error_.clear();
+  return true;
 }
 
 bool KernelTransport::BuildDeviceFrame(const KernelRequest& request,

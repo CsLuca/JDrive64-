@@ -98,6 +98,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K6 IPC channel scaffold (`KernelIpcChannel`) is wired in controller lifecycle for directory request flow.
 - K7 transport scaffold (`KernelTransport`) introduces loopback/device modes and placeholder device-channel connect.
 - K8 frame scaffold extends device mode with deterministic request encoding and response-frame parsing contracts.
+- K9 transport scaffold adds injectable DeviceIo API and real device send pipeline stages (open/ioctl/parse/close).
 
 ## Domain Layer (Step 3)
 
