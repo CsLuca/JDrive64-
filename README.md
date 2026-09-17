@@ -1,5 +1,7 @@
 # JDrive64
 
+![JDrive64 banner](assets/github-banner.svg)
+
 JDrive64 is a Windows virtual filesystem project that mounts a Commodore 1541 `.D64` floppy image as a drive.
 
 Current implementation status is an advanced core/parser stage with a read-only mount facade prepared for WinFsp wiring.
