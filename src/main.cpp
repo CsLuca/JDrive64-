@@ -322,6 +322,7 @@ struct TelemetryWherePredicate {
   enum class Kind {
     kEventEquals,
     kEventIEquals,
+    kEventIContains,
     kEventPrefix,
     kEventSuffix,
     kEventContains,
@@ -589,6 +590,10 @@ bool ParseWherePredicateToken(const std::string& token,
   if (parse_value("event_ieq==", TelemetryWherePredicate::Kind::kEventIEquals, "event_ieq==")) {
     return error_out->empty();
   }
+  if (parse_value("event_icontains==", TelemetryWherePredicate::Kind::kEventIContains,
+                  "event_icontains==")) {
+    return error_out->empty();
+  }
   if (parse_value("event_prefix==", TelemetryWherePredicate::Kind::kEventPrefix, "event_prefix==")) {
     return error_out->empty();
   }
@@ -821,6 +826,8 @@ bool EvaluateWherePredicate(const std::string& line,
       return name == predicate.value;
     case TelemetryWherePredicate::Kind::kEventIEquals:
       return LowerAscii(name) == LowerAscii(predicate.value);
+    case TelemetryWherePredicate::Kind::kEventIContains:
+      return LowerAscii(name).find(LowerAscii(predicate.value)) != std::string::npos;
     case TelemetryWherePredicate::Kind::kEventPrefix:
       return name.starts_with(predicate.value);
     case TelemetryWherePredicate::Kind::kEventSuffix:

@@ -2146,7 +2146,7 @@ Status: done
 
 ## K37 - Case-insensitive Event Equality Scaffold
 
-Status: in progress
+Status: done
 
 ### K37.1 Parser support
 
@@ -2187,6 +2187,50 @@ Status: in progress
 
 - Case-insensitive event equality is integrated and test-covered.
 - Ready for K38 case-insensitive event contains scaffold.
+
+## K38 - Case-insensitive Event Contains Scaffold
+
+Status: in progress
+
+### K38.1 Parser support
+
+- Task: add case-insensitive event contains predicate.
+- PASS:
+  - parser accepts `event_icontains==...`.
+  - normalized where output preserves predicate form.
+- FAIL:
+  - parser rejects `event_icontains` predicate.
+
+### K38.2 Evaluator support
+
+- Task: evaluate event contains predicate ignoring ASCII case.
+- PASS:
+  - evaluator compares lowercased event name and needle.
+  - deterministic behavior for mixed-case inputs.
+- FAIL:
+  - contains matching remains case-sensitive.
+
+### K38.3 Regression coverage
+
+- Task: validate case-insensitive event-contains predicate in CLI smoke.
+- PASS:
+  - smoke executes uppercase `event_icontains` query successfully.
+  - smoke asserts normalized output contains `event_icontains` predicate.
+- FAIL:
+  - no tests for `event_icontains` path.
+
+### K38 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K38 exit criteria
+
+- Case-insensitive event contains is integrated and test-covered.
+- Ready for K39 explain-plan operator breakdown metadata.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
