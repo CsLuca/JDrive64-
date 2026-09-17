@@ -3136,7 +3136,7 @@ Status: done
 
 ## K64 - Query-plan Operator Balance Scaffold
 
-Status: in progress
+Status: done
 
 ### K64.1 Operator balance field
 
@@ -3168,6 +3168,41 @@ Status: in progress
 
 - Query-plan operator balance metadata is integrated and test-covered.
 - Ready for K65 query-plan signature metadata scaffold.
+
+## K65 - Query-plan Signature Metadata Scaffold
+
+Status: in progress
+
+### K65.1 Signature field
+
+- Task: add compact deterministic plan-shape signature metadata.
+- PASS:
+  - explain output includes `query_plan_signature`.
+  - signature deterministically encodes compiled-plan counters.
+- FAIL:
+  - explain output has no plan signature metadata.
+
+### K65.2 Regression coverage
+
+- Task: validate signature field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_signature` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for plan signature metadata.
+
+### K65 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K65 exit criteria
+
+- Query-plan signature metadata is integrated and test-covered.
+- Ready for K66 explain diagnostics envelope hardening.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

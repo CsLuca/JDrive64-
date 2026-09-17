@@ -355,6 +355,8 @@ int main(int argc, char** argv) {
                      "telemetry-dump-mounted --explain reports query_plan_selector_density");
     ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"query_plan_operator_balance\":"),
                      "telemetry-dump-mounted --explain reports query_plan_operator_balance");
+    ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"query_plan_signature\":"),
+                     "telemetry-dump-mounted --explain reports query_plan_signature");
     ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"pred_event\":"),
                      "telemetry-dump-mounted --explain reports pred_event");
     ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"pred_detail\":"),

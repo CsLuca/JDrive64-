@@ -2110,6 +2110,10 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
                                           ? 0.0
                                           : static_cast<double>(rpn_or) / static_cast<double>(logical_ops);
       std::cout << "  \"query_plan_operator_balance\": " << operator_balance << ",\n";
+      std::ostringstream signature_stream;
+      signature_stream << "p" << rpn_predicates << "-n" << rpn_not << "-a" << rpn_and
+                       << "-o" << rpn_or << "-d" << pred_detail << "-s" << pred_success;
+      std::cout << "  \"query_plan_signature\": \"" << signature_stream.str() << "\",\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";
