@@ -2786,7 +2786,7 @@ Status: done
 
 ## K54 - Query-plan Flag Summary Scaffold
 
-Status: in progress
+Status: done
 
 ### K54.1 Flag summary object
 
@@ -2818,6 +2818,41 @@ Status: in progress
 
 - Query-plan flag summary metadata is integrated and test-covered.
 - Ready for K55 explain rule-id trace scaffold.
+
+## K55 - Explain Rule-id Trace Scaffold
+
+Status: in progress
+
+### K55.1 Rule-id trace list
+
+- Task: add deterministic list of activated planner rule IDs in explain output.
+- PASS:
+  - explain output includes `query_plan_rule_ids` array.
+  - array contains stable rule tags derived from current query-plan characteristics.
+- FAIL:
+  - explain output has no rule-id trace.
+
+### K55.2 Regression coverage
+
+- Task: validate rule-id trace field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_rule_ids` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for rule-id trace metadata.
+
+### K55 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K55 exit criteria
+
+- Rule-id trace metadata is integrated and test-covered.
+- Ready for K56 explain planner phase timings scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

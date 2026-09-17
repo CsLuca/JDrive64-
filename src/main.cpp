@@ -2042,6 +2042,32 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
       std::cout << "    \"has_disjunction\": " << (rpn_or > 0 ? "true" : "false") << ",\n";
       std::cout << "    \"has_detail_predicates\": " << (pred_detail > 0 ? "true" : "false") << "\n";
       std::cout << "  },\n";
+      std::cout << "  \"query_plan_rule_ids\": [";
+      bool first_rule = true;
+      auto emit_rule = [&](const std::string& rule) {
+        if (!first_rule) {
+          std::cout << ", ";
+        }
+        first_rule = false;
+        std::cout << "\"" << rule << "\"";
+      };
+      emit_rule("R_BASE_FILTER");
+      if (opt.where_enabled) {
+        emit_rule("R_WHERE_COMPILED");
+      }
+      if (rpn_not > 0) {
+        emit_rule("R_NOT_OPERATOR");
+      }
+      if (rpn_or > 0) {
+        emit_rule("R_OR_BRANCH");
+      }
+      if (pred_detail > 0) {
+        emit_rule("R_DETAIL_PREDICATES");
+      }
+      if (confidence < 0.6) {
+        emit_rule("R_LOW_CONFIDENCE");
+      }
+      std::cout << "],\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";
