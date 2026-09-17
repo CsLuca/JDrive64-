@@ -53,7 +53,9 @@ If started without arguments on Windows, `jdrive64` opens tray mode by default.
 Tray mode features:
 - remembers last selected `.d64` image between runs;
 - configurable primary/secondary mount letters from tray menu;
-- optional `Start with Windows` toggle.
+- optional `Start with Windows` toggle;
+- optional `Mount primary at startup` toggle;
+- `Open <mount> in Explorer` quick actions.
 
 ## Build
 

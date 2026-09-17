@@ -2435,6 +2435,9 @@ int CmdTray() {
   constexpr UINT kMenuListMounts = 2008;
   constexpr UINT kMenuSupportMyWork = 2009;
   constexpr UINT kMenuToggleAutostart = 2011;
+  constexpr UINT kMenuToggleMountOnStartup = 2012;
+  constexpr UINT kMenuOpenMountA = 2013;
+  constexpr UINT kMenuOpenMountB = 2014;
   constexpr UINT kMenuSetMountAStart = 2100;
   constexpr UINT kMenuSetMountBStart = 2200;
   constexpr UINT kMenuExit = 2010;
@@ -2448,6 +2451,7 @@ int CmdTray() {
     std::string mount_b = "S:";
     std::filesystem::path config_path;
     bool autostart_enabled = false;
+    bool mount_on_startup = false;
     NOTIFYICONDATAA icon_data{};
     bool owns_icon = false;
   };
@@ -2574,6 +2578,7 @@ int CmdTray() {
     out << "image_path=" << state->image_path << "\n";
     out << "mount_a=" << state->mount_a << "\n";
     out << "mount_b=" << state->mount_b << "\n";
+    out << "mount_on_startup=" << (state->mount_on_startup ? "1" : "0") << "\n";
   };
 
   auto load_config = [](TrayState* state) {
@@ -2603,6 +2608,10 @@ int CmdTray() {
         if (IsValidMountPoint(value)) {
           state->mount_b = value;
         }
+        continue;
+      }
+      if (ParsePrefixedLine(line, "mount_on_startup=", &value)) {
+        state->mount_on_startup = value == "1" || LowerAscii(value) == "true";
       }
     }
   };
@@ -2710,13 +2719,15 @@ int CmdTray() {
     return select_image(hwnd, state);
   };
 
-  auto run_mount = [&](HWND hwnd, TrayState* state, const std::string& mount_point) {
+  auto run_mount = [&](HWND hwnd, TrayState* state, const std::string& mount_point, bool notify_success) {
     if (!ensure_image(hwnd, state)) {
       return;
     }
     const int rc = CmdMountWithBackend(state->image_path, mount_point, "kdrv");
     if (rc == 0) {
-      show_info(hwnd, "Mounted on " + mount_point + " using kdrv backend.");
+      if (notify_success) {
+        show_info(hwnd, "Mounted on " + mount_point + " using kdrv backend.");
+      }
     } else {
       show_error(hwnd, "Mount failed. Check console output for details.");
     }
@@ -2764,6 +2775,23 @@ int CmdTray() {
     show_info(hwnd,
               std::string(first_slot ? "Primary" : "Secondary") +
                   " mount point set to " + normalized + ".");
+  };
+
+  auto open_mounted_drive = [&](HWND hwnd, const std::string& mount_point) {
+    if (!IsValidMountPoint(mount_point)) {
+      show_error(hwnd, "Invalid mount point.");
+      return;
+    }
+    if (!std::filesystem::exists(MountStateFile(mount_point))) {
+      show_error(hwnd, "Mount point is not currently mounted: " + mount_point);
+      return;
+    }
+    const std::string path = mount_point + "\\";
+    const auto result = reinterpret_cast<std::intptr_t>(
+        ShellExecuteA(hwnd, "open", path.c_str(), nullptr, nullptr, SW_SHOWNORMAL));
+    if (result <= 32) {
+      show_error(hwnd, "Unable to open Explorer for " + mount_point + ".");
+    }
   };
 
   auto run_support_my_work = [&](HWND hwnd) {
@@ -2846,6 +2874,8 @@ int CmdTray() {
     AppendMenuA(menu, MF_STRING, kMenuMountS, mount_b_label.c_str());
     AppendMenuA(menu, MF_STRING, kMenuUnmountR, unmount_a_label.c_str());
     AppendMenuA(menu, MF_STRING, kMenuUnmountS, unmount_b_label.c_str());
+    AppendMenuA(menu, MF_STRING, kMenuOpenMountA, ("Open " + state->mount_a + " in Explorer").c_str());
+    AppendMenuA(menu, MF_STRING, kMenuOpenMountB, ("Open " + state->mount_b + " in Explorer").c_str());
     AppendMenuA(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuA(menu, MF_STRING, kMenuDiagR, diag_a_label.c_str());
     AppendMenuA(menu, MF_STRING, kMenuDiagS, diag_b_label.c_str());
@@ -2873,6 +2903,11 @@ int CmdTray() {
       autostart_flags |= MF_CHECKED;
     }
     AppendMenuA(menu, autostart_flags, kMenuToggleAutostart, "Start with Windows");
+    UINT mount_start_flags = MF_STRING;
+    if (state->mount_on_startup) {
+      mount_start_flags |= MF_CHECKED;
+    }
+    AppendMenuA(menu, mount_start_flags, kMenuToggleMountOnStartup, "Mount primary at startup");
     AppendMenuA(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuA(menu, MF_STRING, kMenuSupportMyWork, "Support my work");
     AppendMenuA(menu, MF_STRING, kMenuExit, "Exit");
@@ -2889,16 +2924,22 @@ int CmdTray() {
         select_image(hwnd, state);
         break;
       case kMenuMountR:
-        run_mount(hwnd, state, state->mount_a);
+        run_mount(hwnd, state, state->mount_a, true);
         break;
       case kMenuMountS:
-        run_mount(hwnd, state, state->mount_b);
+        run_mount(hwnd, state, state->mount_b, true);
         break;
       case kMenuUnmountR:
         run_unmount(hwnd, state->mount_a);
         break;
       case kMenuUnmountS:
         run_unmount(hwnd, state->mount_b);
+        break;
+      case kMenuOpenMountA:
+        open_mounted_drive(hwnd, state->mount_a);
+        break;
+      case kMenuOpenMountB:
+        open_mounted_drive(hwnd, state->mount_b);
         break;
       case kMenuDiagR:
         run_diag(hwnd, state->mount_a);
@@ -2919,6 +2960,13 @@ int CmdTray() {
         show_info(hwnd, std::string("Start with Windows is now ") + (target ? "enabled." : "disabled."));
         break;
       }
+      case kMenuToggleMountOnStartup:
+        state->mount_on_startup = !state->mount_on_startup;
+        save_config(state);
+        show_info(hwnd,
+                  std::string("Mount primary at startup is now ") +
+                      (state->mount_on_startup ? "enabled." : "disabled."));
+        break;
       case kMenuSupportMyWork:
         run_support_my_work(hwnd);
         break;
@@ -3033,6 +3081,10 @@ int CmdTray() {
     DestroyWindow(hwnd);
     std::cerr << "Error: failed to add tray icon\n";
     return 1;
+  }
+
+  if (state->mount_on_startup && !state->image_path.empty()) {
+    run_mount(hwnd, state, state->mount_a, false);
   }
 
   show_info(hwnd, "JDrive64 tray started. Right-click tray icon for menu.");
