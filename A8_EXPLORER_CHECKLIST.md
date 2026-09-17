@@ -110,7 +110,10 @@ FAIL:
 
 ## A8 Closure Rule
 
-Step A8 is considered done only when all sections pass on at least one WinFsp-enabled host and evidence is archived.
+Step A8 is considered done only when all sections pass on at least one target host using the default `kdrv` backend and evidence is archived.
+
+Quick helper:
+- `A8_QUICK_RUNBOOK_KDRV.md`
 
 ## Latest status snapshot (2026-09-17)
 
