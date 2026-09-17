@@ -2576,7 +2576,7 @@ Status: done
 
 ## K48 - Where-feature Bitmask Metadata Scaffold
 
-Status: in progress
+Status: done
 
 ### K48.1 Feature bitmask field
 
@@ -2608,6 +2608,41 @@ Status: in progress
 
 - Where-feature bitmask metadata is integrated and test-covered.
 - Ready for K49 explain output ordering/stability scaffold.
+
+## K49 - Explain Output Ordering Stability Scaffold
+
+Status: in progress
+
+### K49.1 Planner field-order manifest
+
+- Task: add explicit field-order manifest for explain planner metadata.
+- PASS:
+  - explain output includes `query_plan_order` array.
+  - array enumerates stable key ordering used by planner metadata.
+- FAIL:
+  - explain output has no ordering manifest.
+
+### K49.2 Regression coverage
+
+- Task: validate ordering manifest in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_order` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for ordering manifest metadata.
+
+### K49 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K49 exit criteria
+
+- Explain ordering manifest is integrated and test-covered.
+- Ready for K50 explain schema-version split scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

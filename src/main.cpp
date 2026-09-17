@@ -1989,6 +1989,12 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
       std::cout << "    \"pred_detail\": " << pred_detail << ",\n";
       std::cout << "    \"pred_success\": " << pred_success << "\n";
       std::cout << "  },\n";
+      std::cout << "  \"query_plan_order\": ["
+                << "\"where_enabled\", \"selector_mode\", \"positive_selector_count\", "
+                << "\"negative_selector_count\", \"scanned_entries\", \"matched_entries\", "
+                << "\"scan_match_ratio\", \"where_rpn_tokens\", \"normalized_where_hash\", "
+                << "\"where_feature_mask\", \"rpn_predicates\", \"rpn_not\", \"rpn_and\", "
+                << "\"rpn_or\", \"pred_event\", \"pred_detail\", \"pred_success\"],\n";
       const std::size_t planner_score = (rpn_predicates * 2) + (rpn_not * 3) + (rpn_and * 4) + (rpn_or * 5);
       std::string complexity = "simple";
       if (opt.where_compiled.rpn.size() >= 12 || rpn_or >= 3 || rpn_and >= 4) {

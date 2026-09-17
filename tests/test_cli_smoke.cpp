@@ -335,6 +335,8 @@ int main(int argc, char** argv) {
                      "telemetry-dump-mounted --explain reports scan_match_ratio");
     ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"where_feature_mask\":"),
                      "telemetry-dump-mounted --explain reports where_feature_mask");
+    ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"query_plan_order\":"),
+                     "telemetry-dump-mounted --explain reports query_plan_order");
 
     const auto telemetry_dump_where_detail_cmd = Quote(exe_path.string()) +
                                                  " telemetry-dump-mounted Z: --where \"detail_contains==success\" --bundle";
