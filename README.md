@@ -119,6 +119,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K27 normalization/schema-policy scaffold normalizes query filters for deterministic exports and adds explicit schema policy metadata (`schema_policy`).
 - K28 expression scaffold adds `--where` query expression parsing (`AND`/`OR`, event/success predicates) with normalized expression export in telemetry JSON query metadata.
 - K29 expression-precedence scaffold adds grouped `--where` expressions with parenthesis handling and deterministic precedence (`AND` over `OR`) via compiled evaluator.
+- K30 quoting scaffold adds quoted/escaped `--where` predicate values (including spaces and escaped quotes) with normalized output preserving explicit quoting when requested.
 
 ## Domain Layer (Step 3)
 

@@ -1794,7 +1794,7 @@ Status: done
 
 ## K29 - Expression Precedence and Grouping Scaffold
 
-Status: in progress
+Status: done
 
 ### K29.1 Precedence-aware parser
 
@@ -1835,6 +1835,59 @@ Status: in progress
 
 - Expression precedence/grouping scaffold is integrated and test-covered.
 - Ready for K30 expression token quoting and escaped-value support.
+
+## K30 - Expression Quoting and Escaped-value Scaffold
+
+Status: in progress
+
+### K30.1 Quoted predicate values
+
+- Task: allow quoted values in telemetry where predicates.
+- PASS:
+  - parser accepts quoted values for event-related and success predicates.
+  - quoted values support embedded escaped quotes/backslashes.
+- FAIL:
+  - quoted values are rejected or parsed incorrectly.
+
+### K30.2 Tokenizer quote safety
+
+- Task: make tokenizer quote-aware so grouped expressions keep quoted literals intact.
+- PASS:
+  - spaces/parentheses inside quoted values do not break token boundaries.
+  - unterminated quoted values fail with explicit error.
+- FAIL:
+  - tokenizer splits quoted values incorrectly.
+
+### K30.3 Normalized expression output
+
+- Task: emit normalized where expression while preserving explicit quoting intent when requested.
+- PASS:
+  - JSON query `where` output remains deterministic for quoted/unquoted equivalent expressions.
+  - explicitly quoted tokens remain quoted in normalized output.
+- FAIL:
+  - normalized output drops important quote semantics.
+
+### K30.4 Regression coverage
+
+- Task: validate quoted expression behavior in CLI smoke.
+- PASS:
+  - smoke executes quoted `--where` expression successfully.
+  - smoke asserts normalized output for quoted tokens.
+- FAIL:
+  - no test coverage for quoted expression path.
+
+### K30 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K30 exit criteria
+
+- Quoted/escaped expression values are integrated and test-covered.
+- Ready for K31 expression unary-not and richer predicate families.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

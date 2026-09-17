@@ -385,7 +385,28 @@ bool TokenizeWhereExpression(const std::string& expression,
 
   tokens_out->clear();
   std::string current;
+  bool in_quotes = false;
+  bool escaped = false;
   for (char c : expression) {
+    if (in_quotes) {
+      current.push_back(c);
+      if (escaped) {
+        escaped = false;
+      } else if (c == '\\') {
+        escaped = true;
+      } else if (c == '"') {
+        in_quotes = false;
+      }
+      continue;
+    }
+
+    if (c == '"') {
+      current.push_back(c);
+      in_quotes = true;
+      escaped = false;
+      continue;
+    }
+
     if (c == '(' || c == ')') {
       if (!current.empty()) {
         tokens_out->push_back(current);
@@ -407,6 +428,11 @@ bool TokenizeWhereExpression(const std::string& expression,
     tokens_out->push_back(current);
   }
 
+  if (in_quotes) {
+    *error_out = "where expression has unterminated quoted value";
+    return false;
+  }
+
   if (tokens_out->empty()) {
     *error_out = "where expression cannot be empty";
     return false;
@@ -424,6 +450,88 @@ int WhereOperatorPrecedence(const std::string& op_upper) {
   return 0;
 }
 
+std::string EscapeWhereValue(const std::string& value) {
+  std::string out;
+  out.reserve(value.size() + 4);
+  for (char c : value) {
+    if (c == '\\' || c == '"') {
+      out.push_back('\\');
+    }
+    out.push_back(c);
+  }
+  return out;
+}
+
+bool ParseWhereValueLiteral(const std::string& raw,
+                            std::string* value_out,
+                            bool* quoted_out,
+                            std::string* error_out) {
+  if (value_out == nullptr || quoted_out == nullptr || error_out == nullptr) {
+    return false;
+  }
+
+  const std::string trimmed = TrimAsciiWhitespace(raw);
+  if (trimmed.empty()) {
+    *error_out = "where predicate value cannot be empty";
+    return false;
+  }
+
+  if (trimmed.front() != '"') {
+    *value_out = trimmed;
+    *quoted_out = false;
+    return true;
+  }
+
+  if (trimmed.size() < 2 || trimmed.back() != '"') {
+    *error_out = "where quoted value must end with \"";
+    return false;
+  }
+
+  std::string value;
+  value.reserve(trimmed.size());
+  bool escaped = false;
+  for (std::size_t i = 1; i + 1 < trimmed.size(); ++i) {
+    const char c = trimmed[i];
+    if (escaped) {
+      if (c == '\\' || c == '"') {
+        value.push_back(c);
+      } else {
+        value.push_back('\\');
+        value.push_back(c);
+      }
+      escaped = false;
+      continue;
+    }
+    if (c == '\\') {
+      escaped = true;
+      continue;
+    }
+    value.push_back(c);
+  }
+  if (escaped) {
+    *error_out = "where quoted value has trailing escape";
+    return false;
+  }
+
+  *value_out = std::move(value);
+  *quoted_out = true;
+  return true;
+}
+
+std::string FormatWhereValueNormalized(const std::string& value, bool prefer_quoted) {
+  bool need_quote = prefer_quoted;
+  for (char c : value) {
+    if (std::isspace(static_cast<unsigned char>(c)) || c == '(' || c == ')' || c == '"') {
+      need_quote = true;
+      break;
+    }
+  }
+  if (!need_quote) {
+    return value;
+  }
+  return "\"" + EscapeWhereValue(value) + "\"";
+}
+
 bool ParseWherePredicateToken(const std::string& token,
                               TelemetryWherePredicate* predicate_out,
                               std::string* normalized_out,
@@ -437,14 +545,14 @@ bool ParseWherePredicateToken(const std::string& token,
     if (!token.starts_with(prefix)) {
       return false;
     }
-    const std::string raw = TrimAsciiWhitespace(token.substr(prefix.size()));
-    if (raw.empty()) {
-      *error_out = "where predicate value cannot be empty";
+    std::string parsed_value;
+    bool was_quoted = false;
+    if (!ParseWhereValueLiteral(token.substr(prefix.size()), &parsed_value, &was_quoted, error_out)) {
       return true;
     }
     predicate_out->kind = kind;
-    predicate_out->value = raw;
-    *normalized_out = normalized_prefix + raw;
+    predicate_out->value = parsed_value;
+    *normalized_out = normalized_prefix + FormatWhereValueNormalized(parsed_value, was_quoted);
     return true;
   };
 
@@ -460,7 +568,13 @@ bool ParseWherePredicateToken(const std::string& token,
   }
 
   if (token.starts_with("success==")) {
-    const std::string raw = TrimAsciiWhitespace(token.substr(std::string("success==").size()));
+    std::string parsed_value;
+    bool was_quoted = false;
+    if (!ParseWhereValueLiteral(token.substr(std::string("success==").size()), &parsed_value, &was_quoted,
+                                error_out)) {
+      return false;
+    }
+    const std::string raw = parsed_value;
     if (raw == "true") {
       predicate_out->kind = TelemetryWherePredicate::Kind::kSuccessEquals;
       predicate_out->success = 1;
