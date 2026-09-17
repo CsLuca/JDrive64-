@@ -1292,7 +1292,7 @@ Status: done
 
 ## K18 - Persistent Telemetry JSONL Sink Scaffold
 
-Status: in progress
+Status: done
 
 ### K18.1 JSONL telemetry sink implementation
 
@@ -1333,6 +1333,59 @@ Status: in progress
 
 - Persistent JSONL telemetry sink is integrated and test-covered.
 - Ready for K19 telemetry rotation/export management.
+
+## K19 - Telemetry Rotation and Mounted Management Scaffold
+
+Status: in progress
+
+### K19.1 Rotation/size cap
+
+- Task: add telemetry JSONL file size cap with single-step rotation.
+- PASS:
+  - sink supports configurable max bytes.
+  - file rotates to `.1` when size exceeds cap.
+- FAIL:
+  - telemetry file can grow unbounded.
+
+### K19.2 Mounted telemetry path persistence
+
+- Task: persist telemetry JSONL path in mount state for mounted operations.
+- PASS:
+  - mount state stores `TELEMETRY_JSONL=` value.
+  - mounted diagnostics expose persisted telemetry path.
+- FAIL:
+  - mounted state does not track telemetry path.
+
+### K19.3 Mounted telemetry management commands
+
+- Task: add commands to inspect/clear telemetry from mounted context.
+- PASS:
+  - `telemetry-dump-mounted <drive_letter:>` outputs telemetry JSONL contents.
+  - `telemetry-clear-mounted <drive_letter:>` truncates telemetry file.
+- FAIL:
+  - no mounted telemetry management commands.
+
+### K19.4 Regression coverage
+
+- Task: test rotation and mounted telemetry command paths.
+- PASS:
+  - core tests validate rotation behavior.
+  - CLI smoke validates telemetry dump/clear commands.
+- FAIL:
+  - no coverage for telemetry rotation/management.
+
+### K19 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K19 exit criteria
+
+- Telemetry rotation and mounted management are integrated and test-covered.
+- Ready for K20 telemetry retention policy and multi-file indexing.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

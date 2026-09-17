@@ -5,6 +5,7 @@
 #include <iostream>
 #include <iterator>
 #include <string>
+#include <cstdlib>
 
 #include "d64_test_utils.hpp"
 
@@ -66,6 +67,12 @@ int main(int argc, char** argv) {
   const std::filesystem::path exe_path = argv[1];
   const auto root = std::filesystem::temp_directory_path() / "jdrive64_cli_smoke";
   const auto golden = CreateGoldenCorpus(root);
+
+#if defined(_WIN32)
+  _putenv_s("JDRIVE64_TELEMETRY_JSONL", (root / "telemetry.jsonl").string().c_str());
+#else
+  setenv("JDRIVE64_TELEMETRY_JSONL", (root / "telemetry.jsonl").string().c_str(), 1);
+#endif
 
   bool ok = true;
 
@@ -193,6 +200,18 @@ int main(int argc, char** argv) {
                      "backend-diag-mounted --json exits 0");
     ok = ok && Check(Contains(backend_diag_mounted_json_r.output, "\"backend\": \"winfsp\""),
                      "backend-diag-mounted --json reports persisted backend");
+    ok = ok && Check(Contains(backend_diag_mounted_json_r.output, "\"telemetry_jsonl\":"),
+                     "backend-diag-mounted --json reports telemetry path field");
+
+    const auto telemetry_dump_cmd = Quote(exe_path.string()) + " telemetry-dump-mounted Z:";
+    const auto telemetry_dump_r = Run(telemetry_dump_cmd);
+    ok = ok && Check(telemetry_dump_r.exit_code == 0, "telemetry-dump-mounted exits 0");
+
+    const auto telemetry_clear_cmd = Quote(exe_path.string()) + " telemetry-clear-mounted Z:";
+    const auto telemetry_clear_r = Run(telemetry_clear_cmd);
+    ok = ok && Check(telemetry_clear_r.exit_code == 0, "telemetry-clear-mounted exits 0");
+    ok = ok && Check(Contains(telemetry_clear_r.output, "Cleared telemetry JSONL"),
+                     "telemetry-clear-mounted reports clear message");
 
     const auto preflight_cmd = Quote(exe_path.string()) + " winfsp-preflight " +
                                Quote(golden.valid_small.string()) + " Y:";

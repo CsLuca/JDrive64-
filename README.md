@@ -108,6 +108,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K16 export scaffold adds machine-readable diagnostics output (`--json`) for both live and mounted backend inspection.
 - K17 telemetry scaffold adds structured transport events for connect/send/disconnect success/failure stages.
 - K18 persistence scaffold adds optional JSONL telemetry sink via `JDRIVE64_TELEMETRY_JSONL`.
+- K19 management scaffold adds telemetry JSONL rotation plus mounted telemetry dump/clear commands.
 
 ## Domain Layer (Step 3)
 

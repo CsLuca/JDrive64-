@@ -40,6 +40,28 @@ std::string EscapeJson(const std::string& value) {
 KernelTelemetryJsonlSink::KernelTelemetryJsonlSink(std::string file_path)
     : file_path_(std::move(file_path)) {}
 
+KernelTelemetryJsonlSink::KernelTelemetryJsonlSink(std::string file_path, std::uintmax_t max_bytes)
+    : file_path_(std::move(file_path)), max_bytes_(max_bytes == 0 ? kDefaultMaxBytes : max_bytes) {}
+
+void KernelTelemetryJsonlSink::RotateIfNeeded() {
+  std::error_code ec;
+  const auto size = std::filesystem::file_size(file_path_, ec);
+  if (ec) {
+    return;
+  }
+  if (size < max_bytes_) {
+    return;
+  }
+
+  const std::string rotated = file_path_ + ".1";
+  std::filesystem::remove(rotated, ec);
+  ec.clear();
+  std::filesystem::rename(file_path_, rotated, ec);
+  if (ec) {
+    last_error_ = "Cannot rotate telemetry JSONL file";
+  }
+}
+
 void KernelTelemetryJsonlSink::Emit(const KernelTransport::TelemetryEvent& event) {
   std::lock_guard<std::mutex> lock(mutex_);
 
@@ -71,8 +93,10 @@ void KernelTelemetryJsonlSink::Emit(const KernelTransport::TelemetryEvent& event
     last_error_ = "Cannot write telemetry JSONL event";
     return;
   }
+  out.close();
 
   last_error_.clear();
+  RotateIfNeeded();
 }
 
 const std::string& KernelTelemetryJsonlSink::LastError() const { return last_error_; }

@@ -1859,6 +1859,37 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
               "KernelTelemetryJsonlSink contains disconnect event")) {
     return false;
   }
+
+  const auto rotated_base = std::filesystem::temp_directory_path() / "jdrive64_kernel_telemetry_rotate.jsonl";
+  const auto rotated_file = rotated_base.string() + ".1";
+  std::filesystem::remove(rotated_base, telemetry_ec);
+  std::filesystem::remove(rotated_file, telemetry_ec);
+
+  jdrive64::KernelTelemetryJsonlSink rotate_sink(rotated_base.string(), 64);
+  KernelTransport rotate_transport;
+  if (!Assert(rotate_transport.SetTelemetrySinkForTesting(&rotate_sink),
+              "KernelTransport accepts rotation telemetry sink")) {
+    return false;
+  }
+  if (!Assert(rotate_transport.Connect(image_path.string()),
+              "KernelTransport connects with rotation sink")) {
+    return false;
+  }
+  if (!Assert(rotate_transport.Send(KernelRequest{KernelOpcode::kReadDirectory, "", 0, 0, 0}, &response),
+              "KernelTransport sends with rotation sink")) {
+    return false;
+  }
+  if (!Assert(rotate_transport.Disconnect(),
+              "KernelTransport disconnects with rotation sink")) {
+    return false;
+  }
+  if (!Assert(std::filesystem::exists(rotated_file),
+              "KernelTelemetryJsonlSink rotates file when size cap exceeded")) {
+    return false;
+  }
+  std::filesystem::remove(rotated_base, telemetry_ec);
+  std::filesystem::remove(rotated_file, telemetry_ec);
+
   std::filesystem::remove(telemetry_file, telemetry_ec);
 
   return true;

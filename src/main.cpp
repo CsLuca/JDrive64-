@@ -54,6 +54,7 @@ struct MountState {
   std::string mount_point;
   std::string image_path;
   std::string backend_name;
+  std::string telemetry_jsonl_path;
   std::vector<std::string> diagnostics;
   std::vector<std::string> files;
 };
@@ -133,6 +134,10 @@ bool LoadMountState(const std::filesystem::path& state_file, MountState* state, 
       }
       continue;
     }
+    if (ParsePrefixedLine(lines[i], "TELEMETRY_JSONL=", &value)) {
+      parsed.telemetry_jsonl_path = value;
+      continue;
+    }
 
     if (error_out != nullptr) {
       *error_out = "Mount state file list is invalid";
@@ -159,6 +164,7 @@ bool SaveMountState(const std::filesystem::path& state_file, const MountState& s
     out << "MOUNT_POINT=" << state.mount_point << "\n";
     out << "IMAGE_PATH=" << state.image_path << "\n";
     out << "BACKEND=" << state.backend_name << "\n";
+    out << "TELEMETRY_JSONL=" << state.telemetry_jsonl_path << "\n";
     for (const auto& diag : state.diagnostics) {
       out << "DIAG=" << diag << "\n";
     }
@@ -304,6 +310,8 @@ int CmdMountWithBackend(const std::string& image_path,
                        const std::string& backend_name);
 int CmdBackendDiag(const std::string& image_path, const std::string& backend_name, bool as_json);
 int CmdBackendDiagMounted(std::string mount_point, bool as_json);
+int CmdTelemetryDumpMounted(std::string mount_point);
+int CmdTelemetryClearMounted(std::string mount_point);
 
 std::string EscapeJson(const std::string& value) {
   std::string out;
@@ -369,6 +377,8 @@ void PrintUsage() {
             << "  jdrive64 check-mounted <drive_letter:>\n"
             << "  jdrive64 backend-diag <image.d64> [--backend <winfsp|kdrv>] [--json]\n"
             << "  jdrive64 backend-diag-mounted <drive_letter:> [--json]\n"
+            << "  jdrive64 telemetry-dump-mounted <drive_letter:>\n"
+            << "  jdrive64 telemetry-clear-mounted <drive_letter:>\n"
             << "  jdrive64 winfsp-preflight <image.d64> <drive_letter:>\n"
             << "  jdrive64 write-add <image.d64> <host_file> <name.ext>\n"
             << "  jdrive64 write-del <image.d64> <name.ext>\n"
@@ -565,6 +575,12 @@ int CmdMountWithBackend(const std::string& image_path,
   state.mount_point = mount_point;
   state.image_path = resolved_image.string();
   state.backend_name = normalized_backend;
+  {
+    const char* telemetry_env = std::getenv("JDRIVE64_TELEMETRY_JSONL");
+    if (telemetry_env != nullptr) {
+      state.telemetry_jsonl_path = TrimAsciiWhitespace(telemetry_env);
+    }
+  }
   {
     const std::string diag_block = backend->GetBackendDiagnosticsText();
     std::size_t cursor = 0;
@@ -859,6 +875,7 @@ int CmdBackendDiagMounted(std::string mount_point, bool as_json) {
     std::cout << "  \"mount\": \"" << EscapeJson(state.mount_point) << "\",\n";
     std::cout << "  \"image\": \"" << EscapeJson(state.image_path) << "\",\n";
     std::cout << "  \"backend\": \"" << EscapeJson(state.backend_name) << "\",\n";
+    std::cout << "  \"telemetry_jsonl\": \"" << EscapeJson(state.telemetry_jsonl_path) << "\",\n";
     std::cout << "  \"diagnostics\": [";
     for (std::size_t i = 0; i < state.diagnostics.size(); ++i) {
       if (i != 0) {
@@ -872,6 +889,9 @@ int CmdBackendDiagMounted(std::string mount_point, bool as_json) {
     std::cout << "Mount: " << state.mount_point << "\n";
     std::cout << "Image: " << state.image_path << "\n";
     std::cout << "Backend: " << state.backend_name << "\n";
+    if (!state.telemetry_jsonl_path.empty()) {
+      std::cout << "TelemetryJsonl: " << state.telemetry_jsonl_path << "\n";
+    }
     if (state.diagnostics.empty()) {
       std::cout << "Diagnostics: unavailable\n";
     } else {
@@ -880,6 +900,72 @@ int CmdBackendDiagMounted(std::string mount_point, bool as_json) {
       }
     }
   }
+  return 0;
+}
+
+int CmdTelemetryDumpMounted(std::string mount_point) {
+  mount_point = NormalizeMountPoint(std::move(mount_point));
+  if (!IsValidMountPoint(mount_point)) {
+    std::cerr << "Error: invalid mount point, expected format X:\n";
+    return 1;
+  }
+
+  const auto state_file = MountStateFile(mount_point);
+  if (!std::filesystem::exists(state_file)) {
+    std::cerr << "Error: mount point is not mounted: " << mount_point << "\n";
+    return 1;
+  }
+
+  MountState state;
+  std::string load_error;
+  if (!LoadMountState(state_file, &state, &load_error)) {
+    std::cerr << "Error: invalid mount state: " << load_error << "\n";
+    return 1;
+  }
+  if (state.telemetry_jsonl_path.empty()) {
+    std::cerr << "Error: telemetry JSONL path is not configured for mount " << mount_point << "\n";
+    return 1;
+  }
+
+  std::ifstream in(state.telemetry_jsonl_path, std::ios::binary);
+  if (!in) {
+    std::cerr << "Error: cannot open telemetry JSONL file: " << state.telemetry_jsonl_path << "\n";
+    return 1;
+  }
+  std::cout << in.rdbuf();
+  return 0;
+}
+
+int CmdTelemetryClearMounted(std::string mount_point) {
+  mount_point = NormalizeMountPoint(std::move(mount_point));
+  if (!IsValidMountPoint(mount_point)) {
+    std::cerr << "Error: invalid mount point, expected format X:\n";
+    return 1;
+  }
+
+  const auto state_file = MountStateFile(mount_point);
+  if (!std::filesystem::exists(state_file)) {
+    std::cerr << "Error: mount point is not mounted: " << mount_point << "\n";
+    return 1;
+  }
+
+  MountState state;
+  std::string load_error;
+  if (!LoadMountState(state_file, &state, &load_error)) {
+    std::cerr << "Error: invalid mount state: " << load_error << "\n";
+    return 1;
+  }
+  if (state.telemetry_jsonl_path.empty()) {
+    std::cerr << "Error: telemetry JSONL path is not configured for mount " << mount_point << "\n";
+    return 1;
+  }
+
+  std::ofstream out(state.telemetry_jsonl_path, std::ios::binary | std::ios::trunc);
+  if (!out) {
+    std::cerr << "Error: cannot clear telemetry JSONL file: " << state.telemetry_jsonl_path << "\n";
+    return 1;
+  }
+  std::cout << "Cleared telemetry JSONL for " << mount_point << "\n";
   return 0;
 }
 
@@ -1007,6 +1093,22 @@ int main(int argc, char** argv) {
       as_json = true;
     }
     return CmdBackendDiagMounted(argv[2], as_json);
+  }
+
+  if (command == "telemetry-dump-mounted") {
+    if (argc < 3) {
+      PrintUsage();
+      return 1;
+    }
+    return CmdTelemetryDumpMounted(argv[2]);
+  }
+
+  if (command == "telemetry-clear-mounted") {
+    if (argc < 3) {
+      PrintUsage();
+      return 1;
+    }
+    return CmdTelemetryClearMounted(argv[2]);
   }
 
   if (command == "write-add") {
