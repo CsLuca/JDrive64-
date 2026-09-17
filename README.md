@@ -104,6 +104,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K12 policy scaffold adds opcode-level request gating from negotiated capabilities/features with explicit denial reasons.
 - K13 rollout scaffold introduces strict vs best-effort feature policy and granular handle-operation gating.
 - K14 diagnostics scaffold surfaces backend negotiation/policy state via backend diagnostics API and CLI `backend-diag`.
+- K15 persistence scaffold stores backend/diagnostics snapshot in mount-state and exposes `backend-diag-mounted`.
 
 ## Domain Layer (Step 3)
 

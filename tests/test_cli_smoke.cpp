@@ -173,6 +173,12 @@ int main(int argc, char** argv) {
     ok = ok && Check(Contains(check_r.output, "Status: OK"), "check-mounted reports OK status");
     ok = ok && Check(Contains(check_r.output, "Mount: Z:"), "check-mounted reports mount point");
 
+    const auto backend_diag_mounted_cmd = Quote(exe_path.string()) + " backend-diag-mounted Z:";
+    const auto backend_diag_mounted_r = Run(backend_diag_mounted_cmd);
+    ok = ok && Check(backend_diag_mounted_r.exit_code == 0, "backend-diag-mounted exits 0");
+    ok = ok && Check(Contains(backend_diag_mounted_r.output, "Backend: winfsp"),
+                     "backend-diag-mounted reports persisted backend");
+
     const auto preflight_cmd = Quote(exe_path.string()) + " winfsp-preflight " +
                                Quote(golden.valid_small.string()) + " Y:";
     const auto preflight_r = Run(preflight_cmd);

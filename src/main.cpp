@@ -52,6 +52,8 @@ std::filesystem::path MountStateFile(const std::string& mount_point) {
 struct MountState {
   std::string mount_point;
   std::string image_path;
+  std::string backend_name;
+  std::vector<std::string> diagnostics;
   std::vector<std::string> files;
 };
 
@@ -85,7 +87,7 @@ bool LoadMountState(const std::filesystem::path& state_file, MountState* state, 
     lines.push_back(line);
   }
 
-  if (lines.size() < 3) {
+  if (lines.size() < 4) {
     if (error_out != nullptr) {
       *error_out = "Mount state is incomplete";
     }
@@ -101,31 +103,40 @@ bool LoadMountState(const std::filesystem::path& state_file, MountState* state, 
 
   MountState parsed;
   if (!ParsePrefixedLine(lines[1], "MOUNT_POINT=", &parsed.mount_point) ||
-      !ParsePrefixedLine(lines[2], "IMAGE_PATH=", &parsed.image_path)) {
+      !ParsePrefixedLine(lines[2], "IMAGE_PATH=", &parsed.image_path) ||
+      !ParsePrefixedLine(lines[3], "BACKEND=", &parsed.backend_name)) {
     if (error_out != nullptr) {
       *error_out = "Mount state header is invalid";
     }
     return false;
   }
 
-  if (!IsValidMountPoint(parsed.mount_point) || parsed.image_path.empty()) {
+  if (!IsValidMountPoint(parsed.mount_point) || parsed.image_path.empty() || parsed.backend_name.empty()) {
     if (error_out != nullptr) {
       *error_out = "Mount state values are invalid";
     }
     return false;
   }
 
-  for (std::size_t i = 3; i < lines.size(); ++i) {
-    std::string file;
-    if (!ParsePrefixedLine(lines[i], "FILE=", &file)) {
-      if (error_out != nullptr) {
-        *error_out = "Mount state file list is invalid";
+  for (std::size_t i = 4; i < lines.size(); ++i) {
+    std::string value;
+    if (ParsePrefixedLine(lines[i], "FILE=", &value)) {
+      if (!value.empty()) {
+        parsed.files.push_back(value);
       }
-      return false;
+      continue;
     }
-    if (!file.empty()) {
-      parsed.files.push_back(file);
+    if (ParsePrefixedLine(lines[i], "DIAG=", &value)) {
+      if (!value.empty()) {
+        parsed.diagnostics.push_back(value);
+      }
+      continue;
     }
+
+    if (error_out != nullptr) {
+      *error_out = "Mount state file list is invalid";
+    }
+    return false;
   }
 
   *state = std::move(parsed);
@@ -146,6 +157,10 @@ bool SaveMountState(const std::filesystem::path& state_file, const MountState& s
     out << "VERSION=1\n";
     out << "MOUNT_POINT=" << state.mount_point << "\n";
     out << "IMAGE_PATH=" << state.image_path << "\n";
+    out << "BACKEND=" << state.backend_name << "\n";
+    for (const auto& diag : state.diagnostics) {
+      out << "DIAG=" << diag << "\n";
+    }
     for (const auto& file : state.files) {
       out << "FILE=" << file << "\n";
     }
@@ -287,6 +302,7 @@ int CmdMountWithBackend(const std::string& image_path,
                        std::string mount_point,
                        const std::string& backend_name);
 int CmdBackendDiag(const std::string& image_path, const std::string& backend_name);
+int CmdBackendDiagMounted(std::string mount_point);
 
 void PrintUsage() {
   std::cout << "JDrive64 CLI\n"
@@ -305,6 +321,7 @@ void PrintUsage() {
             << "  jdrive64 stats-mounted <drive_letter:>\n"
             << "  jdrive64 check-mounted <drive_letter:>\n"
             << "  jdrive64 backend-diag <image.d64> [--backend <winfsp|kdrv>]\n"
+            << "  jdrive64 backend-diag-mounted <drive_letter:>\n"
             << "  jdrive64 winfsp-preflight <image.d64> <drive_letter:>\n"
             << "  jdrive64 write-add <image.d64> <host_file> <name.ext>\n"
             << "  jdrive64 write-del <image.d64> <name.ext>\n"
@@ -500,6 +517,23 @@ int CmdMountWithBackend(const std::string& image_path,
   MountState state;
   state.mount_point = mount_point;
   state.image_path = resolved_image.string();
+  state.backend_name = normalized_backend;
+  {
+    const std::string diag_block = backend->GetBackendDiagnosticsText();
+    std::size_t cursor = 0;
+    while (cursor <= diag_block.size()) {
+      const std::size_t next = diag_block.find('\n', cursor);
+      const std::size_t end = next == std::string::npos ? diag_block.size() : next;
+      const std::string line = diag_block.substr(cursor, end - cursor);
+      if (!line.empty()) {
+        state.diagnostics.push_back(line);
+      }
+      if (next == std::string::npos) {
+        break;
+      }
+      cursor = next + 1;
+    }
+  }
   state.files = backend->ReadDirectory();
 
   std::string save_error;
@@ -737,6 +771,39 @@ int CmdBackendDiag(const std::string& image_path, const std::string& backend_nam
   return 0;
 }
 
+int CmdBackendDiagMounted(std::string mount_point) {
+  mount_point = NormalizeMountPoint(std::move(mount_point));
+  if (!IsValidMountPoint(mount_point)) {
+    std::cerr << "Error: invalid mount point, expected format X:\n";
+    return 1;
+  }
+
+  const auto state_file = MountStateFile(mount_point);
+  if (!std::filesystem::exists(state_file)) {
+    std::cerr << "Error: mount point is not mounted: " << mount_point << "\n";
+    return 1;
+  }
+
+  MountState state;
+  std::string load_error;
+  if (!LoadMountState(state_file, &state, &load_error)) {
+    std::cerr << "Error: invalid mount state: " << load_error << "\n";
+    return 1;
+  }
+
+  std::cout << "Mount: " << state.mount_point << "\n";
+  std::cout << "Image: " << state.image_path << "\n";
+  std::cout << "Backend: " << state.backend_name << "\n";
+  if (state.diagnostics.empty()) {
+    std::cout << "Diagnostics: unavailable\n";
+  } else {
+    for (const auto& line : state.diagnostics) {
+      std::cout << line << "\n";
+    }
+  }
+  return 0;
+}
+
 int CmdWriteAdd(const std::string& image_path, const std::string& host_file, const std::string& windows_name) {
   D64ImageEditor editor;
   if (!editor.Open(image_path)) {
@@ -845,6 +912,14 @@ int main(int argc, char** argv) {
       return 1;
     }
     return CmdCheckMounted(argv[2]);
+  }
+
+  if (command == "backend-diag-mounted") {
+    if (argc < 3) {
+      PrintUsage();
+      return 1;
+    }
+    return CmdBackendDiagMounted(argv[2]);
   }
 
   if (command == "write-add") {

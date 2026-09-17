@@ -1089,7 +1089,7 @@ Status: done
 
 ## K14 - Backend Diagnostics Surfacing Scaffold
 
-Status: in progress
+Status: done
 
 ### K14.1 Backend diagnostics interface
 
@@ -1139,6 +1139,59 @@ Status: in progress
 
 - Backend diagnostics are surfaced consistently in core and CLI layers.
 - Ready for K15 persistence/telemetry of negotiated backend state.
+
+## K15 - Persisted Diagnostics Snapshot Scaffold
+
+Status: in progress
+
+### K15.1 Mount-state schema extension
+
+- Task: persist backend identity and diagnostics snapshot in mount-state files.
+- PASS:
+  - mount state writes `BACKEND=` and `DIAG=` records.
+  - mount state parser reads persisted backend and diagnostics lines.
+- FAIL:
+  - negotiated diagnostics are not persisted.
+
+### K15.2 Mounted diagnostics command
+
+- Task: expose persisted diagnostics through mounted-state CLI command.
+- PASS:
+  - `backend-diag-mounted <drive_letter:>` is available.
+  - command reports mount, image, backend, and persisted diagnostics.
+- FAIL:
+  - no command to inspect persisted diagnostics.
+
+### K15.3 Backward-compatible error handling
+
+- Task: keep deterministic validation for malformed or incomplete mount-state payloads.
+- PASS:
+  - parser returns explicit errors for invalid state format.
+  - command returns actionable errors for missing/unmounted state.
+- FAIL:
+  - parser silently accepts malformed state.
+
+### K15.4 Regression coverage
+
+- Task: add smoke coverage for mounted diagnostics persistence path.
+- PASS:
+  - CLI smoke validates `backend-diag-mounted` after mount.
+  - output includes persisted backend marker.
+- FAIL:
+  - no test coverage for mounted diagnostics path.
+
+### K15 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K15 exit criteria
+
+- Persisted diagnostics snapshot path is integrated and test-covered.
+- Ready for K16 telemetry/export integration.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
