@@ -2611,7 +2611,7 @@ Status: done
 
 ## K49 - Explain Output Ordering Stability Scaffold
 
-Status: in progress
+Status: done
 
 ### K49.1 Planner field-order manifest
 
@@ -2643,6 +2643,41 @@ Status: in progress
 
 - Explain ordering manifest is integrated and test-covered.
 - Ready for K50 explain schema-version split scaffold.
+
+## K50 - Query/Explain Schema Split Scaffold
+
+Status: in progress
+
+### K50.1 Dedicated explain schema marker
+
+- Task: add explicit explain-schema marker alongside query schema version.
+- PASS:
+  - output includes `schema_version` for query payload schema.
+  - output includes `explain_schema_version` for planner metadata schema.
+- FAIL:
+  - explain schema has no dedicated version marker.
+
+### K50.2 Regression coverage
+
+- Task: validate explain schema marker presence in CLI smoke.
+- PASS:
+  - smoke asserts `explain_schema_version` field presence.
+  - existing schema assertions remain green.
+- FAIL:
+  - no tests for explain schema marker.
+
+### K50 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K50 exit criteria
+
+- Query/explain schema split markers are integrated and test-covered.
+- Ready for K51 query-plan confidence metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

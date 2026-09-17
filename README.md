@@ -139,6 +139,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K47 explainability scaffold adds scan-efficiency telemetry (`scanned_entries`, `matched_entries`, `scan_match_ratio`).
 - K48 explainability scaffold adds compact `where_feature_mask` bitmask metadata for active where-expression capabilities.
 - K49 explainability scaffold adds `query_plan_order` to document stable planner-metadata field ordering.
+- K50 schema scaffold splits query and explain schema markers (`schema_version`, `explain_schema_version`).
 
 ## Domain Layer (Step 3)
 
