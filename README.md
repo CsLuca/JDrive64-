@@ -94,6 +94,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - Driver/service binaries (`jdrive64k.sys`, `jdrive64ksvc.exe`) are not wired yet.
 - Drive-letter assignment path now includes K3 mount-manager scaffold with deterministic not-implemented behavior.
 - K4 read-only catalog/open/read scaffolding is available internally for kdrv request path shaping.
+- K5 IOCTL-like bridge scaffolding (`KernelUserBridge`) now maps opcode requests to K4 read-only handlers.
 
 ## Domain Layer (Step 3)
 

@@ -14,7 +14,9 @@
 #include "jdrive64/file_cache.hpp"
 #include "jdrive64/file_chain_reader.hpp"
 #include "jdrive64/kernel_mount_manager.hpp"
+#include "jdrive64/kernel_ioctl_protocol.hpp"
 #include "jdrive64/kernel_readonly_fs.hpp"
+#include "jdrive64/kernel_user_bridge.hpp"
 #include "jdrive64/mount_backend.hpp"
 #include "jdrive64/sector_cache.hpp"
 #include "jdrive64/winfsp_adapter.hpp"
@@ -33,7 +35,11 @@ using jdrive64::FileCache;
 using jdrive64::FileChainReader;
 using jdrive64::IMountBackend;
 using jdrive64::KernelMountManager;
+using jdrive64::KernelOpcode;
+using jdrive64::KernelRequest;
+using jdrive64::KernelResponse;
 using jdrive64::KernelReadOnlyFilesystem;
+using jdrive64::KernelUserBridge;
 using jdrive64::SectorCache;
 using jdrive64::WinFspAdapter;
 using jdrive64::WinFspCallbacks;
@@ -929,6 +935,59 @@ bool TestKernelReadOnlyFilesystemScaffold(const std::filesystem::path& image_pat
   return true;
 }
 
+bool TestKernelUserBridgeScaffold(const std::filesystem::path& image_path) {
+  KernelUserBridge bridge;
+  if (!Assert(bridge.Initialize(image_path.string()), "KernelUserBridge initialize")) {
+    return false;
+  }
+
+  KernelResponse response;
+  if (!Assert(bridge.Dispatch(KernelRequest{KernelOpcode::kReadDirectory, "", 0, 0, 0}, &response),
+              "KernelUserBridge dispatch read directory")) {
+    return false;
+  }
+  if (!Assert(response.success, "KernelUserBridge read directory success flag")) {
+    return false;
+  }
+  if (!Assert(response.directory_entries.size() == 1 && response.directory_entries[0] == "HELLO.PRG",
+              "KernelUserBridge read directory entries")) {
+    return false;
+  }
+
+  if (!Assert(bridge.Dispatch(KernelRequest{KernelOpcode::kOpenFile, "HELLO.PRG", 0, 0, 0}, &response),
+              "KernelUserBridge dispatch open")) {
+    return false;
+  }
+  const std::uint64_t handle = response.handle;
+  if (!Assert(handle != 0, "KernelUserBridge open handle non-zero")) {
+    return false;
+  }
+
+  if (!Assert(bridge.Dispatch(KernelRequest{KernelOpcode::kReadFile, "", handle, 1, 3}, &response),
+              "KernelUserBridge dispatch read")) {
+    return false;
+  }
+  if (!Assert(std::string(response.data.begin(), response.data.end()) == "ELL",
+              "KernelUserBridge read payload")) {
+    return false;
+  }
+
+  if (!Assert(bridge.Dispatch(KernelRequest{KernelOpcode::kCloseFile, "", handle, 0, 0}, &response),
+              "KernelUserBridge dispatch close")) {
+    return false;
+  }
+
+  if (!Assert(!bridge.Dispatch(KernelRequest{KernelOpcode::kInvalid, "", 0, 0, 0}, &response),
+              "KernelUserBridge invalid opcode fails")) {
+    return false;
+  }
+  if (!Assert(response.error == "Unsupported opcode", "KernelUserBridge invalid opcode error")) {
+    return false;
+  }
+
+  return true;
+}
+
 }  // namespace
 
 int main() {
@@ -945,6 +1004,7 @@ int main() {
   ok = ok && TestMountBackendFactory(image_path);
   ok = ok && TestKernelMountManagerScaffold();
   ok = ok && TestKernelReadOnlyFilesystemScaffold(image_path);
+  ok = ok && TestKernelUserBridgeScaffold(image_path);
   ok = ok && TestWinFspAdapterScaffold(image_path);
   ok = ok && TestWinFspRuntimeScaffold(image_path);
 

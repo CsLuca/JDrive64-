@@ -569,7 +569,7 @@ Status: done
 
 ## K4 - Read-only Kernel Request Path Scaffold
 
-Status: in progress
+Status: done
 
 ### K4.1 Read-only filesystem contract object
 
@@ -612,6 +612,51 @@ Status: in progress
 
 - Read-only kernel request path scaffold is integrated and test-covered.
 - kdrv backend structure is ready for real IOCTL bridge in K5.
+
+## K5 - IOCTL Bridge Scaffold
+
+Status: in progress
+
+### K5.1 Message protocol
+
+- Task: define IOCTL-like request/response message schema and opcodes.
+- PASS:
+  - `include/jdrive64/kernel_ioctl_protocol.hpp` exists.
+  - Protocol includes opcodes for read-dir/query/open/read/close.
+- FAIL:
+  - No formal protocol types for bridge requests.
+
+### K5.2 User-mode bridge dispatcher
+
+- Task: implement bridge dispatcher from protocol messages to K4 read-only handlers.
+- PASS:
+  - `include/jdrive64/kernel_user_bridge.hpp` exists.
+  - `src/kernel_user_bridge.cpp` exists.
+  - Dispatcher handles supported opcodes and rejects unsupported opcode.
+- FAIL:
+  - No dispatch layer between protocol and filesystem contract.
+
+### K5.3 Test coverage
+
+- Task: add regression tests for bridge initialize/dispatch paths.
+- PASS:
+  - tests cover read-dir/open/read/close opcode flow.
+  - invalid opcode returns deterministic error.
+- FAIL:
+  - bridge protocol path has no test coverage.
+
+### K5 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K5 exit criteria
+
+- IOCTL-like protocol and dispatcher scaffolds are integrated and test-covered.
+- Ready for K6 real service IPC wiring to kernel driver channel.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
