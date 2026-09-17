@@ -89,6 +89,12 @@ Release readiness helper:
 powershell -ExecutionPolicy Bypass -File .\scripts\release-readiness.ps1
 ```
 
+## Releases
+
+- Binaries are not committed in `main`.
+- Tagged releases (`v*`) publish a prebuilt Windows package as GitHub Release asset:
+  - `jdrive64-windows-x64.zip` containing `jdrive64.exe` and release docs.
+
 A8 kdrv command-level automation helper:
 
 ```powershell
