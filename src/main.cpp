@@ -301,8 +301,54 @@ bool PrepareMountedFilesystem(std::string mount_point,
 int CmdMountWithBackend(const std::string& image_path,
                        std::string mount_point,
                        const std::string& backend_name);
-int CmdBackendDiag(const std::string& image_path, const std::string& backend_name);
-int CmdBackendDiagMounted(std::string mount_point);
+int CmdBackendDiag(const std::string& image_path, const std::string& backend_name, bool as_json);
+int CmdBackendDiagMounted(std::string mount_point, bool as_json);
+
+std::string EscapeJson(const std::string& value) {
+  std::string out;
+  out.reserve(value.size() + 8);
+  for (char c : value) {
+    switch (c) {
+      case '\\':
+        out += "\\\\";
+        break;
+      case '"':
+        out += "\\\"";
+        break;
+      case '\n':
+        out += "\\n";
+        break;
+      case '\r':
+        out += "\\r";
+        break;
+      case '\t':
+        out += "\\t";
+        break;
+      default:
+        out.push_back(c);
+        break;
+    }
+  }
+  return out;
+}
+
+std::vector<std::string> SplitNonEmptyLines(const std::string& block) {
+  std::vector<std::string> lines;
+  std::size_t cursor = 0;
+  while (cursor <= block.size()) {
+    const std::size_t next = block.find('\n', cursor);
+    const std::size_t end = next == std::string::npos ? block.size() : next;
+    const std::string line = block.substr(cursor, end - cursor);
+    if (!line.empty()) {
+      lines.push_back(line);
+    }
+    if (next == std::string::npos) {
+      break;
+    }
+    cursor = next + 1;
+  }
+  return lines;
+}
 
 void PrintUsage() {
   std::cout << "JDrive64 CLI\n"
@@ -320,8 +366,8 @@ void PrintUsage() {
             << "  jdrive64 volume-mounted <drive_letter:>\n"
             << "  jdrive64 stats-mounted <drive_letter:>\n"
             << "  jdrive64 check-mounted <drive_letter:>\n"
-            << "  jdrive64 backend-diag <image.d64> [--backend <winfsp|kdrv>]\n"
-            << "  jdrive64 backend-diag-mounted <drive_letter:>\n"
+            << "  jdrive64 backend-diag <image.d64> [--backend <winfsp|kdrv>] [--json]\n"
+            << "  jdrive64 backend-diag-mounted <drive_letter:> [--json]\n"
             << "  jdrive64 winfsp-preflight <image.d64> <drive_letter:>\n"
             << "  jdrive64 write-add <image.d64> <host_file> <name.ext>\n"
             << "  jdrive64 write-del <image.d64> <name.ext>\n"
@@ -741,7 +787,7 @@ int CmdWinfspPreflight(const std::string& image_path, std::string mount_point) {
   return 0;
 }
 
-int CmdBackendDiag(const std::string& image_path, const std::string& backend_name) {
+int CmdBackendDiag(const std::string& image_path, const std::string& backend_name, bool as_json) {
   std::error_code fs_ec;
   auto resolved_image = std::filesystem::absolute(image_path, fs_ec);
   if (fs_ec) {
@@ -761,17 +807,33 @@ int CmdBackendDiag(const std::string& image_path, const std::string& backend_nam
   }
 
   const std::string diag = backend->GetBackendDiagnosticsText();
-  std::cout << "Image: " << resolved_image.string() << "\n";
-  std::cout << "RequestedBackend: " << normalized_backend << "\n";
-  if (diag.empty()) {
-    std::cout << "Diagnostics: unavailable\n";
+  const auto diag_lines = SplitNonEmptyLines(diag);
+  if (as_json) {
+    std::cout << "{\n";
+    std::cout << "  \"image\": \"" << EscapeJson(resolved_image.string()) << "\",\n";
+    std::cout << "  \"requested_backend\": \"" << EscapeJson(normalized_backend) << "\",\n";
+    std::cout << "  \"diagnostics\": [";
+    for (std::size_t i = 0; i < diag_lines.size(); ++i) {
+      if (i != 0) {
+        std::cout << ", ";
+      }
+      std::cout << "\"" << EscapeJson(diag_lines[i]) << "\"";
+    }
+    std::cout << "]\n";
+    std::cout << "}\n";
   } else {
-    std::cout << diag << "\n";
+    std::cout << "Image: " << resolved_image.string() << "\n";
+    std::cout << "RequestedBackend: " << normalized_backend << "\n";
+    if (diag.empty()) {
+      std::cout << "Diagnostics: unavailable\n";
+    } else {
+      std::cout << diag << "\n";
+    }
   }
   return 0;
 }
 
-int CmdBackendDiagMounted(std::string mount_point) {
+int CmdBackendDiagMounted(std::string mount_point, bool as_json) {
   mount_point = NormalizeMountPoint(std::move(mount_point));
   if (!IsValidMountPoint(mount_point)) {
     std::cerr << "Error: invalid mount point, expected format X:\n";
@@ -791,14 +853,30 @@ int CmdBackendDiagMounted(std::string mount_point) {
     return 1;
   }
 
-  std::cout << "Mount: " << state.mount_point << "\n";
-  std::cout << "Image: " << state.image_path << "\n";
-  std::cout << "Backend: " << state.backend_name << "\n";
-  if (state.diagnostics.empty()) {
-    std::cout << "Diagnostics: unavailable\n";
+  if (as_json) {
+    std::cout << "{\n";
+    std::cout << "  \"mount\": \"" << EscapeJson(state.mount_point) << "\",\n";
+    std::cout << "  \"image\": \"" << EscapeJson(state.image_path) << "\",\n";
+    std::cout << "  \"backend\": \"" << EscapeJson(state.backend_name) << "\",\n";
+    std::cout << "  \"diagnostics\": [";
+    for (std::size_t i = 0; i < state.diagnostics.size(); ++i) {
+      if (i != 0) {
+        std::cout << ", ";
+      }
+      std::cout << "\"" << EscapeJson(state.diagnostics[i]) << "\"";
+    }
+    std::cout << "]\n";
+    std::cout << "}\n";
   } else {
-    for (const auto& line : state.diagnostics) {
-      std::cout << line << "\n";
+    std::cout << "Mount: " << state.mount_point << "\n";
+    std::cout << "Image: " << state.image_path << "\n";
+    std::cout << "Backend: " << state.backend_name << "\n";
+    if (state.diagnostics.empty()) {
+      std::cout << "Diagnostics: unavailable\n";
+    } else {
+      for (const auto& line : state.diagnostics) {
+        std::cout << line << "\n";
+      }
     }
   }
   return 0;
@@ -915,11 +993,19 @@ int main(int argc, char** argv) {
   }
 
   if (command == "backend-diag-mounted") {
-    if (argc < 3) {
+    if (argc != 3 && argc != 4) {
       PrintUsage();
       return 1;
     }
-    return CmdBackendDiagMounted(argv[2]);
+    bool as_json = false;
+    if (argc == 4) {
+      if (std::string(argv[3]) != "--json") {
+        PrintUsage();
+        return 1;
+      }
+      as_json = true;
+    }
+    return CmdBackendDiagMounted(argv[2], as_json);
   }
 
   if (command == "write-add") {
@@ -993,21 +1079,34 @@ int main(int argc, char** argv) {
   }
 
   if (command == "backend-diag") {
-    if (argc != 3 && argc != 5) {
+    if (argc < 3 || argc > 6) {
       PrintUsage();
       return 1;
     }
 
     std::string backend_name = "winfsp";
-    if (argc == 5) {
-      if (std::string(argv[3]) != "--backend") {
-        PrintUsage();
-        return 1;
+    bool as_json = false;
+    for (int i = 3; i < argc; ++i) {
+      const std::string arg = argv[i];
+      if (arg == "--json") {
+        as_json = true;
+        continue;
       }
-      backend_name = argv[4];
+      if (arg == "--backend") {
+        if (i + 1 >= argc) {
+          PrintUsage();
+          return 1;
+        }
+        backend_name = argv[i + 1];
+        ++i;
+        continue;
+      }
+
+      PrintUsage();
+      return 1;
     }
 
-    return CmdBackendDiag(image_path, backend_name);
+    return CmdBackendDiag(image_path, backend_name, as_json);
   }
 
   PrintUsage();

@@ -1142,7 +1142,7 @@ Status: done
 
 ## K15 - Persisted Diagnostics Snapshot Scaffold
 
-Status: in progress
+Status: done
 
 ### K15.1 Mount-state schema extension
 
@@ -1192,6 +1192,59 @@ Status: in progress
 
 - Persisted diagnostics snapshot path is integrated and test-covered.
 - Ready for K16 telemetry/export integration.
+
+## K16 - JSON Diagnostics Export Scaffold
+
+Status: in progress
+
+### K16.1 JSON encoder utility
+
+- Task: add safe JSON string escaping for diagnostics output.
+- PASS:
+  - CLI includes deterministic JSON escaping helper.
+  - output remains valid for quotes/backslashes/control newlines.
+- FAIL:
+  - JSON output can break on unescaped content.
+
+### K16.2 Live diagnostics JSON output
+
+- Task: support `--json` for live backend diagnostics command.
+- PASS:
+  - `backend-diag ... --json` emits machine-readable object.
+  - output includes image, requested backend, and diagnostics array.
+- FAIL:
+  - live diagnostics command is text-only.
+
+### K16.3 Mounted diagnostics JSON output
+
+- Task: support `--json` for persisted mounted diagnostics command.
+- PASS:
+  - `backend-diag-mounted ... --json` emits machine-readable object.
+  - output includes mount, image, backend, and diagnostics array.
+- FAIL:
+  - mounted diagnostics command is text-only.
+
+### K16.4 Regression coverage
+
+- Task: add smoke tests for both JSON diagnostics modes.
+- PASS:
+  - smoke tests validate `backend-diag --json` and `backend-diag-mounted --json` exit 0.
+  - smoke tests assert key JSON fields.
+- FAIL:
+  - no tests for JSON diagnostics exports.
+
+### K16 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K16 exit criteria
+
+- JSON diagnostics export is integrated and test-covered.
+- Ready for K17 telemetry sink integration and structured event emission.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

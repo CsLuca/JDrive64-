@@ -124,6 +124,13 @@ int main(int argc, char** argv) {
     ok = ok && Check(Contains(backend_diag_r.output, "Backend=kdrv"),
                      "backend-diag reports kdrv diagnostics");
 
+    const auto backend_diag_json_cmd = Quote(exe_path.string()) + " backend-diag " +
+                                       Quote(golden.valid_small.string()) + " --backend kdrv --json";
+    const auto backend_diag_json_r = Run(backend_diag_json_cmd);
+    ok = ok && Check(backend_diag_json_r.exit_code == 0, "backend-diag --json exits 0 for kdrv");
+    ok = ok && Check(Contains(backend_diag_json_r.output, "\"requested_backend\": \"kdrv\""),
+                     "backend-diag --json reports requested backend");
+
     const auto mount_cmd = Quote(exe_path.string()) + " mount " + Quote(golden.valid_small.string()) +
                            " Z:";
     const auto mount_r = Run(mount_cmd);
@@ -178,6 +185,14 @@ int main(int argc, char** argv) {
     ok = ok && Check(backend_diag_mounted_r.exit_code == 0, "backend-diag-mounted exits 0");
     ok = ok && Check(Contains(backend_diag_mounted_r.output, "Backend: winfsp"),
                      "backend-diag-mounted reports persisted backend");
+
+    const auto backend_diag_mounted_json_cmd =
+        Quote(exe_path.string()) + " backend-diag-mounted Z: --json";
+    const auto backend_diag_mounted_json_r = Run(backend_diag_mounted_json_cmd);
+    ok = ok && Check(backend_diag_mounted_json_r.exit_code == 0,
+                     "backend-diag-mounted --json exits 0");
+    ok = ok && Check(Contains(backend_diag_mounted_json_r.output, "\"backend\": \"winfsp\""),
+                     "backend-diag-mounted --json reports persisted backend");
 
     const auto preflight_cmd = Quote(exe_path.string()) + " winfsp-preflight " +
                                Quote(golden.valid_small.string()) + " Y:";
