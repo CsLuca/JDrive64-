@@ -27,6 +27,7 @@ See `ROADMAP_BASELINE.md` for milestones and final Definition of Done.
 
 ## Commands
 
+- `jdrive64 version`
 - `jdrive64 info <image.d64>`
 - `jdrive64 ls <image.d64>`
 - `jdrive64 extract <image.d64> [output_dir]`

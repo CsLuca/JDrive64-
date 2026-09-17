@@ -168,6 +168,74 @@ bool SaveMountState(const std::filesystem::path& state_file, const MountState& s
   return true;
 }
 
+std::filesystem::path DetectRepoRootFromExecutable() {
+  std::error_code ec;
+  const auto exe_path = std::filesystem::canonical(std::filesystem::path("."), ec);
+  if (!ec) {
+    auto probe = exe_path;
+    while (!probe.empty()) {
+      if (std::filesystem::exists(probe / "VERSION") && std::filesystem::exists(probe / "CMakeLists.txt")) {
+        return probe;
+      }
+      const auto parent = probe.parent_path();
+      if (parent == probe) {
+        break;
+      }
+      probe = parent;
+    }
+  }
+
+  return {};
+}
+
+std::string TrimAsciiWhitespace(std::string value) {
+  auto is_space = [](unsigned char c) {
+    return c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f' || c == '\v';
+  };
+
+  while (!value.empty() && is_space(static_cast<unsigned char>(value.front()))) {
+    value.erase(value.begin());
+  }
+  while (!value.empty() && is_space(static_cast<unsigned char>(value.back()))) {
+    value.pop_back();
+  }
+  return value;
+}
+
+bool ReadProjectVersion(std::string* version_out, std::string* error_out) {
+  if (version_out == nullptr || error_out == nullptr) {
+    return false;
+  }
+
+  const auto root = DetectRepoRootFromExecutable();
+  if (root.empty()) {
+    *error_out = "Cannot locate repository root";
+    return false;
+  }
+
+  const auto version_path = root / "VERSION";
+  std::ifstream in(version_path, std::ios::binary);
+  if (!in) {
+    *error_out = "Cannot open VERSION file";
+    return false;
+  }
+
+  std::string line;
+  if (!std::getline(in, line)) {
+    *error_out = "VERSION file is empty";
+    return false;
+  }
+
+  line = TrimAsciiWhitespace(line);
+  if (line.empty()) {
+    *error_out = "VERSION value is empty";
+    return false;
+  }
+
+  *version_out = std::move(line);
+  return true;
+}
+
 bool PrepareMountedFilesystem(std::string mount_point,
                              WinFspFilesystem* fs_out,
                              MountState* state_out,
@@ -216,6 +284,7 @@ void PrintUsage() {
   std::cout << "JDrive64 CLI\n"
             << "Usage:\n"
             << "  jdrive64 info <image.d64>\n"
+            << "  jdrive64 version\n"
             << "  jdrive64 ls <image.d64>\n"
             << "  jdrive64 extract <image.d64> [output_dir]\n"
             << "  jdrive64 mount <image.d64> <drive_letter:>\n"
@@ -275,6 +344,18 @@ int CmdInfo(const std::string& image_path) {
   std::cout << "Capacity   : " << kD64TotalBlocks << " blocks (" << capacity_bytes << " bytes)\n";
   std::cout << "Used       : " << used_blocks << " blocks (" << used_bytes << " bytes)\n";
   std::cout << "Free       : " << free_blocks << " blocks (" << free_bytes << " bytes)\n";
+  return 0;
+}
+
+int CmdVersion() {
+  std::string version;
+  std::string error;
+  if (!ReadProjectVersion(&version, &error)) {
+    std::cerr << "Error: " << error << "\n";
+    return 1;
+  }
+
+  std::cout << "JDrive64 " << version << "\n";
   return 0;
 }
 
@@ -617,6 +698,10 @@ int main(int argc, char** argv) {
   }
 
   const std::string command = argv[1];
+
+  if (command == "version") {
+    return CmdVersion();
+  }
 
   if (command == "unmount") {
     if (argc < 3) {
