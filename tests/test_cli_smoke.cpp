@@ -144,6 +144,12 @@ int main(int argc, char** argv) {
     ok = ok && Check(Contains(stats_r.output, "SectorCache"), "stats-mounted contains SectorCache");
     ok = ok && Check(Contains(stats_r.output, "ReadOps="), "stats-mounted contains ReadOps");
 
+    const auto check_cmd = Quote(exe_path.string()) + " check-mounted Z:";
+    const auto check_r = Run(check_cmd);
+    ok = ok && Check(check_r.exit_code == 0, "check-mounted exits 0");
+    ok = ok && Check(Contains(check_r.output, "Status: OK"), "check-mounted reports OK status");
+    ok = ok && Check(Contains(check_r.output, "Mount: Z:"), "check-mounted reports mount point");
+
     const auto unmount_cmd = Quote(exe_path.string()) + " unmount Z:";
     const auto unmount_r = Run(unmount_cmd);
     ok = ok && Check(unmount_r.exit_code == 0, "unmount exits 0");
@@ -156,6 +162,10 @@ int main(int argc, char** argv) {
     ok = ok && Check(mounts_after_unmount_r.exit_code == 0, "mounts exits 0 after unmount");
     ok = ok && Check(!Contains(mounts_after_unmount_r.output, "Z:"),
                      "mounts no longer contains drive letter after unmount");
+
+    const auto check_after_unmount_r = Run(check_cmd);
+    ok = ok && Check(check_after_unmount_r.exit_code != 0,
+                     "check-mounted fails after unmount");
   }
 
   if (!ok) {

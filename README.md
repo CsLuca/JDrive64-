@@ -30,6 +30,7 @@ See `ROADMAP_BASELINE.md` for milestones and final Definition of Done.
 - `jdrive64 read-mounted <drive_letter:> <name.ext>`
 - `jdrive64 volume-mounted <drive_letter:>`
 - `jdrive64 stats-mounted <drive_letter:>`
+- `jdrive64 check-mounted <drive_letter:>`
 
 ## Build
 

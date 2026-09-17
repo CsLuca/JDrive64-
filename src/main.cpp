@@ -168,6 +168,50 @@ bool SaveMountState(const std::filesystem::path& state_file, const MountState& s
   return true;
 }
 
+bool PrepareMountedFilesystem(std::string mount_point,
+                             WinFspFilesystem* fs_out,
+                             MountState* state_out,
+                             std::string* normalized_mount_out,
+                             std::string* error_out) {
+  if (fs_out == nullptr || state_out == nullptr || error_out == nullptr) {
+    return false;
+  }
+
+  mount_point = NormalizeMountPoint(std::move(mount_point));
+  if (!IsValidMountPoint(mount_point)) {
+    *error_out = "invalid mount point, expected format X:";
+    return false;
+  }
+
+  const auto state_file = MountStateFile(mount_point);
+  if (!std::filesystem::exists(state_file)) {
+    *error_out = "mount point is not mounted: " + mount_point;
+    return false;
+  }
+
+  MountState state;
+  std::string load_error;
+  if (!LoadMountState(state_file, &state, &load_error)) {
+    *error_out = "invalid mount state: " + load_error;
+    return false;
+  }
+  if (state.mount_point != mount_point) {
+    *error_out = "mount state mismatch for " + mount_point;
+    return false;
+  }
+
+  if (!fs_out->MountReadOnly(state.image_path, mount_point)) {
+    *error_out = fs_out->LastError();
+    return false;
+  }
+
+  *state_out = std::move(state);
+  if (normalized_mount_out != nullptr) {
+    *normalized_mount_out = std::move(mount_point);
+  }
+  return true;
+}
+
 void PrintUsage() {
   std::cout << "JDrive64 CLI\n"
             << "Usage:\n"
@@ -181,6 +225,7 @@ void PrintUsage() {
             << "  jdrive64 read-mounted <drive_letter:> <name.ext>\n"
             << "  jdrive64 volume-mounted <drive_letter:>\n"
             << "  jdrive64 stats-mounted <drive_letter:>\n"
+            << "  jdrive64 check-mounted <drive_letter:>\n"
             << "  jdrive64 write-add <image.d64> <host_file> <name.ext>\n"
             << "  jdrive64 write-del <image.d64> <name.ext>\n"
             << "  jdrive64 write-ren <image.d64> <old.ext> <new.ext>\n";
@@ -431,28 +476,11 @@ int CmdUnmount(std::string mount_point) {
 }
 
 int CmdDirMounted(std::string mount_point) {
-  mount_point = NormalizeMountPoint(std::move(mount_point));
-  if (!IsValidMountPoint(mount_point)) {
-    std::cerr << "Error: invalid mount point, expected format X:\n";
-    return 1;
-  }
-
-  const auto state_file = MountStateFile(mount_point);
-  if (!std::filesystem::exists(state_file)) {
-    std::cerr << "Error: mount point is not mounted: " << mount_point << "\n";
-    return 1;
-  }
-
+  std::string error;
   MountState state;
-  std::string load_error;
-  if (!LoadMountState(state_file, &state, &load_error)) {
-    std::cerr << "Error: invalid mount state: " << load_error << "\n";
-    return 1;
-  }
-
   WinFspFilesystem fs;
-  if (!fs.MountReadOnly(state.image_path, mount_point)) {
-    std::cerr << "Error: " << fs.LastError() << "\n";
+  if (!PrepareMountedFilesystem(std::move(mount_point), &fs, &state, nullptr, &error)) {
+    std::cerr << "Error: " << error << "\n";
     return 1;
   }
 
@@ -464,32 +492,11 @@ int CmdDirMounted(std::string mount_point) {
 }
 
 int CmdReadMounted(std::string mount_point, const std::string& windows_name) {
-  mount_point = NormalizeMountPoint(std::move(mount_point));
-  if (!IsValidMountPoint(mount_point)) {
-    std::cerr << "Error: invalid mount point, expected format X:\n";
-    return 1;
-  }
-
-  const auto state_file = MountStateFile(mount_point);
-  if (!std::filesystem::exists(state_file)) {
-    std::cerr << "Error: mount point is not mounted: " << mount_point << "\n";
-    return 1;
-  }
-
+  std::string error;
   MountState state;
-  std::string load_error;
-  if (!LoadMountState(state_file, &state, &load_error)) {
-    std::cerr << "Error: invalid mount state: " << load_error << "\n";
-    return 1;
-  }
-  if (state.mount_point != mount_point) {
-    std::cerr << "Error: mount state mismatch for " << mount_point << "\n";
-    return 1;
-  }
-
   WinFspFilesystem fs;
-  if (!fs.MountReadOnly(state.image_path, mount_point)) {
-    std::cerr << "Error: " << fs.LastError() << "\n";
+  if (!PrepareMountedFilesystem(std::move(mount_point), &fs, &state, nullptr, &error)) {
+    std::cerr << "Error: " << error << "\n";
     return 1;
   }
 
@@ -505,32 +512,11 @@ int CmdReadMounted(std::string mount_point, const std::string& windows_name) {
 }
 
 int CmdVolumeMounted(std::string mount_point) {
-  mount_point = NormalizeMountPoint(std::move(mount_point));
-  if (!IsValidMountPoint(mount_point)) {
-    std::cerr << "Error: invalid mount point, expected format X:\n";
-    return 1;
-  }
-
-  const auto state_file = MountStateFile(mount_point);
-  if (!std::filesystem::exists(state_file)) {
-    std::cerr << "Error: mount point is not mounted: " << mount_point << "\n";
-    return 1;
-  }
-
+  std::string error;
   MountState state;
-  std::string load_error;
-  if (!LoadMountState(state_file, &state, &load_error)) {
-    std::cerr << "Error: invalid mount state: " << load_error << "\n";
-    return 1;
-  }
-  if (state.mount_point != mount_point) {
-    std::cerr << "Error: mount state mismatch for " << mount_point << "\n";
-    return 1;
-  }
-
   WinFspFilesystem fs;
-  if (!fs.MountReadOnly(state.image_path, mount_point)) {
-    std::cerr << "Error: " << fs.LastError() << "\n";
+  if (!PrepareMountedFilesystem(std::move(mount_point), &fs, &state, nullptr, &error)) {
+    std::cerr << "Error: " << error << "\n";
     return 1;
   }
 
@@ -539,36 +525,42 @@ int CmdVolumeMounted(std::string mount_point) {
 }
 
 int CmdStatsMounted(std::string mount_point) {
-  mount_point = NormalizeMountPoint(std::move(mount_point));
-  if (!IsValidMountPoint(mount_point)) {
-    std::cerr << "Error: invalid mount point, expected format X:\n";
-    return 1;
-  }
-
-  const auto state_file = MountStateFile(mount_point);
-  if (!std::filesystem::exists(state_file)) {
-    std::cerr << "Error: mount point is not mounted: " << mount_point << "\n";
-    return 1;
-  }
-
+  std::string error;
   MountState state;
-  std::string load_error;
-  if (!LoadMountState(state_file, &state, &load_error)) {
-    std::cerr << "Error: invalid mount state: " << load_error << "\n";
-    return 1;
-  }
-  if (state.mount_point != mount_point) {
-    std::cerr << "Error: mount state mismatch for " << mount_point << "\n";
-    return 1;
-  }
-
   WinFspFilesystem fs;
-  if (!fs.MountReadOnly(state.image_path, mount_point)) {
-    std::cerr << "Error: " << fs.LastError() << "\n";
+  if (!PrepareMountedFilesystem(std::move(mount_point), &fs, &state, nullptr, &error)) {
+    std::cerr << "Error: " << error << "\n";
     return 1;
   }
 
   std::cout << fs.GetRuntimeStatsText() << "\n";
+  return 0;
+}
+
+int CmdCheckMounted(std::string mount_point) {
+  std::string error;
+  std::string normalized_mount;
+  MountState state;
+  WinFspFilesystem fs;
+  if (!PrepareMountedFilesystem(std::move(mount_point), &fs, &state, &normalized_mount, &error)) {
+    std::cerr << "Error: " << error << "\n";
+    return 1;
+  }
+
+  WinFspFilesystem::VolumeInfo volume;
+  if (!fs.GetVolumeInfo(&volume)) {
+    std::cerr << "Error: " << fs.LastError() << "\n";
+    return 1;
+  }
+
+  const auto names = fs.ReadDirectory();
+
+  std::cout << "Mount: " << normalized_mount << "\n";
+  std::cout << "Image: " << state.image_path << "\n";
+  std::cout << "Status: OK\n";
+  std::cout << "Files: " << names.size() << "\n";
+  std::cout << "Volume: " << volume.label << " (" << volume.free_blocks << "/"
+            << volume.capacity_blocks << " free blocks)\n";
   return 0;
 }
 
@@ -668,6 +660,14 @@ int main(int argc, char** argv) {
       return 1;
     }
     return CmdStatsMounted(argv[2]);
+  }
+
+  if (command == "check-mounted") {
+    if (argc < 3) {
+      PrintUsage();
+      return 1;
+    }
+    return CmdCheckMounted(argv[2]);
   }
 
   if (command == "write-add") {
