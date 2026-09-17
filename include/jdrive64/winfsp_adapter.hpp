@@ -4,6 +4,7 @@
 
 #include "jdrive64/winfsp_callbacks.hpp"
 #include "jdrive64/winfsp_filesystem.hpp"
+#include "jdrive64/winfsp_native_bridge.hpp"
 
 namespace jdrive64 {
 
@@ -15,6 +16,7 @@ class WinFspAdapter {
   bool Stop(WinFspFilesystem* filesystem, const std::string& mount_point);
 
   bool IsCallbacksInitialized() const;
+  bool IsNativeRegistered() const;
   const WinFspCallbacks& Callbacks() const;
 
   const std::string& LastError() const;
@@ -22,6 +24,7 @@ class WinFspAdapter {
  private:
   std::string last_error_;
   WinFspCallbacks callbacks_;
+  WinFspNativeBridge native_bridge_;
 };
 
 }  // namespace jdrive64

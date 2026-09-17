@@ -23,6 +23,13 @@ bool WinFspAdapter::StartReadOnly(WinFspFilesystem* filesystem,
     return false;
   }
 
+  if (!native_bridge_.RegisterReadOnly(mount_point, callbacks_)) {
+    last_error_ = native_bridge_.LastError();
+    callbacks_.Shutdown();
+    filesystem->Unmount(mount_point);
+    return false;
+  }
+
   return true;
 #else
   (void)image_path;
@@ -40,6 +47,11 @@ bool WinFspAdapter::Stop(WinFspFilesystem* filesystem, const std::string& mount_
   }
 
 #if defined(JDRIVE64_ENABLE_WINFSP)
+  if (!native_bridge_.Unregister()) {
+    last_error_ = native_bridge_.LastError();
+    return false;
+  }
+
   callbacks_.Shutdown();
 
   if (!filesystem->Unmount(mount_point)) {
@@ -57,6 +69,8 @@ bool WinFspAdapter::Stop(WinFspFilesystem* filesystem, const std::string& mount_
 const std::string& WinFspAdapter::LastError() const { return last_error_; }
 
 bool WinFspAdapter::IsCallbacksInitialized() const { return callbacks_.IsInitialized(); }
+
+bool WinFspAdapter::IsNativeRegistered() const { return native_bridge_.IsRegistered(); }
 
 const WinFspCallbacks& WinFspAdapter::Callbacks() const { return callbacks_; }
 

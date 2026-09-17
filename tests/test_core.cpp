@@ -17,6 +17,7 @@
 #include "jdrive64/winfsp_adapter.hpp"
 #include "jdrive64/winfsp_callbacks.hpp"
 #include "jdrive64/winfsp_filesystem.hpp"
+#include "jdrive64/winfsp_native_bridge.hpp"
 #include "jdrive64/winfsp_runtime.hpp"
 
 namespace {
@@ -31,6 +32,8 @@ using jdrive64::SectorCache;
 using jdrive64::WinFspAdapter;
 using jdrive64::WinFspCallbacks;
 using jdrive64::WinFspFilesystem;
+using jdrive64::WinFspNativeApi;
+using jdrive64::WinFspNativeBridge;
 using jdrive64::WinFspRuntime;
 
 bool Assert(bool condition, const std::string& message) {
@@ -503,6 +506,14 @@ bool TestWinFspAdapterScaffold(const std::filesystem::path& image_path) {
               "WinFspAdapter start succeeds when WinFsp support is enabled")) {
     return false;
   }
+  if (!Assert(adapter.IsCallbacksInitialized(),
+              "WinFspAdapter callback table initialized when WinFsp support is enabled")) {
+    return false;
+  }
+  if (!Assert(adapter.IsNativeRegistered(),
+              "WinFspAdapter native bridge registered when WinFsp support is enabled")) {
+    return false;
+  }
   if (!Assert(adapter.Stop(&filesystem, "X:"),
               "WinFspAdapter stop succeeds when WinFsp support is enabled")) {
     return false;
@@ -587,6 +598,192 @@ bool TestWinFspCallbacksBridge(const std::filesystem::path& image_path) {
   return true;
 }
 
+bool TestWinFspNativeBridgeScaffold(const std::filesystem::path& image_path) {
+  WinFspFilesystem fs;
+  if (!Assert(fs.MountReadOnly(image_path.string(), "V:"), "Native bridge mount facade")) {
+    return false;
+  }
+
+  WinFspCallbacks callbacks;
+  if (!Assert(callbacks.Initialize(&fs), "Native bridge callbacks initialize")) {
+    return false;
+  }
+
+  WinFspNativeBridge bridge;
+#if defined(JDRIVE64_ENABLE_WINFSP)
+  if (!Assert(bridge.RegisterReadOnly("V:", callbacks),
+              "Native bridge register succeeds when WinFsp support is enabled")) {
+    return false;
+  }
+  if (!Assert(bridge.IsRegistered(), "Native bridge registered state")) {
+    return false;
+  }
+  if (!Assert(bridge.RegisteredMountPoint() == "V:", "Native bridge mount point tracked")) {
+    return false;
+  }
+  if (!Assert(bridge.Unregister(), "Native bridge unregister succeeds")) {
+    return false;
+  }
+  if (!Assert(!bridge.IsRegistered(), "Native bridge unregistered state")) {
+    return false;
+  }
+#else
+  if (!Assert(!bridge.RegisterReadOnly("V:", callbacks),
+              "Native bridge register fails when WinFsp support is disabled")) {
+    return false;
+  }
+  if (!Assert(bridge.LastError().find("disabled") != std::string::npos,
+              "Native bridge reports disabled error")) {
+    return false;
+  }
+#endif
+
+  callbacks.Shutdown();
+  if (!Assert(fs.Unmount("V:"), "Native bridge unmount facade")) {
+    return false;
+  }
+
+  return true;
+}
+
+class FakeNativeApi final : public WinFspNativeApi {
+ public:
+  bool register_result = true;
+  bool unregister_result = true;
+  std::string register_error;
+  std::string unregister_error;
+  int register_calls = 0;
+  int unregister_calls = 0;
+
+  bool RegisterReadOnly(const std::string& mount_point,
+                        const WinFspCallbacks& callbacks,
+                        std::string* error_out) override {
+    (void)mount_point;
+    (void)callbacks;
+    ++register_calls;
+    if (error_out != nullptr) {
+      *error_out = register_error;
+    }
+    return register_result;
+  }
+
+  bool Unregister(std::string* error_out) override {
+    ++unregister_calls;
+    if (error_out != nullptr) {
+      *error_out = unregister_error;
+    }
+    return unregister_result;
+  }
+};
+
+bool TestWinFspNativeBridgeProviderInjection(const std::filesystem::path& image_path) {
+  WinFspFilesystem fs;
+  if (!Assert(fs.MountReadOnly(image_path.string(), "U:"), "Provider injection mount facade")) {
+    return false;
+  }
+
+  WinFspCallbacks callbacks;
+  if (!Assert(callbacks.Initialize(&fs), "Provider injection callbacks initialize")) {
+    return false;
+  }
+
+  FakeNativeApi fake_api;
+  WinFspNativeBridge bridge;
+  bridge.SetApi(&fake_api);
+
+  fake_api.register_result = false;
+  fake_api.register_error = "fake register failure";
+  if (!Assert(!bridge.RegisterReadOnly("U:", callbacks), "Provider injection register failure path")) {
+    return false;
+  }
+  if (!Assert(bridge.LastError() == "fake register failure", "Provider injection register error propagation")) {
+    return false;
+  }
+  if (!Assert(fake_api.register_calls == 1, "Provider injection register call count")) {
+    return false;
+  }
+
+  fake_api.register_result = true;
+  fake_api.register_error.clear();
+  if (!Assert(bridge.RegisterReadOnly("U:", callbacks), "Provider injection register success path")) {
+    return false;
+  }
+  if (!Assert(bridge.IsRegistered(), "Provider injection registered state")) {
+    return false;
+  }
+
+  fake_api.unregister_result = false;
+  fake_api.unregister_error = "fake unregister failure";
+  if (!Assert(!bridge.Unregister(), "Provider injection unregister failure path")) {
+    return false;
+  }
+  if (!Assert(bridge.LastError() == "fake unregister failure",
+              "Provider injection unregister error propagation")) {
+    return false;
+  }
+  if (!Assert(fake_api.unregister_calls == 1, "Provider injection unregister call count")) {
+    return false;
+  }
+
+  fake_api.unregister_result = true;
+  fake_api.unregister_error.clear();
+  if (!Assert(bridge.Unregister(), "Provider injection unregister success path")) {
+    return false;
+  }
+  if (!Assert(!bridge.IsRegistered(), "Provider injection unregistered state")) {
+    return false;
+  }
+
+  callbacks.Shutdown();
+  if (!Assert(fs.Unmount("U:"), "Provider injection unmount facade")) {
+    return false;
+  }
+
+  return true;
+}
+
+bool TestWinFspDefaultNativeApiContract(const std::filesystem::path& image_path) {
+  WinFspFilesystem fs;
+  if (!Assert(fs.MountReadOnly(image_path.string(), "T:"), "Default native API mount facade")) {
+    return false;
+  }
+
+  WinFspCallbacks callbacks;
+  if (!Assert(callbacks.Initialize(&fs), "Default native API callbacks initialize")) {
+    return false;
+  }
+
+  jdrive64::DefaultWinFspNativeApi api;
+  std::string error;
+#if defined(JDRIVE64_ENABLE_WINFSP)
+  if (api.RegisterReadOnly("T:", callbacks, &error)) {
+    if (!Assert(api.Unregister(&error), "Default native API unregister after successful register")) {
+      return false;
+    }
+  } else {
+    if (!Assert(!error.empty(), "Default native API returns explicit error when register fails")) {
+      return false;
+    }
+  }
+#else
+  if (!Assert(!api.RegisterReadOnly("T:", callbacks, &error),
+              "Default native API register fails when WinFsp support is disabled")) {
+    return false;
+  }
+  if (!Assert(error.find("disabled") != std::string::npos,
+              "Default native API disabled message")) {
+    return false;
+  }
+#endif
+
+  callbacks.Shutdown();
+  if (!Assert(fs.Unmount("T:"), "Default native API unmount facade")) {
+    return false;
+  }
+
+  return true;
+}
+
 }  // namespace
 
 int main() {
@@ -597,6 +794,9 @@ int main() {
   ok = ok && TestCaches();
   ok = ok && TestWinFspFacade(image_path);
   ok = ok && TestWinFspCallbacksBridge(image_path);
+  ok = ok && TestWinFspNativeBridgeScaffold(image_path);
+  ok = ok && TestWinFspNativeBridgeProviderInjection(image_path);
+  ok = ok && TestWinFspDefaultNativeApiContract(image_path);
   ok = ok && TestWinFspAdapterScaffold(image_path);
   ok = ok && TestWinFspRuntimeScaffold(image_path);
 
