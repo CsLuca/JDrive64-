@@ -2856,7 +2856,7 @@ Status: done
 
 ## K56 - Explain Planner Phase Timings Scaffold
 
-Status: in progress
+Status: done
 
 ### K56.1 Phase timing metadata
 
@@ -2888,6 +2888,41 @@ Status: in progress
 
 - Planner phase timing metadata is integrated and test-covered.
 - Ready for K57 phase budget metadata scaffold.
+
+## K57 - Explain Phase Budget Metadata Scaffold
+
+Status: in progress
+
+### K57.1 Phase budget fields
+
+- Task: add planner phase budget values in explain output.
+- PASS:
+  - explain output includes `query_plan_phase_budget_ms` object.
+  - object includes deterministic budget values for `parse`, `filter`, and `aggregate`.
+- FAIL:
+  - explain output has no phase budget metadata.
+
+### K57.2 Regression coverage
+
+- Task: validate phase budget field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_phase_budget_ms` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for phase budget metadata.
+
+### K57 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K57 exit criteria
+
+- Planner phase budget metadata is integrated and test-covered.
+- Ready for K58 phase status metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
