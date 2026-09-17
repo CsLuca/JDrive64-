@@ -1838,7 +1838,7 @@ Status: done
 
 ## K30 - Expression Quoting and Escaped-value Scaffold
 
-Status: in progress
+Status: done
 
 ### K30.1 Quoted predicate values
 
@@ -1888,6 +1888,50 @@ Status: in progress
 
 - Quoted/escaped expression values are integrated and test-covered.
 - Ready for K31 expression unary-not and richer predicate families.
+
+## K31 - Unary NOT Expression Scaffold
+
+Status: in progress
+
+### K31.1 Parser support
+
+- Task: add unary `NOT` support in where-expression grammar.
+- PASS:
+  - parser accepts `NOT` before predicates and grouped expressions.
+  - malformed `NOT` placements produce explicit errors.
+- FAIL:
+  - `NOT` tokens are rejected or misparsed.
+
+### K31.2 Evaluator support
+
+- Task: compile and evaluate unary negation in expression execution.
+- PASS:
+  - compiled token stream includes unary `NOT` operator.
+  - evaluator applies negation correctly with precedence-aware flow.
+- FAIL:
+  - unary negation has no effect or breaks stack evaluation.
+
+### K31.3 Regression coverage
+
+- Task: validate NOT-expression query in CLI smoke.
+- PASS:
+  - smoke executes `NOT` where query successfully.
+  - smoke asserts normalized query expression contains `NOT`.
+- FAIL:
+  - no tests for unary-not path.
+
+### K31 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K31 exit criteria
+
+- Unary NOT support is integrated and test-covered.
+- Ready for K32 additional predicate families.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

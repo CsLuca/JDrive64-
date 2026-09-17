@@ -120,6 +120,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K28 expression scaffold adds `--where` query expression parsing (`AND`/`OR`, event/success predicates) with normalized expression export in telemetry JSON query metadata.
 - K29 expression-precedence scaffold adds grouped `--where` expressions with parenthesis handling and deterministic precedence (`AND` over `OR`) via compiled evaluator.
 - K30 quoting scaffold adds quoted/escaped `--where` predicate values (including spaces and escaped quotes) with normalized output preserving explicit quoting when requested.
+- K31 unary-not scaffold adds `NOT` operator support in `--where` expressions with precedence-aware compile/evaluation.
 
 ## Domain Layer (Step 3)
 

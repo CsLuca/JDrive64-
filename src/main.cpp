@@ -335,6 +335,7 @@ struct TelemetryWhereExpression {
   struct CompiledToken {
     enum class Kind {
       kPredicate,
+      kNot,
       kAnd,
       kOr,
     };
@@ -441,6 +442,9 @@ bool TokenizeWhereExpression(const std::string& expression,
 }
 
 int WhereOperatorPrecedence(const std::string& op_upper) {
+  if (op_upper == "NOT") {
+    return 3;
+  }
   if (op_upper == "AND") {
     return 2;
   }
@@ -647,9 +651,14 @@ bool ParseWhereExpression(const std::string& expression,
           break;
         }
         TelemetryWhereExpression::CompiledToken op_token;
-        op_token.kind = UpperAscii(top) == "AND"
-                            ? TelemetryWhereExpression::CompiledToken::Kind::kAnd
-                            : TelemetryWhereExpression::CompiledToken::Kind::kOr;
+        const std::string op_upper = UpperAscii(top);
+        if (op_upper == "AND") {
+          op_token.kind = TelemetryWhereExpression::CompiledToken::Kind::kAnd;
+        } else if (op_upper == "OR") {
+          op_token.kind = TelemetryWhereExpression::CompiledToken::Kind::kOr;
+        } else {
+          op_token.kind = TelemetryWhereExpression::CompiledToken::Kind::kNot;
+        }
         output.push_back(op_token);
       }
       if (!found_open) {
@@ -661,6 +670,18 @@ bool ParseWhereExpression(const std::string& expression,
     }
 
     const std::string upper = UpperAscii(t);
+    if (upper == "NOT") {
+      if (!expect_predicate) {
+        *error_out = "where expression unexpected NOT after predicate";
+        return false;
+      }
+      op_stack.push_back(upper);
+      if (!normalized.empty() && normalized.back() != ' ') {
+        normalized += " ";
+      }
+      normalized += upper;
+      continue;
+    }
     if (upper == "AND" || upper == "OR") {
       if (expect_predicate) {
         *error_out = "where expression expects predicate before operator " + upper;
@@ -677,8 +698,13 @@ bool ParseWhereExpression(const std::string& expression,
         const std::string popped = UpperAscii(op_stack.back());
         op_stack.pop_back();
         TelemetryWhereExpression::CompiledToken op_token;
-        op_token.kind = popped == "AND" ? TelemetryWhereExpression::CompiledToken::Kind::kAnd
-                                          : TelemetryWhereExpression::CompiledToken::Kind::kOr;
+        if (popped == "AND") {
+          op_token.kind = TelemetryWhereExpression::CompiledToken::Kind::kAnd;
+        } else if (popped == "OR") {
+          op_token.kind = TelemetryWhereExpression::CompiledToken::Kind::kOr;
+        } else {
+          op_token.kind = TelemetryWhereExpression::CompiledToken::Kind::kNot;
+        }
         output.push_back(op_token);
       }
       op_stack.push_back(upper);
@@ -725,8 +751,13 @@ bool ParseWhereExpression(const std::string& expression,
       return false;
     }
     TelemetryWhereExpression::CompiledToken op_token;
-    op_token.kind = top == "AND" ? TelemetryWhereExpression::CompiledToken::Kind::kAnd
-                                   : TelemetryWhereExpression::CompiledToken::Kind::kOr;
+    if (top == "AND") {
+      op_token.kind = TelemetryWhereExpression::CompiledToken::Kind::kAnd;
+    } else if (top == "OR") {
+      op_token.kind = TelemetryWhereExpression::CompiledToken::Kind::kOr;
+    } else {
+      op_token.kind = TelemetryWhereExpression::CompiledToken::Kind::kNot;
+    }
     output.push_back(op_token);
   }
 
@@ -765,6 +796,14 @@ bool EvaluateWhereExpression(const std::string& name,
   for (const auto& token : where_expression.rpn) {
     if (token.kind == TelemetryWhereExpression::CompiledToken::Kind::kPredicate) {
       eval_stack.push_back(EvaluateWherePredicate(name, success, token.predicate));
+      continue;
+    }
+
+    if (token.kind == TelemetryWhereExpression::CompiledToken::Kind::kNot) {
+      if (eval_stack.empty()) {
+        return false;
+      }
+      eval_stack.back() = !eval_stack.back();
       continue;
     }
 

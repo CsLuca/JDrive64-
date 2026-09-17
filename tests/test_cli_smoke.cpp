@@ -288,6 +288,15 @@ int main(int argc, char** argv) {
                               "\"where\": \"event==\\\"send.loopback\\\" AND success==true\""),
                      "telemetry-dump-mounted quoted --where normalizes quoted tokens");
 
+    const auto telemetry_dump_where_not_cmd = Quote(exe_path.string()) +
+                                              " telemetry-dump-mounted Z: --where \"NOT event==connect.loopback AND success==true\" --bundle";
+    const auto telemetry_dump_where_not_r = Run(telemetry_dump_where_not_cmd);
+    ok = ok && Check(telemetry_dump_where_not_r.exit_code == 0,
+                     "telemetry-dump-mounted NOT --where exits 0");
+    ok = ok && Check(Contains(telemetry_dump_where_not_r.output,
+                              "\"where\": \"NOT event==connect.loopback AND success==true\""),
+                     "telemetry-dump-mounted NOT --where preserves unary not expression");
+
     const auto telemetry_clear_cmd = Quote(exe_path.string()) + " telemetry-clear-mounted Z:";
     const auto telemetry_clear_r = Run(telemetry_clear_cmd);
     ok = ok && Check(telemetry_clear_r.exit_code == 0, "telemetry-clear-mounted exits 0");
