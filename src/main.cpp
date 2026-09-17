@@ -2068,6 +2068,9 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
         emit_rule("R_LOW_CONFIDENCE");
       }
       std::cout << "],\n";
+      const std::uint64_t trace_id_seed = StableWhereHash(opt.where_expression_normalized) ^
+                                          static_cast<std::uint64_t>(opt.where_compiled.rpn.size() * 131);
+      std::cout << "  \"query_plan_trace_id\": \"trace-" << trace_id_seed << "\",\n";
       const std::size_t phase_parse_ms = 1 + (opt.where_compiled.rpn.size() / 4);
       const std::size_t phase_filter_ms = 1 + (scanned_entries / 64);
       const std::size_t phase_aggregate_ms = 1 + (total_by_event.size() / 8);

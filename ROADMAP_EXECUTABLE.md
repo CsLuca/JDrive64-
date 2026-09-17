@@ -2926,7 +2926,7 @@ Status: done
 
 ## K58 - Explain Phase Status Metadata Scaffold
 
-Status: in progress
+Status: done
 
 ### K58.1 Phase status fields
 
@@ -2958,6 +2958,41 @@ Status: in progress
 
 - Planner phase status metadata is integrated and test-covered.
 - Ready for K59 query trace-id metadata scaffold.
+
+## K59 - Query Trace-id Metadata Scaffold
+
+Status: in progress
+
+### K59.1 Trace-id field
+
+- Task: add deterministic correlation identifier for explain payloads.
+- PASS:
+  - explain output includes `query_plan_trace_id`.
+  - trace-id is deterministically derived from normalized query characteristics.
+- FAIL:
+  - explain output has no trace-id metadata.
+
+### K59.2 Regression coverage
+
+- Task: validate trace-id field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_trace_id` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for trace-id metadata.
+
+### K59 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K59 exit criteria
+
+- Query trace-id metadata is integrated and test-covered.
+- Ready for K60 explain schema policy metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

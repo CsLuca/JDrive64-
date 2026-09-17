@@ -343,6 +343,8 @@ int main(int argc, char** argv) {
                      "telemetry-dump-mounted --explain reports query_plan_phase_budget_ms");
     ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"query_plan_phase_status\":"),
                      "telemetry-dump-mounted --explain reports query_plan_phase_status");
+    ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"query_plan_trace_id\":"),
+                     "telemetry-dump-mounted --explain reports query_plan_trace_id");
     ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"pred_event\":"),
                      "telemetry-dump-mounted --explain reports pred_event");
     ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"pred_detail\":"),
