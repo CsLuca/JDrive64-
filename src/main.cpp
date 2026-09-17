@@ -317,10 +317,16 @@ int CmdTelemetryListMounted(std::string mount_point);
 int CmdTelemetryStatsMounted(std::string mount_point, bool as_json);
 
 struct TelemetryDumpOptions {
+  enum class SelectorMode {
+    kAll,
+    kAny,
+  };
+
   std::vector<std::string> include_events;
   std::vector<std::string> exclude_events;
   std::string event_prefix;
   std::string event_contains;
+  SelectorMode selector_mode = SelectorMode::kAll;
   int success_filter = -1;
   std::size_t tail = 0;
   std::size_t offset = 0;
@@ -441,31 +447,42 @@ int ExtractJsonBoolField(const std::string& line, const std::string& field_name)
 bool TelemetryLineMatchesFilter(const std::string& line, const TelemetryDumpOptions& opt) {
   const std::string name = ExtractJsonStringField(line, "name");
 
-  if (!opt.include_events.empty()) {
-    bool matched_include = false;
-    for (const auto& include_event : opt.include_events) {
-      if (name == include_event) {
-        matched_include = true;
-        break;
-      }
-    }
-    if (!matched_include) {
-      return false;
-    }
-  }
-
   for (const auto& exclude_event : opt.exclude_events) {
     if (name == exclude_event) {
       return false;
     }
   }
 
-  if (!opt.event_prefix.empty() && !name.starts_with(opt.event_prefix)) {
-    return false;
+  const bool has_exact = !opt.include_events.empty();
+  const bool has_prefix = !opt.event_prefix.empty();
+  const bool has_contains = !opt.event_contains.empty();
+
+  bool matches_exact = false;
+  for (const auto& include_event : opt.include_events) {
+    if (name == include_event) {
+      matches_exact = true;
+      break;
+    }
   }
 
-  if (!opt.event_contains.empty() && name.find(opt.event_contains) == std::string::npos) {
-    return false;
+  const bool matches_prefix = has_prefix && name.starts_with(opt.event_prefix);
+  const bool matches_contains = has_contains && name.find(opt.event_contains) != std::string::npos;
+
+  if (opt.selector_mode == TelemetryDumpOptions::SelectorMode::kAll) {
+    if (has_exact && !matches_exact) {
+      return false;
+    }
+    if (has_prefix && !matches_prefix) {
+      return false;
+    }
+    if (has_contains && !matches_contains) {
+      return false;
+    }
+  } else {
+    const bool has_positive_selector = has_exact || has_prefix || has_contains;
+    if (has_positive_selector && !(matches_exact || matches_prefix || matches_contains)) {
+      return false;
+    }
   }
 
   if (opt.success_filter != -1) {
@@ -495,7 +512,7 @@ void PrintUsage() {
             << "  jdrive64 check-mounted <drive_letter:>\n"
             << "  jdrive64 backend-diag <image.d64> [--backend <winfsp|kdrv>] [--json]\n"
             << "  jdrive64 backend-diag-mounted <drive_letter:> [--json]\n"
-            << "  jdrive64 telemetry-dump-mounted <drive_letter:> [--event <name>] [--exclude-event <name>] [--event-prefix <prefix>] [--event-contains <text>] [--success <true|false>] [--tail N] [--offset N] [--limit N] [--json] [--bundle]\n"
+            << "  jdrive64 telemetry-dump-mounted <drive_letter:> [--event <name>] [--exclude-event <name>] [--event-prefix <prefix>] [--event-contains <text>] [--selector-mode <all|any>] [--success <true|false>] [--tail N] [--offset N] [--limit N] [--json] [--bundle]\n"
             << "  jdrive64 telemetry-clear-mounted <drive_letter:>\n"
             << "  jdrive64 telemetry-list-mounted <drive_letter:>\n"
             << "  jdrive64 telemetry-stats-mounted <drive_letter:> [--json]\n"
@@ -1137,10 +1154,40 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
 
   if (opt.as_json) {
     std::cout << "{\n";
+    std::cout << "  \"schema_version\": \"telemetry-query.v1\",\n";
     std::cout << "  \"mount\": \"" << EscapeJson(mount_point) << "\",\n";
     std::cout << "  \"files_scanned\": " << files.size() << ",\n";
     std::cout << "  \"total_matched\": " << sliced.size() << ",\n";
     std::cout << "  \"total_success\": " << total_success << ",\n";
+    std::cout << "  \"query\": {\n";
+    std::cout << "    \"selector_mode\": \""
+              << (opt.selector_mode == TelemetryDumpOptions::SelectorMode::kAll ? "all" : "any")
+              << "\",\n";
+    std::cout << "    \"event\": [";
+    for (std::size_t i = 0; i < opt.include_events.size(); ++i) {
+      if (i != 0) {
+        std::cout << ", ";
+      }
+      std::cout << "\"" << EscapeJson(opt.include_events[i]) << "\"";
+    }
+    std::cout << "],\n";
+    std::cout << "    \"exclude_event\": [";
+    for (std::size_t i = 0; i < opt.exclude_events.size(); ++i) {
+      if (i != 0) {
+        std::cout << ", ";
+      }
+      std::cout << "\"" << EscapeJson(opt.exclude_events[i]) << "\"";
+    }
+    std::cout << "],\n";
+    std::cout << "    \"event_prefix\": \"" << EscapeJson(opt.event_prefix) << "\",\n";
+    std::cout << "    \"event_contains\": \"" << EscapeJson(opt.event_contains) << "\",\n";
+    if (opt.success_filter == -1) {
+      std::cout << "    \"success\": \"any\",\n";
+    } else {
+      std::cout << "    \"success\": \"" << (opt.success_filter == 1 ? "true" : "false") << "\",\n";
+    }
+    std::cout << "    \"tail\": " << opt.tail << "\n";
+    std::cout << "  },\n";
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";
     std::cout << "  \"entries\": [";
@@ -1512,6 +1559,22 @@ int main(int argc, char** argv) {
           return 1;
         }
         opt.event_contains = argv[++i];
+        continue;
+      }
+      if (arg == "--selector-mode") {
+        if (i + 1 >= argc) {
+          PrintUsage();
+          return 1;
+        }
+        const std::string value = argv[++i];
+        if (value == "all") {
+          opt.selector_mode = TelemetryDumpOptions::SelectorMode::kAll;
+        } else if (value == "any") {
+          opt.selector_mode = TelemetryDumpOptions::SelectorMode::kAny;
+        } else {
+          PrintUsage();
+          return 1;
+        }
         continue;
       }
       if (arg == "--success") {

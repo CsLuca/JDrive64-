@@ -115,6 +115,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K23 cross-file query scaffold merges telemetry search across base+rotated files with env-tuned retention.
 - K24 aggregation scaffold adds `telemetry-stats-mounted` with per-event counts/success rates (text + json).
 - K25 query DSL scaffold expands telemetry filters (`--exclude-event`, `--event-prefix`, `--event-contains`) and adds export bundle mode (`telemetry-dump-mounted --bundle`).
+- K26 selector/schema scaffold adds selector semantics (`--selector-mode all|any`) and JSON schema metadata (`schema_version`, `query`) for telemetry exports.
 
 ## Domain Layer (Step 3)
 

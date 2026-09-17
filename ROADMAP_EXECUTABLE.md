@@ -1618,7 +1618,7 @@ Status: done
 
 ## K25 - Telemetry Query DSL and Export Bundle Scaffold
 
-Status: in progress
+Status: done
 
 ### K25.1 Query DSL refinements
 
@@ -1659,6 +1659,50 @@ Status: in progress
 
 - Query DSL refinements and bundled export are integrated and test-covered.
 - Ready for K26 advanced selectors and export schema stabilization.
+
+## K26 - Telemetry Selector Semantics and Export Schema Scaffold
+
+Status: in progress
+
+### K26.1 Selector semantics
+
+- Task: support explicit selector combination mode for positive event selectors.
+- PASS:
+  - `telemetry-dump-mounted` accepts `--selector-mode <all|any>`.
+  - `all` enforces conjunction across positive selectors; `any` accepts disjunction.
+- FAIL:
+  - selector combination behavior is fixed/implicit only.
+
+### K26.2 Export schema metadata
+
+- Task: stabilize JSON export shape with schema and query metadata.
+- PASS:
+  - JSON output includes stable `schema_version` marker.
+  - JSON output includes `query` object with selector/filter parameters.
+- FAIL:
+  - JSON output has no explicit schema marker or query metadata.
+
+### K26.3 Regression coverage
+
+- Task: validate selector-mode and schema metadata in CLI smoke tests.
+- PASS:
+  - smoke runs `--selector-mode any` query successfully.
+  - smoke asserts `schema_version` and `query.selector_mode` fields.
+- FAIL:
+  - no tests for selector semantics and schema metadata.
+
+### K26 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K26 exit criteria
+
+- Selector semantics and schema metadata are integrated and test-covered.
+- Ready for K27 query expression normalization and schema versioning policy.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
