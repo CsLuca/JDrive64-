@@ -2436,6 +2436,100 @@ int CmdTray() {
   struct TrayState {
     std::string image_path;
     NOTIFYICONDATAA icon_data{};
+    bool owns_icon = false;
+  };
+
+  auto create_1541_icon = []() -> HICON {
+    constexpr int kW = 16;
+    constexpr int kH = 16;
+
+    BITMAPV5HEADER bi{};
+    bi.bV5Size = sizeof(BITMAPV5HEADER);
+    bi.bV5Width = kW;
+    bi.bV5Height = -kH;
+    bi.bV5Planes = 1;
+    bi.bV5BitCount = 32;
+    bi.bV5Compression = BI_BITFIELDS;
+    bi.bV5RedMask = 0x00FF0000;
+    bi.bV5GreenMask = 0x0000FF00;
+    bi.bV5BlueMask = 0x000000FF;
+    bi.bV5AlphaMask = 0xFF000000;
+
+    void* bits = nullptr;
+    HDC hdc = GetDC(nullptr);
+    HBITMAP color_bitmap =
+        CreateDIBSection(hdc, reinterpret_cast<BITMAPINFO*>(&bi), DIB_RGB_COLORS, &bits, nullptr, 0);
+    ReleaseDC(nullptr, hdc);
+    if (color_bitmap == nullptr || bits == nullptr) {
+      return nullptr;
+    }
+
+    auto* px = static_cast<std::uint32_t*>(bits);
+    for (int i = 0; i < kW * kH; ++i) {
+      px[i] = 0x00000000;
+    }
+
+    auto set_px = [&](int x, int y, std::uint32_t argb) {
+      if (x < 0 || x >= kW || y < 0 || y >= kH) {
+        return;
+      }
+      px[y * kW + x] = argb;
+    };
+
+    auto fill_rect = [&](int x0, int y0, int x1, int y1, std::uint32_t argb) {
+      for (int y = y0; y <= y1; ++y) {
+        for (int x = x0; x <= x1; ++x) {
+          set_px(x, y, argb);
+        }
+      }
+    };
+
+    constexpr std::uint32_t kBorder = 0xFF2E2E2E;
+    constexpr std::uint32_t kBody = 0xFFE4E1D1;
+    constexpr std::uint32_t kShadow = 0xFFB6B29F;
+    constexpr std::uint32_t kSlot = 0xFF1B1B1B;
+    constexpr std::uint32_t kLed = 0xFFE53935;
+    constexpr std::uint32_t kLabel = 0xFF325CA8;
+
+    fill_rect(1, 2, 14, 14, kBody);
+    for (int x = 1; x <= 14; ++x) {
+      set_px(x, 2, kBorder);
+      set_px(x, 14, kBorder);
+    }
+    for (int y = 2; y <= 14; ++y) {
+      set_px(1, y, kBorder);
+      set_px(14, y, kBorder);
+    }
+
+    fill_rect(2, 12, 13, 13, kShadow);
+    fill_rect(3, 6, 12, 6, kSlot);
+    fill_rect(4, 4, 11, 5, 0xFFF3F2EB);
+
+    set_px(12, 10, kLed);
+    set_px(11, 10, kLed);
+    set_px(12, 9, kLed);
+
+    set_px(4, 10, kLabel);
+    set_px(5, 10, kLabel);
+    set_px(6, 10, kLabel);
+    set_px(4, 11, kLabel);
+    set_px(6, 11, kLabel);
+
+    HBITMAP mask_bitmap = CreateBitmap(kW, kH, 1, 1, nullptr);
+    if (mask_bitmap == nullptr) {
+      DeleteObject(color_bitmap);
+      return nullptr;
+    }
+
+    ICONINFO ii{};
+    ii.fIcon = TRUE;
+    ii.hbmMask = mask_bitmap;
+    ii.hbmColor = color_bitmap;
+    HICON icon = CreateIconIndirect(&ii);
+
+    DeleteObject(mask_bitmap);
+    DeleteObject(color_bitmap);
+    return icon;
   };
 
   auto show_info = [](HWND hwnd, const std::string& msg) {
@@ -2603,6 +2697,9 @@ int CmdTray() {
 
     if (msg == WM_DESTROY) {
       Shell_NotifyIconA(NIM_DELETE, &state_ptr->icon_data);
+      if (state_ptr->owns_icon && state_ptr->icon_data.hIcon != nullptr) {
+        DestroyIcon(state_ptr->icon_data.hIcon);
+      }
       RemovePropA(hwnd, "JDRIVE64_SHOW_MENU_FN");
       delete state_ptr;
       PostQuitMessage(0);
@@ -2645,7 +2742,11 @@ int CmdTray() {
   state->icon_data.uID = kTrayIconId;
   state->icon_data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
   state->icon_data.uCallbackMessage = kTrayMessage;
-  state->icon_data.hIcon = LoadIconA(nullptr, IDI_APPLICATION);
+  state->icon_data.hIcon = create_1541_icon();
+  state->owns_icon = state->icon_data.hIcon != nullptr;
+  if (state->icon_data.hIcon == nullptr) {
+    state->icon_data.hIcon = LoadIconA(nullptr, IDI_APPLICATION);
+  }
   std::string tip = "JDrive64 tray (kdrv)";
   std::snprintf(state->icon_data.szTip, sizeof(state->icon_data.szTip), "%s", tip.c_str());
   if (!Shell_NotifyIconA(NIM_ADD, &state->icon_data)) {
