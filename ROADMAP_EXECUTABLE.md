@@ -2436,7 +2436,7 @@ Status: done
 
 ## K44 - Query-plan Complexity Metadata Scaffold
 
-Status: in progress
+Status: done
 
 ### K44.1 Explain complexity field
 
@@ -2468,6 +2468,41 @@ Status: in progress
 
 - Query-plan complexity metadata is integrated and test-covered.
 - Ready for K45 explain planner score metadata scaffold.
+
+## K45 - Query-plan Score Metadata Scaffold
+
+Status: in progress
+
+### K45.1 Explain score field
+
+- Task: add numeric query-plan score in explain output.
+- PASS:
+  - explain output includes `query_plan_score`.
+  - score is derived from RPN operator/predicate counts with deterministic formula.
+- FAIL:
+  - explain output has no score metadata.
+
+### K45.2 Regression coverage
+
+- Task: validate score field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_score` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for score metadata.
+
+### K45 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K45 exit criteria
+
+- Query-plan score metadata is integrated and test-covered.
+- Ready for K46 explain predicate-kind counters scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
