@@ -10,6 +10,7 @@
 
 #include "jdrive64/d64_image_editor.hpp"
 #include "jdrive64/disk_image_session.hpp"
+#include "jdrive64/mount_backend.hpp"
 #include "jdrive64/winfsp_filesystem.hpp"
 #include "jdrive64/winfsp_runtime.hpp"
 
@@ -282,6 +283,10 @@ bool PrepareMountedFilesystem(std::string mount_point,
   return true;
 }
 
+int CmdMountWithBackend(const std::string& image_path,
+                       std::string mount_point,
+                       const std::string& backend_name);
+
 void PrintUsage() {
   std::cout << "JDrive64 CLI\n"
             << "Usage:\n"
@@ -290,6 +295,7 @@ void PrintUsage() {
             << "  jdrive64 ls <image.d64>\n"
             << "  jdrive64 extract <image.d64> [output_dir]\n"
             << "  jdrive64 mount <image.d64> <drive_letter:>\n"
+            << "  jdrive64 mount <image.d64> <drive_letter:> --backend <winfsp|kdrv>\n"
             << "  jdrive64 mounts\n"
             << "  jdrive64 unmount <drive_letter:>\n"
             << "  jdrive64 dir-mounted <drive_letter:>\n"
@@ -435,6 +441,12 @@ int CmdExtract(const std::string& image_path, const std::string& output_dir_arg)
 }
 
 int CmdMount(const std::string& image_path, std::string mount_point) {
+  return CmdMountWithBackend(image_path, std::move(mount_point), "winfsp");
+}
+
+int CmdMountWithBackend(const std::string& image_path,
+                       std::string mount_point,
+                       const std::string& backend_name) {
   mount_point = NormalizeMountPoint(std::move(mount_point));
   if (!IsValidMountPoint(mount_point)) {
     std::cerr << "Error: invalid mount point, expected format X:\n";
@@ -465,16 +477,28 @@ int CmdMount(const std::string& image_path, std::string mount_point) {
     return 1;
   }
 
-  WinFspFilesystem fs;
-  if (!fs.MountReadOnly(resolved_image.string(), mount_point)) {
-    std::cerr << "Error: " << fs.LastError() << "\n";
+  std::string normalized_backend;
+  std::string backend_error;
+  auto backend = jdrive64::CreateMountBackend(backend_name, &normalized_backend, &backend_error);
+  if (backend == nullptr) {
+    std::cerr << "Error: " << backend_error << "\n";
+    return 1;
+  }
+
+  if (!backend->MountReadOnly(resolved_image.string(), mount_point)) {
+    std::cerr << "Error: " << backend->LastError() << "\n";
+    return 1;
+  }
+
+  if (!backend->HealthCheck()) {
+    std::cerr << "Error: backend health check failed" << "\n";
     return 1;
   }
 
   MountState state;
   state.mount_point = mount_point;
   state.image_path = resolved_image.string();
-  state.files = fs.ReadDirectory();
+  state.files = backend->ReadDirectory();
 
   std::string save_error;
   if (!SaveMountState(state_file, state, &save_error)) {
@@ -482,8 +506,12 @@ int CmdMount(const std::string& image_path, std::string mount_point) {
     return 1;
   }
 
-  std::cout << "Mounted " << resolved_image.string() << " on " << mount_point << " (read-only)\n";
-  std::cout << fs.GetVolumeInfoText() << "\n";
+  std::cout << "Mounted " << resolved_image.string() << " on " << mount_point
+            << " (read-only, backend=" << normalized_backend << ")\n";
+  const auto info = backend->GetVolumeInfoText();
+  if (!info.empty()) {
+    std::cout << info << "\n";
+  }
   return 0;
 }
 
@@ -840,11 +868,21 @@ int main(int argc, char** argv) {
   }
 
   if (command == "mount") {
-    if (argc < 4) {
+    if (argc != 4 && argc != 6) {
       PrintUsage();
       return 1;
     }
-    return CmdMount(image_path, argv[3]);
+
+    std::string backend_name = "winfsp";
+    if (argc == 6) {
+      if (std::string(argv[4]) != "--backend") {
+        PrintUsage();
+        return 1;
+      }
+      backend_name = argv[5];
+    }
+
+    return CmdMountWithBackend(image_path, argv[3], backend_name);
   }
 
   PrintUsage();

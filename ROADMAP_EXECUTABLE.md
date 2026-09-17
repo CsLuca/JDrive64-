@@ -376,5 +376,60 @@ Reference checklist:
 - Manual Explorer validation executed on a host with WinFsp installed.
 - Next step can move to release hardening/package gate.
 
+## Step K0 - Multi-backend Foundation
+
+Status: done
+
+### K0.1 Backend interface
+
+- Task: define a common mount backend interface for runtime selection.
+- PASS:
+  - `include/jdrive64/mount_backend.hpp` exists.
+  - Interface includes `MountReadOnly`, `Unmount`, `HealthCheck` and error access.
+- FAIL:
+  - Mount path remains hard-wired to a single implementation.
+
+### K0.2 Backend factory and implementations
+
+- Task: implement backend factory with current WinFsp adapter and kernel stub.
+- PASS:
+  - `src/mount_backend.cpp` exists.
+  - `winfsp` backend mounts/unmounts through existing facade.
+  - `kdrv` backend returns deterministic "not implemented".
+- FAIL:
+  - No runtime backend selection, or kdrv path missing.
+
+### K0.3 CLI backend option
+
+- Task: expose backend selection from CLI mount command.
+- PASS:
+  - `jdrive64 mount <image> <letter> --backend <winfsp|kdrv>` supported.
+  - Default mount remains `winfsp` when option is omitted.
+- FAIL:
+  - No CLI route to select backend.
+
+### K0.4 Tests
+
+- Task: validate backend factory and CLI behavior.
+- PASS:
+  - Core tests cover backend factory and kdrv not implemented contract.
+  - CLI smoke checks `--backend kdrv` expected failure path.
+- FAIL:
+  - No tests for backend selection behavior.
+
+### K0 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K0 exit criteria
+
+- Multi-backend selection is available and tested.
+- WinFsp behavior remains backward-compatible.
+- Kernel backend path is stubbed and ready for K1/K2 work.
+
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

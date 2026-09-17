@@ -124,6 +124,13 @@ int main(int argc, char** argv) {
     const auto mount_again_r = Run(mount_cmd);
     ok = ok && Check(mount_again_r.exit_code != 0, "mount fails when already mounted");
 
+    const auto mount_kdrv_cmd = Quote(exe_path.string()) + " mount " + Quote(golden.valid_small.string()) +
+                                " Y: --backend kdrv";
+    const auto mount_kdrv_r = Run(mount_kdrv_cmd);
+    ok = ok && Check(mount_kdrv_r.exit_code != 0, "mount with kdrv backend fails (not implemented)");
+    ok = ok && Check(Contains(mount_kdrv_r.output, "Kernel backend not implemented"),
+                     "mount with kdrv reports not implemented");
+
     const auto mounts_cmd = Quote(exe_path.string()) + " mounts";
     const auto mounts_r = Run(mounts_cmd);
     ok = ok && Check(mounts_r.exit_code == 0, "mounts exits 0");

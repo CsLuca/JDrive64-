@@ -13,6 +13,7 @@
 #include "jdrive64/directory_reader.hpp"
 #include "jdrive64/file_cache.hpp"
 #include "jdrive64/file_chain_reader.hpp"
+#include "jdrive64/mount_backend.hpp"
 #include "jdrive64/sector_cache.hpp"
 #include "jdrive64/winfsp_adapter.hpp"
 #include "jdrive64/winfsp_callbacks.hpp"
@@ -28,6 +29,7 @@ using jdrive64::DiskCatalog;
 using jdrive64::DirectoryReader;
 using jdrive64::FileCache;
 using jdrive64::FileChainReader;
+using jdrive64::IMountBackend;
 using jdrive64::SectorCache;
 using jdrive64::WinFspAdapter;
 using jdrive64::WinFspCallbacks;
@@ -784,6 +786,54 @@ bool TestWinFspDefaultNativeApiContract(const std::filesystem::path& image_path)
   return true;
 }
 
+bool TestMountBackendFactory(const std::filesystem::path& image_path) {
+  std::string normalized;
+  std::string error;
+
+  auto winfsp = jdrive64::CreateMountBackend("winfsp", &normalized, &error);
+  if (!Assert(winfsp != nullptr, "Mount backend factory creates winfsp backend")) {
+    return false;
+  }
+  if (!Assert(normalized == "winfsp", "Mount backend factory normalizes winfsp name")) {
+    return false;
+  }
+  if (!Assert(winfsp->MountReadOnly(image_path.string(), "Q:"), "Winfsp backend mount through interface")) {
+    return false;
+  }
+  if (!Assert(winfsp->HealthCheck(), "Winfsp backend health check")) {
+    return false;
+  }
+  if (!Assert(winfsp->Unmount("Q:"), "Winfsp backend unmount through interface")) {
+    return false;
+  }
+
+  auto kdrv = jdrive64::CreateMountBackend("kdrv", &normalized, &error);
+  if (!Assert(kdrv != nullptr, "Mount backend factory creates kdrv backend")) {
+    return false;
+  }
+  if (!Assert(normalized == "kdrv", "Mount backend factory normalizes kdrv name")) {
+    return false;
+  }
+  if (!Assert(!kdrv->MountReadOnly(image_path.string(), "Q:"), "Kdrv backend not implemented yet")) {
+    return false;
+  }
+  if (!Assert(kdrv->LastError() == "Kernel backend not implemented",
+              "Kdrv backend returns not implemented error")) {
+    return false;
+  }
+
+  auto unknown = jdrive64::CreateMountBackend("unknown", &normalized, &error);
+  if (!Assert(unknown == nullptr, "Mount backend factory rejects unknown backend")) {
+    return false;
+  }
+  if (!Assert(error.find("Unknown backend") != std::string::npos,
+              "Mount backend factory returns unknown backend error")) {
+    return false;
+  }
+
+  return true;
+}
+
 }  // namespace
 
 int main() {
@@ -797,6 +847,7 @@ int main() {
   ok = ok && TestWinFspNativeBridgeScaffold(image_path);
   ok = ok && TestWinFspNativeBridgeProviderInjection(image_path);
   ok = ok && TestWinFspDefaultNativeApiContract(image_path);
+  ok = ok && TestMountBackendFactory(image_path);
   ok = ok && TestWinFspAdapterScaffold(image_path);
   ok = ok && TestWinFspRuntimeScaffold(image_path);
 

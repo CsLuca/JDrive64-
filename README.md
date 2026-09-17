@@ -36,6 +36,7 @@ Evidence template is in `A8_EVIDENCE_TEMPLATE.md`.
 - `jdrive64 ls <image.d64>`
 - `jdrive64 extract <image.d64> [output_dir]`
 - `jdrive64 mount <image.d64> <drive_letter:>`
+- `jdrive64 mount <image.d64> <drive_letter:> --backend <winfsp|kdrv>`
 - `jdrive64 mounts`
 - `jdrive64 unmount <drive_letter:>`
 - `jdrive64 dir-mounted <drive_letter:>`
