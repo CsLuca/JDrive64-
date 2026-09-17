@@ -150,6 +150,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K58 explainability scaffold adds phase status metadata (`query_plan_phase_status`) with `ok|over_budget` evaluation.
 - K59 explainability scaffold adds deterministic `query_plan_trace_id` correlation field.
 - K60 schema scaffold adds `explain_schema_policy` for planner metadata evolution compatibility.
+- K61 explainability scaffold adds fixed planner stage cardinality via `query_plan_stage_count`.
 
 ## Domain Layer (Step 3)
 

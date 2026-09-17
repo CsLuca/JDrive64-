@@ -2996,7 +2996,7 @@ Status: done
 
 ## K60 - Explain Schema Policy Metadata Scaffold
 
-Status: in progress
+Status: done
 
 ### K60.1 Explain schema policy object
 
@@ -3028,6 +3028,41 @@ Status: in progress
 
 - Explain schema policy metadata is integrated and test-covered.
 - Ready for K61 planner diagnostics export hardening.
+
+## K61 - Query-plan Stage Count Scaffold
+
+Status: in progress
+
+### K61.1 Stage count field
+
+- Task: add explicit stage cardinality field in explain output.
+- PASS:
+  - explain output includes `query_plan_stage_count`.
+  - value reflects current planner stage model deterministically.
+- FAIL:
+  - explain output has no stage count metadata.
+
+### K61.2 Regression coverage
+
+- Task: validate stage count field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_stage_count` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for stage count metadata.
+
+### K61 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K61 exit criteria
+
+- Query-plan stage count metadata is integrated and test-covered.
+- Ready for K62 rule-count metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
