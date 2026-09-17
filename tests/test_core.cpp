@@ -126,6 +126,15 @@ class FakeDeviceIoApi final : public KernelTransport::DeviceIoApi {
   }
 };
 
+class FakeTelemetrySink final : public KernelTransport::TelemetrySink {
+ public:
+  void Emit(const KernelTransport::TelemetryEvent& event) override {
+    events.push_back(event);
+  }
+
+  std::vector<KernelTransport::TelemetryEvent> events;
+};
+
 std::vector<std::uint8_t> BuildHandshakeResponseFrame(std::uint32_t protocol_version,
                                                       std::uint32_t capabilities,
                                                       bool success,
@@ -1161,6 +1170,11 @@ bool TestKernelIpcChannelScaffold(const std::filesystem::path& image_path) {
 
 bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
   KernelTransport transport;
+  FakeTelemetrySink telemetry;
+  if (!Assert(transport.SetTelemetrySinkForTesting(&telemetry),
+              "KernelTransport accepts telemetry sink injection")) {
+    return false;
+  }
 
   if (!Assert(transport.GetMode() == KernelTransport::Mode::kLoopback,
               "KernelTransport default mode is loopback")) {
@@ -1176,6 +1190,11 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
   if (!Assert(transport.Connect(image_path.string()), "KernelTransport loopback connect")) {
     return false;
   }
+  if (!Assert(!telemetry.events.empty() && telemetry.events.back().name == "connect.loopback" &&
+                  telemetry.events.back().success,
+              "KernelTransport emits loopback connect telemetry")) {
+    return false;
+  }
   if (!Assert(!transport.SetMode(KernelTransport::Mode::kDevice),
               "KernelTransport rejects mode switch while connected")) {
     return false;
@@ -1188,11 +1207,21 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
               "KernelTransport loopback send")) {
     return false;
   }
+  if (!Assert(!telemetry.events.empty() && telemetry.events.back().name == "send.loopback" &&
+                  telemetry.events.back().success,
+              "KernelTransport emits loopback send telemetry")) {
+    return false;
+  }
   if (!Assert(response.success && response.directory_entries.size() == 1,
               "KernelTransport loopback response")) {
     return false;
   }
   if (!Assert(transport.Disconnect(), "KernelTransport loopback disconnect")) {
+    return false;
+  }
+  if (!Assert(!telemetry.events.empty() && telemetry.events.back().name == "disconnect.loopback" &&
+                  telemetry.events.back().success,
+              "KernelTransport emits loopback disconnect telemetry")) {
     return false;
   }
 
@@ -1344,6 +1373,10 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
               "KernelTransport test instance switches to device mode")) {
     return false;
   }
+  if (!Assert(device_transport.SetTelemetrySinkForTesting(&telemetry),
+              "KernelTransport device instance accepts telemetry sink")) {
+    return false;
+  }
   if (!Assert(device_transport.SetDeviceIoApiForTesting(&fake_api),
               "KernelTransport accepts injected device IO API")) {
     return false;
@@ -1404,6 +1437,11 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
   if (!Assert(device_transport.Send(KernelRequest{KernelOpcode::kReadFile, "HELLO.PRG", 1, 0, 4},
                                   &ioctl_result),
               "KernelTransport device send succeeds with injected IOCTL response")) {
+    return false;
+  }
+  if (!Assert(!telemetry.events.empty() && telemetry.events.back().name == "send.device" &&
+                  telemetry.events.back().success,
+              "KernelTransport emits device send success telemetry")) {
     return false;
   }
   if (!Assert(fake_api.ioctl_calls == 2,
@@ -1477,8 +1515,13 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
   failing_api.next_response_frame = BuildHandshakeResponseFrame(
       kKernelProtocolVersionCurrent, kKernelCapabilityAllReadOnly, true, kKernelFeatureDefault);
   KernelTransport failing_transport;
+  FakeTelemetrySink failing_telemetry;
   if (!Assert(failing_transport.SetMode(KernelTransport::Mode::kDevice),
               "KernelTransport failing instance switches to device mode")) {
+    return false;
+  }
+  if (!Assert(failing_transport.SetTelemetrySinkForTesting(&failing_telemetry),
+              "KernelTransport failing instance accepts telemetry sink")) {
     return false;
   }
   if (!Assert(failing_transport.SetDeviceIoApiForTesting(&failing_api),
@@ -1499,6 +1542,12 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
   }
   if (!Assert(failing_result.error == "fake ioctl failure",
               "KernelTransport returns IOCTL failure text")) {
+    return false;
+  }
+  if (!Assert(!failing_telemetry.events.empty() &&
+                  failing_telemetry.events.back().name == "send.device.ioctl" &&
+                  !failing_telemetry.events.back().success,
+              "KernelTransport emits IOCTL failure telemetry")) {
     return false;
   }
   if (!Assert(failing_transport.Disconnect(), "KernelTransport failing instance disconnects")) {

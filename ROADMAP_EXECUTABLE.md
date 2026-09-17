@@ -1195,7 +1195,7 @@ Status: done
 
 ## K16 - JSON Diagnostics Export Scaffold
 
-Status: in progress
+Status: done
 
 ### K16.1 JSON encoder utility
 
@@ -1245,6 +1245,50 @@ Status: in progress
 
 - JSON diagnostics export is integrated and test-covered.
 - Ready for K17 telemetry sink integration and structured event emission.
+
+## K17 - Structured Transport Telemetry Scaffold
+
+Status: in progress
+
+### K17.1 Telemetry sink abstraction
+
+- Task: add transport-level telemetry sink abstraction with structured event payload.
+- PASS:
+  - transport exposes `TelemetryEvent` and `TelemetrySink` interfaces.
+  - tests can inject sink through transport API.
+- FAIL:
+  - no sink abstraction for structured telemetry.
+
+### K17.2 Event emission points
+
+- Task: emit success/failure events across critical transport lifecycle stages.
+- PASS:
+  - events emitted for connect/send/disconnect paths and key failure branches.
+  - event payload carries stage name, success flag, and detail text.
+- FAIL:
+  - transport lifecycle has no structured event emission.
+
+### K17.3 Regression tests
+
+- Task: validate telemetry events in loopback/device success and failure scenarios.
+- PASS:
+  - tests assert loopback connect/send/disconnect telemetry success events.
+  - tests assert device IOCTL failure telemetry event.
+- FAIL:
+  - no tests for telemetry behavior.
+
+### K17 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K17 exit criteria
+
+- Structured telemetry sink and event emission are integrated and test-covered.
+- Ready for K18 persistent telemetry sink and export pipeline.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

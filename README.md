@@ -106,6 +106,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K14 diagnostics scaffold surfaces backend negotiation/policy state via backend diagnostics API and CLI `backend-diag`.
 - K15 persistence scaffold stores backend/diagnostics snapshot in mount-state and exposes `backend-diag-mounted`.
 - K16 export scaffold adds machine-readable diagnostics output (`--json`) for both live and mounted backend inspection.
+- K17 telemetry scaffold adds structured transport events for connect/send/disconnect success/failure stages.
 
 ## Domain Layer (Step 3)
 

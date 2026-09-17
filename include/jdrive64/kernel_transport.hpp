@@ -40,7 +40,20 @@ class KernelTransport {
                        std::string* error) = 0;
   };
 
+  struct TelemetryEvent {
+    std::string name;
+    bool success = false;
+    std::string detail;
+  };
+
+  class TelemetrySink {
+   public:
+    virtual ~TelemetrySink() = default;
+    virtual void Emit(const TelemetryEvent& event) = 0;
+  };
+
   bool SetDeviceIoApiForTesting(DeviceIoApi* api);
+  bool SetTelemetrySinkForTesting(TelemetrySink* sink);
 
   bool Connect(const std::string& image_path);
   bool Disconnect();
@@ -66,6 +79,7 @@ class KernelTransport {
 
  private:
   DeviceIoApi* ResolveDeviceIoApi();
+  void EmitTelemetry(const std::string& name, bool success, const std::string& detail);
 
   Mode mode_ = Mode::kLoopback;
   FeaturePolicy feature_policy_ = FeaturePolicy::kStrict;
@@ -73,6 +87,7 @@ class KernelTransport {
   void* device_handle_ = nullptr;
   std::unique_ptr<DeviceIoApi> default_device_io_api_;
   DeviceIoApi* device_io_api_ = nullptr;
+  TelemetrySink* telemetry_sink_ = nullptr;
   KernelUserBridge bridge_;
   bool handshake_complete_ = false;
   std::uint32_t negotiated_protocol_version_ = 0;

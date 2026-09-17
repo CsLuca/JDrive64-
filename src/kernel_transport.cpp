@@ -152,9 +152,23 @@ KernelTransport::DeviceIoApi* KernelTransport::ResolveDeviceIoApi() {
 #endif
 }
 
+void KernelTransport::EmitTelemetry(const std::string& name,
+                                    bool success,
+                                    const std::string& detail) {
+  if (telemetry_sink_ == nullptr) {
+    return;
+  }
+  TelemetryEvent event;
+  event.name = name;
+  event.success = success;
+  event.detail = detail;
+  telemetry_sink_->Emit(event);
+}
+
 bool KernelTransport::Connect(const std::string& image_path) {
   if (connected_) {
     last_error_ = "Transport already connected";
+    EmitTelemetry("connect", false, last_error_);
     return false;
   }
 
@@ -166,6 +180,7 @@ bool KernelTransport::Connect(const std::string& image_path) {
   if (mode_ == Mode::kLoopback) {
     if (!bridge_.Initialize(image_path)) {
       last_error_ = bridge_.LastError();
+      EmitTelemetry("connect.loopback", false, last_error_);
       return false;
     }
     connected_ = true;
@@ -174,6 +189,7 @@ bool KernelTransport::Connect(const std::string& image_path) {
     negotiated_capabilities_ = kKernelCapabilityAllReadOnly;
     negotiated_features_ = kKernelFeatureDefault;
     last_error_.clear();
+    EmitTelemetry("connect.loopback", true, "ok");
     return true;
   }
 
@@ -181,6 +197,7 @@ bool KernelTransport::Connect(const std::string& image_path) {
   DeviceIoApi* api = ResolveDeviceIoApi();
   if (api == nullptr) {
     last_error_ = "Device transport is only supported on Windows";
+    EmitTelemetry("connect.device", false, last_error_);
     return false;
   }
 
@@ -188,6 +205,7 @@ bool KernelTransport::Connect(const std::string& image_path) {
   void* handle = nullptr;
   if (!api->Open(kDevicePath, &handle, &error)) {
     last_error_ = error.empty() ? "Kernel device channel not available" : error;
+    EmitTelemetry("connect.device.open", false, last_error_);
     return false;
   }
 
@@ -214,6 +232,7 @@ bool KernelTransport::Connect(const std::string& image_path) {
     if (last_error_.empty()) {
       last_error_ = "Kernel handshake failed";
     }
+    EmitTelemetry("connect.device.handshake", false, last_error_);
     return false;
   }
 
@@ -227,6 +246,7 @@ bool KernelTransport::Connect(const std::string& image_path) {
     negotiated_capabilities_ = 0;
     negotiated_features_ = 0;
     last_error_ = "Kernel handshake response is invalid";
+    EmitTelemetry("connect.device.handshake", false, last_error_);
     return false;
   }
 
@@ -256,6 +276,7 @@ bool KernelTransport::Connect(const std::string& image_path) {
     negotiated_capabilities_ = 0;
     negotiated_features_ = 0;
     last_error_ = "Kernel protocol version mismatch";
+    EmitTelemetry("connect.device.handshake", false, last_error_);
     return false;
   }
 
@@ -269,6 +290,7 @@ bool KernelTransport::Connect(const std::string& image_path) {
     negotiated_capabilities_ = 0;
     negotiated_features_ = 0;
     last_error_ = "Kernel capabilities are insufficient";
+    EmitTelemetry("connect.device.handshake", false, last_error_);
     return false;
   }
 
@@ -282,6 +304,7 @@ bool KernelTransport::Connect(const std::string& image_path) {
     negotiated_capabilities_ = 0;
     negotiated_features_ = 0;
     last_error_ = "Kernel features are incompatible";
+    EmitTelemetry("connect.device.handshake", false, last_error_);
     return false;
   }
 
@@ -296,6 +319,7 @@ bool KernelTransport::Connect(const std::string& image_path) {
     negotiated_capabilities_ = 0;
     negotiated_features_ = 0;
     last_error_ = "Kernel features are incompatible with strict policy";
+    EmitTelemetry("connect.device.handshake", false, last_error_);
     return false;
   }
 
@@ -304,12 +328,14 @@ bool KernelTransport::Connect(const std::string& image_path) {
   negotiated_capabilities_ = capabilities;
   negotiated_features_ = features;
   last_error_.clear();
+  EmitTelemetry("connect.device", true, "ok");
   return true;
 }
 
 bool KernelTransport::Disconnect() {
   if (!connected_) {
     last_error_ = "Transport is not connected";
+    EmitTelemetry("disconnect", false, last_error_);
     return false;
   }
 
@@ -320,18 +346,21 @@ bool KernelTransport::Disconnect() {
     negotiated_capabilities_ = 0;
     negotiated_features_ = 0;
     last_error_.clear();
+    EmitTelemetry("disconnect.loopback", true, "ok");
     return true;
   }
 
   DeviceIoApi* api = ResolveDeviceIoApi();
   if (api == nullptr) {
     last_error_ = "Device transport is only supported on Windows";
+    EmitTelemetry("disconnect.device", false, last_error_);
     return false;
   }
 
   std::string error;
   if (!api->Close(device_handle_, &error)) {
     last_error_ = error.empty() ? "Failed to close device handle" : error;
+    EmitTelemetry("disconnect.device", false, last_error_);
     return false;
   }
 
@@ -342,12 +371,14 @@ bool KernelTransport::Disconnect() {
   negotiated_capabilities_ = 0;
   negotiated_features_ = 0;
   last_error_.clear();
+  EmitTelemetry("disconnect.device", true, "ok");
   return true;
 }
 
 bool KernelTransport::Send(const KernelRequest& request, KernelResponse* response) {
   if (!connected_) {
     last_error_ = "Transport is not connected";
+    EmitTelemetry("send", false, last_error_);
     return false;
   }
 
@@ -358,14 +389,17 @@ bool KernelTransport::Send(const KernelRequest& request, KernelResponse* respons
       } else {
         last_error_ = "Loopback dispatch failed";
       }
+      EmitTelemetry("send.loopback", false, last_error_);
       return false;
     }
     last_error_.clear();
+    EmitTelemetry("send.loopback", true, "ok");
     return true;
   }
 
   if (response == nullptr) {
     last_error_ = "Invalid response output";
+    EmitTelemetry("send.device", false, last_error_);
     return false;
   }
 
@@ -373,6 +407,7 @@ bool KernelTransport::Send(const KernelRequest& request, KernelResponse* respons
     response->success = false;
     response->error = "Kernel handshake is not completed";
     last_error_ = response->error;
+    EmitTelemetry("send.device.policy", false, last_error_);
     return false;
   }
 
@@ -381,6 +416,7 @@ bool KernelTransport::Send(const KernelRequest& request, KernelResponse* respons
     response->success = false;
     response->error = policy_reason;
     last_error_ = response->error;
+    EmitTelemetry("send.device.policy", false, last_error_);
     return false;
   }
 
@@ -389,6 +425,7 @@ bool KernelTransport::Send(const KernelRequest& request, KernelResponse* respons
     response->success = false;
     response->error = "Device request encoding failed";
     last_error_ = response->error;
+    EmitTelemetry("send.device.encode", false, last_error_);
     return false;
   }
 
@@ -397,6 +434,7 @@ bool KernelTransport::Send(const KernelRequest& request, KernelResponse* respons
     response->success = false;
     response->error = "Device transport is only supported on Windows";
     last_error_ = response->error;
+    EmitTelemetry("send.device.ioctl", false, last_error_);
     return false;
   }
 
@@ -406,6 +444,7 @@ bool KernelTransport::Send(const KernelRequest& request, KernelResponse* respons
     response->success = false;
     response->error = error.empty() ? "DeviceIoControl failed" : error;
     last_error_ = response->error;
+    EmitTelemetry("send.device.ioctl", false, last_error_);
     return false;
   }
 
@@ -413,6 +452,7 @@ bool KernelTransport::Send(const KernelRequest& request, KernelResponse* respons
     response->success = false;
     response->error = "Device response parsing failed";
     last_error_ = response->error;
+    EmitTelemetry("send.device.parse", false, last_error_);
     return false;
   }
 
@@ -421,10 +461,17 @@ bool KernelTransport::Send(const KernelRequest& request, KernelResponse* respons
       response->error = "Device request failed";
     }
     last_error_ = response->error;
+    EmitTelemetry("send.device.response", false, last_error_);
     return false;
   }
 
   last_error_.clear();
+  EmitTelemetry("send.device", true, "ok");
+  return true;
+}
+
+bool KernelTransport::SetTelemetrySinkForTesting(TelemetrySink* sink) {
+  telemetry_sink_ = sink;
   return true;
 }
 
