@@ -6,6 +6,18 @@ $ErrorActionPreference = "Stop"
 
 $msysBash = "C:\msys64\usr\bin\bash.exe"
 
+function Convert-ToMsysPath {
+  param([string]$WindowsPath)
+
+  $p = $WindowsPath -replace "\\", "/"
+  if ($p -match "^([A-Za-z]):(.*)$") {
+    $drive = $matches[1].ToLower()
+    $rest = $matches[2]
+    return "/$drive$rest"
+  }
+  return $p
+}
+
 function Invoke-ToolCommand {
   param(
     [string]$Command,
@@ -25,7 +37,8 @@ function Invoke-ToolCommand {
     throw "Required tool not found and MSYS2 bash is unavailable: $($Command.Split(' ')[0])"
   }
 
-  & $msysBash -lc "export PATH=/ucrt64/bin:/usr/bin:`$PATH; $Command"
+  $workdir = Convert-ToMsysPath -WindowsPath (Get-Location).Path
+  & $msysBash -lc "cd '$workdir'; export PATH=/ucrt64/bin:/usr/bin:`$PATH; $Command"
   if (-not $?) {
     throw $FailureMessage
   }
