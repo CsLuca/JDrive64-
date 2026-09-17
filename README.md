@@ -13,6 +13,7 @@ Current implementation status is an advanced core/parser stage with a read-only 
 See `ROADMAP_BASELINE.md` for milestones and final Definition of Done.
 Execution tracking is in `ROADMAP_EXECUTABLE.md`.
 Explorer host validation checklist is in `A8_EXPLORER_CHECKLIST.md`.
+Release gate checklist is in `V1_RELEASE_CHECKLIST.md`.
 
 ## Versioning
 

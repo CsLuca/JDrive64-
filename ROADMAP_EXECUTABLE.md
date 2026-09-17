@@ -375,3 +375,6 @@ Reference checklist:
 - Preflight command and smoke/docs are in place.
 - Manual Explorer validation executed on a host with WinFsp installed.
 - Next step can move to release hardening/package gate.
+
+Release gate reference:
+- `V1_RELEASE_CHECKLIST.md`
