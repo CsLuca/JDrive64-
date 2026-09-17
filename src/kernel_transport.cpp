@@ -348,6 +348,14 @@ bool KernelTransport::Send(const KernelRequest& request, KernelResponse* respons
     return false;
   }
 
+  std::string policy_reason;
+  if (!IsRequestAllowedByPolicy(request, &policy_reason)) {
+    response->success = false;
+    response->error = policy_reason;
+    last_error_ = response->error;
+    return false;
+  }
+
   std::vector<std::uint8_t> request_frame;
   if (!BuildDeviceFrame(request, &request_frame)) {
     response->success = false;
@@ -460,6 +468,65 @@ bool KernelTransport::ParseDeviceFrame(const std::vector<std::uint8_t>& frame,
     const char* error_ptr = reinterpret_cast<const char*>(
         frame.data() + kDeviceResponseHeaderSize + static_cast<std::size_t>(payload_bytes));
     response->error.assign(error_ptr, error_bytes);
+  }
+
+  return true;
+}
+
+bool KernelTransport::IsRequestAllowedByPolicy(const KernelRequest& request, std::string* reason) const {
+  if (reason == nullptr) {
+    return false;
+  }
+  reason->clear();
+
+  if (request.opcode == KernelOpcode::kHandshake) {
+    return true;
+  }
+
+  if (!handshake_complete_) {
+    *reason = "Kernel handshake is not completed";
+    return false;
+  }
+
+  auto has_capability = [this](std::uint32_t cap) {
+    return (negotiated_capabilities_ & cap) == cap;
+  };
+
+  switch (request.opcode) {
+    case KernelOpcode::kReadDirectory:
+      if (!has_capability(kKernelCapabilityReadDirectory)) {
+        *reason = "Kernel policy denied ReadDirectory: capability missing";
+        return false;
+      }
+      break;
+    case KernelOpcode::kQueryFile:
+      if (!has_capability(kKernelCapabilityQueryFile)) {
+        *reason = "Kernel policy denied QueryFile: capability missing";
+        return false;
+      }
+      break;
+    case KernelOpcode::kReadFile:
+      if (!has_capability(kKernelCapabilityReadFile)) {
+        *reason = "Kernel policy denied ReadFile: capability missing";
+        return false;
+      }
+      break;
+    case KernelOpcode::kOpenFile:
+    case KernelOpcode::kCloseFile:
+      if (!has_capability(kKernelCapabilityReadFile)) {
+        *reason = "Kernel policy denied file handle operation: capability missing";
+        return false;
+      }
+      break;
+    case KernelOpcode::kInvalid:
+    default:
+      *reason = "Kernel policy denied unsupported opcode";
+      return false;
+  }
+
+  if ((negotiated_features_ & kKernelFeatureStrictReadonly) == 0) {
+    *reason = "Kernel policy denied request: strict-readonly feature missing";
+    return false;
   }
 
   return true;

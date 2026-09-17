@@ -101,6 +101,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K9 transport scaffold adds injectable DeviceIo API and real device send pipeline stages (open/ioctl/parse/close).
 - K10 handshake scaffold adds protocol-version and capability negotiation before non-handshake device requests.
 - K11 compatibility scaffold extends handshake with protocol window support and feature-flag negotiation policy.
+- K12 policy scaffold adds opcode-level request gating from negotiated capabilities/features with explicit denial reasons.
 
 ## Domain Layer (Step 3)
 

@@ -45,6 +45,7 @@ class KernelTransport {
 
   bool BuildDeviceFrame(const KernelRequest& request, std::vector<std::uint8_t>* frame) const;
   bool ParseDeviceFrame(const std::vector<std::uint8_t>& frame, KernelResponse* response) const;
+  bool IsRequestAllowedByPolicy(const KernelRequest& request, std::string* reason) const;
 
   static constexpr std::size_t kDeviceRequestHeaderSize = sizeof(std::uint32_t) + sizeof(std::uint64_t) +
                                                            sizeof(std::uint64_t) + sizeof(std::uint32_t) +

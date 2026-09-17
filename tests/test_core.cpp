@@ -1552,6 +1552,75 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
     return false;
   }
 
+  FakeDeviceIoApi policy_api;
+  policy_api.next_response_frame = BuildHandshakeResponseFrame(kKernelProtocolVersionCurrent,
+                                                               kKernelCapabilityReadDirectory,
+                                                               true,
+                                                               kKernelFeatureDefault);
+  KernelTransport policy_transport;
+  if (!Assert(policy_transport.SetMode(KernelTransport::Mode::kDevice),
+              "KernelTransport policy instance switches mode")) {
+    return false;
+  }
+  if (!Assert(policy_transport.SetDeviceIoApiForTesting(&policy_api),
+              "KernelTransport policy instance accepts injected API")) {
+    return false;
+  }
+  if (!Assert(!policy_transport.Connect(image_path.string()),
+              "KernelTransport policy instance rejects insufficient capability handshake")) {
+    return false;
+  }
+
+  KernelTransport policy_eval_transport;
+  if (!Assert(policy_eval_transport.SetMode(KernelTransport::Mode::kDevice),
+              "KernelTransport policy-eval instance switches mode")) {
+    return false;
+  }
+  if (!Assert(policy_eval_transport.SetDeviceIoApiForTesting(&policy_api),
+              "KernelTransport policy-eval instance accepts injected API")) {
+    return false;
+  }
+  policy_api.next_response_frame = BuildHandshakeResponseFrame(kKernelProtocolVersionCurrent,
+                                                               kKernelCapabilityAllReadOnly,
+                                                               true,
+                                                               kKernelFeatureDefault);
+  if (!Assert(policy_eval_transport.Connect(image_path.string()),
+              "KernelTransport policy-eval instance connects")) {
+    return false;
+  }
+  std::string policy_reason;
+  if (!Assert(policy_eval_transport.IsRequestAllowedByPolicy(
+                 KernelRequest{KernelOpcode::kReadDirectory, "", 0, 0, 0},
+                 &policy_reason),
+              "KernelTransport allows ReadDirectory with negotiated capabilities")) {
+    return false;
+  }
+  if (!Assert(policy_eval_transport.IsRequestAllowedByPolicy(
+                 KernelRequest{KernelOpcode::kQueryFile, "HELLO.PRG", 0, 0, 0},
+                 &policy_reason),
+              "KernelTransport allows QueryFile with negotiated capabilities")) {
+    return false;
+  }
+  if (!Assert(policy_eval_transport.IsRequestAllowedByPolicy(
+                 KernelRequest{KernelOpcode::kReadFile, "", 1, 0, 4},
+                 &policy_reason),
+              "KernelTransport allows ReadFile with negotiated capabilities")) {
+    return false;
+  }
+  if (!Assert(!policy_eval_transport.IsRequestAllowedByPolicy(
+                 KernelRequest{KernelOpcode::kInvalid, "", 0, 0, 0},
+                 &policy_reason),
+              "KernelTransport denies invalid opcode by policy")) {
+    return false;
+  }
+  if (!Assert(policy_reason.find("unsupported opcode") != std::string::npos,
+              "KernelTransport policy denial reason is explicit")) {
+    return false;
+  }
+  if (!Assert(policy_eval_transport.Disconnect(), "KernelTransport policy-eval instance disconnects")) {
+    return false;
+  }
+
   return true;
 }
 

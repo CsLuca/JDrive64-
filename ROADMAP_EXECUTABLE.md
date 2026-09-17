@@ -927,7 +927,7 @@ Status: done
 
 ## K11 - Compatibility Matrix and Feature Policy Scaffold
 
-Status: in progress
+Status: done
 
 ### K11.1 Protocol compatibility window
 
@@ -978,6 +978,59 @@ Status: in progress
 
 - Compatibility matrix and feature policy are integrated and test-covered.
 - Ready for K12 command-level policy routing based on negotiated contract.
+
+## K12 - Command-level Policy Routing Scaffold
+
+Status: in progress
+
+### K12.1 Opcode policy evaluator
+
+- Task: introduce explicit per-opcode policy evaluation against negotiated contract.
+- PASS:
+  - transport exposes `IsRequestAllowedByPolicy(...)`.
+  - evaluator enforces capability mapping for read-directory/query/read/open/close paths.
+- FAIL:
+  - no standalone policy evaluator.
+
+### K12.2 Send-path policy enforcement
+
+- Task: gate non-handshake device requests through policy evaluator before IOCTL dispatch.
+- PASS:
+  - `Send(...)` rejects policy-denied requests before frame encode/ioctl.
+  - rejection error text is explicit and deterministic.
+- FAIL:
+  - send path bypasses policy checks.
+
+### K12.3 Policy diagnostics
+
+- Task: provide actionable denial reasons for unsupported opcode/capability mismatch.
+- PASS:
+  - denial reason includes operation and root cause.
+  - invalid opcode receives dedicated unsupported message.
+- FAIL:
+  - denial reason is generic or absent.
+
+### K12.4 Regression tests
+
+- Task: add tests for policy evaluator allow/deny behavior.
+- PASS:
+  - tests validate allow decisions for supported operations.
+  - tests validate deny decisions and explicit messages for unsupported opcode.
+- FAIL:
+  - no regression tests for policy routing.
+
+### K12 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K12 exit criteria
+
+- Command-level policy routing is integrated and test-covered.
+- Ready for K13 richer operation policy and driver feature rollout strategy.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
