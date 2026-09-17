@@ -110,6 +110,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K18 persistence scaffold adds optional JSONL telemetry sink via `JDRIVE64_TELEMETRY_JSONL`.
 - K19 management scaffold adds telemetry JSONL rotation plus mounted telemetry dump/clear commands.
 - K20 retention scaffold adds multi-file telemetry rotation and mounted telemetry index listing.
+- K21 query scaffold adds telemetry dump filters (`--event`, `--success`, `--tail`) for mounted analysis.
 
 ## Domain Layer (Step 3)
 

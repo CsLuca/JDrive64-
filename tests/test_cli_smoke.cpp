@@ -207,6 +207,12 @@ int main(int argc, char** argv) {
     const auto telemetry_dump_r = Run(telemetry_dump_cmd);
     ok = ok && Check(telemetry_dump_r.exit_code == 0, "telemetry-dump-mounted exits 0");
 
+    const auto telemetry_dump_filter_cmd = Quote(exe_path.string()) +
+                                           " telemetry-dump-mounted Z: --event send.loopback --tail 1";
+    const auto telemetry_dump_filter_r = Run(telemetry_dump_filter_cmd);
+    ok = ok && Check(telemetry_dump_filter_r.exit_code == 0,
+                     "telemetry-dump-mounted with filters exits 0");
+
     const auto telemetry_clear_cmd = Quote(exe_path.string()) + " telemetry-clear-mounted Z:";
     const auto telemetry_clear_r = Run(telemetry_clear_cmd);
     ok = ok && Check(telemetry_clear_r.exit_code == 0, "telemetry-clear-mounted exits 0");

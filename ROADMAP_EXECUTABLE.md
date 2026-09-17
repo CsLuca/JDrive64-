@@ -1389,7 +1389,7 @@ Status: done
 
 ## K20 - Telemetry Retention and Indexing Scaffold
 
-Status: in progress
+Status: done
 
 ### K20.1 Multi-file retention
 
@@ -1430,6 +1430,50 @@ Status: in progress
 
 - Multi-file retention and mounted indexing are integrated and test-covered.
 - Ready for K21 event filters and query options.
+
+## K21 - Telemetry Query Filter Scaffold
+
+Status: in progress
+
+### K21.1 Filter parsing
+
+- Task: add query options for telemetry dump command.
+- PASS:
+  - `telemetry-dump-mounted` supports `--event`, `--success`, `--tail`.
+  - invalid/missing option values fail with usage.
+- FAIL:
+  - telemetry dump has no query options.
+
+### K21.2 Filter evaluation
+
+- Task: filter JSONL telemetry lines by event name and success flag with tail selection.
+- PASS:
+  - event-name and success filters work against serialized JSON lines.
+  - `--tail N` limits output to last N matched lines.
+- FAIL:
+  - filters do not affect output.
+
+### K21.3 Regression coverage
+
+- Task: validate telemetry dump filter mode in CLI smoke.
+- PASS:
+  - smoke test runs filtered telemetry dump command successfully.
+  - no regressions for unfiltered dump/clear/list commands.
+- FAIL:
+  - no tests for query filter mode.
+
+### K21 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K21 exit criteria
+
+- Telemetry query filters are integrated and test-covered.
+- Ready for K22 structured query output modes and pagination.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

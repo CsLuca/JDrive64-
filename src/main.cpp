@@ -314,6 +314,14 @@ int CmdTelemetryDumpMounted(std::string mount_point);
 int CmdTelemetryClearMounted(std::string mount_point);
 int CmdTelemetryListMounted(std::string mount_point);
 
+struct TelemetryDumpOptions {
+  std::string event_name;
+  int success_filter = -1;
+  std::size_t tail = 0;
+};
+
+int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDumpOptions& opt);
+
 std::string EscapeJson(const std::string& value) {
   std::string out;
   out.reserve(value.size() + 8);
@@ -360,6 +368,67 @@ std::vector<std::string> SplitNonEmptyLines(const std::string& block) {
   return lines;
 }
 
+std::string ExtractJsonStringField(const std::string& line, const std::string& field_name) {
+  const std::string key = "\"" + field_name + "\":\"";
+  const std::size_t pos = line.find(key);
+  if (pos == std::string::npos) {
+    return "";
+  }
+  const std::size_t start = pos + key.size();
+  std::size_t i = start;
+  bool escaped = false;
+  for (; i < line.size(); ++i) {
+    const char c = line[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (c == '\\') {
+      escaped = true;
+      continue;
+    }
+    if (c == '"') {
+      break;
+    }
+  }
+  if (i >= line.size()) {
+    return "";
+  }
+  return line.substr(start, i - start);
+}
+
+int ExtractJsonBoolField(const std::string& line, const std::string& field_name) {
+  const std::string key = "\"" + field_name + "\":";
+  const std::size_t pos = line.find(key);
+  if (pos == std::string::npos) {
+    return -1;
+  }
+  const std::size_t start = pos + key.size();
+  if (line.compare(start, 4, "true") == 0) {
+    return 1;
+  }
+  if (line.compare(start, 5, "false") == 0) {
+    return 0;
+  }
+  return -1;
+}
+
+bool TelemetryLineMatchesFilter(const std::string& line, const TelemetryDumpOptions& opt) {
+  if (!opt.event_name.empty()) {
+    const std::string name = ExtractJsonStringField(line, "name");
+    if (name != opt.event_name) {
+      return false;
+    }
+  }
+  if (opt.success_filter != -1) {
+    const int success = ExtractJsonBoolField(line, "success");
+    if (success != opt.success_filter) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void PrintUsage() {
   std::cout << "JDrive64 CLI\n"
             << "Usage:\n"
@@ -378,7 +447,7 @@ void PrintUsage() {
             << "  jdrive64 check-mounted <drive_letter:>\n"
             << "  jdrive64 backend-diag <image.d64> [--backend <winfsp|kdrv>] [--json]\n"
             << "  jdrive64 backend-diag-mounted <drive_letter:> [--json]\n"
-            << "  jdrive64 telemetry-dump-mounted <drive_letter:>\n"
+            << "  jdrive64 telemetry-dump-mounted <drive_letter:> [--event <name>] [--success <true|false>] [--tail N]\n"
             << "  jdrive64 telemetry-clear-mounted <drive_letter:>\n"
             << "  jdrive64 telemetry-list-mounted <drive_letter:>\n"
             << "  jdrive64 winfsp-preflight <image.d64> <drive_letter:>\n"
@@ -934,7 +1003,61 @@ int CmdTelemetryDumpMounted(std::string mount_point) {
     std::cerr << "Error: cannot open telemetry JSONL file: " << state.telemetry_jsonl_path << "\n";
     return 1;
   }
-  std::cout << in.rdbuf();
+  std::vector<std::string> lines;
+  std::string line;
+  while (std::getline(in, line)) {
+    lines.push_back(line);
+  }
+  for (const auto& l : lines) {
+    std::cout << l << "\n";
+  }
+  return 0;
+}
+
+int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDumpOptions& opt) {
+  mount_point = NormalizeMountPoint(std::move(mount_point));
+  if (!IsValidMountPoint(mount_point)) {
+    std::cerr << "Error: invalid mount point, expected format X:\n";
+    return 1;
+  }
+
+  const auto state_file = MountStateFile(mount_point);
+  if (!std::filesystem::exists(state_file)) {
+    std::cerr << "Error: mount point is not mounted: " << mount_point << "\n";
+    return 1;
+  }
+
+  MountState state;
+  std::string load_error;
+  if (!LoadMountState(state_file, &state, &load_error)) {
+    std::cerr << "Error: invalid mount state: " << load_error << "\n";
+    return 1;
+  }
+  if (state.telemetry_jsonl_path.empty()) {
+    std::cerr << "Error: telemetry JSONL path is not configured for mount " << mount_point << "\n";
+    return 1;
+  }
+
+  std::ifstream in(state.telemetry_jsonl_path, std::ios::binary);
+  if (!in) {
+    std::cerr << "Error: cannot open telemetry JSONL file: " << state.telemetry_jsonl_path << "\n";
+    return 1;
+  }
+  std::vector<std::string> matched;
+  std::string line;
+  while (std::getline(in, line)) {
+    if (TelemetryLineMatchesFilter(line, opt)) {
+      matched.push_back(line);
+    }
+  }
+
+  std::size_t start = 0;
+  if (opt.tail > 0 && matched.size() > opt.tail) {
+    start = matched.size() - opt.tail;
+  }
+  for (std::size_t i = start; i < matched.size(); ++i) {
+    std::cout << matched[i] << "\n";
+  }
   return 0;
 }
 
@@ -1155,7 +1278,53 @@ int main(int argc, char** argv) {
       PrintUsage();
       return 1;
     }
-    return CmdTelemetryDumpMounted(argv[2]);
+    TelemetryDumpOptions opt;
+    for (int i = 3; i < argc; ++i) {
+      const std::string arg = argv[i];
+      if (arg == "--event") {
+        if (i + 1 >= argc) {
+          PrintUsage();
+          return 1;
+        }
+        opt.event_name = argv[++i];
+        continue;
+      }
+      if (arg == "--success") {
+        if (i + 1 >= argc) {
+          PrintUsage();
+          return 1;
+        }
+        const std::string value = argv[++i];
+        if (value == "true") {
+          opt.success_filter = 1;
+        } else if (value == "false") {
+          opt.success_filter = 0;
+        } else {
+          PrintUsage();
+          return 1;
+        }
+        continue;
+      }
+      if (arg == "--tail") {
+        if (i + 1 >= argc) {
+          PrintUsage();
+          return 1;
+        }
+        try {
+          opt.tail = static_cast<std::size_t>(std::stoul(argv[++i]));
+        } catch (...) {
+          PrintUsage();
+          return 1;
+        }
+        continue;
+      }
+      PrintUsage();
+      return 1;
+    }
+    if (opt.event_name.empty() && opt.success_filter == -1 && opt.tail == 0) {
+      return CmdTelemetryDumpMounted(argv[2]);
+    }
+    return CmdTelemetryDumpMountedFiltered(argv[2], opt);
   }
 
   if (command == "telemetry-clear-mounted") {
