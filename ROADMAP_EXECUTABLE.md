@@ -3346,7 +3346,7 @@ Status: done
 
 ## K70 - Query-plan Rule Fingerprint Scaffold
 
-Status: in progress
+Status: done
 
 ### K70.1 Rule fingerprint field
 
@@ -3378,6 +3378,41 @@ Status: in progress
 
 - Query-plan rule fingerprint metadata is integrated and test-covered.
 - Ready for K71 selector signature metadata scaffold.
+
+## K71 - Query-plan Selector Signature Scaffold
+
+Status: in progress
+
+### K71.1 Selector signature field
+
+- Task: add compact deterministic signature for selector/filter shape.
+- PASS:
+  - explain output includes `query_plan_selector_signature`.
+  - signature deterministically encodes selector mode plus include/exclude/prefix/contains/where/success filter dimensions.
+- FAIL:
+  - explain output has no selector signature metadata.
+
+### K71.2 Regression coverage
+
+- Task: validate selector signature field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_selector_signature` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for selector signature metadata.
+
+### K71 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K71 exit criteria
+
+- Query-plan selector signature metadata is integrated and test-covered.
+- Ready for K72 explain diagnostics consistency hardening.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

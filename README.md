@@ -160,6 +160,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K68 explainability scaffold adds `query_plan_negation_ratio` to measure unary negation intensity relative to predicates.
 - K69 explainability scaffold adds `query_plan_stage_budget_ratio` to expose worst-stage budget pressure.
 - K70 explainability scaffold adds deterministic `query_plan_rule_fingerprint` derived from plan signature, rule count, and score.
+- K71 explainability scaffold adds compact `query_plan_selector_signature` capturing selector-mode and filter-shape cardinalities.
 
 ## Domain Layer (Step 3)
 
