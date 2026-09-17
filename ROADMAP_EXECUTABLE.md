@@ -714,7 +714,7 @@ Status: done
 
 ## K7 - Transport Mode Scaffold
 
-Status: in progress
+Status: done
 
 ### K7.1 Transport abstraction
 
@@ -765,6 +765,59 @@ Status: in progress
 
 - Transport abstraction is integrated and test-covered.
 - Device-mode connect placeholder exists for real driver channel wiring in K8.
+
+## K8 - Device Frame Contract Scaffold
+
+Status: in progress
+
+### K8.1 Request frame contract
+
+- Task: define deterministic binary request frame encoding for future `DeviceIoControl` path.
+- PASS:
+  - `KernelTransport::BuildDeviceFrame` encodes opcode, handle, offset, size, and path bytes.
+  - encoded frame layout is size-stable and test-covered.
+- FAIL:
+  - device request payload remains ad-hoc or unspecified.
+
+### K8.2 Response frame contract
+
+- Task: define deterministic binary response frame parsing.
+- PASS:
+  - `KernelTransport::ParseDeviceFrame` parses success, payload bytes, handle, and error bytes.
+  - empty/truncated frames return explicit deterministic response errors.
+- FAIL:
+  - no parser contract for future driver response payloads.
+
+### K8.3 Device send preflight scaffold
+
+- Task: ensure device mode send path validates encode + parse steps before real IOCTL call wiring.
+- PASS:
+  - device mode send path invokes request encode and response parse stubs.
+  - explicit not-implemented outcome remains deterministic for current scaffold.
+- FAIL:
+  - send path cannot validate framing stages.
+
+### K8.4 Test coverage
+
+- Task: add tests for request encode and response parse contracts.
+- PASS:
+  - tests assert encoded request field values and sizes.
+  - tests assert empty, truncated, and populated response parsing behavior.
+- FAIL:
+  - no tests validate frame contracts.
+
+### K8 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K8 exit criteria
+
+- Device frame contracts are codified and regression-tested.
+- Transport layer is ready for K9 real `DeviceIoControl` wiring.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

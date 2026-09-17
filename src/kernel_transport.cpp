@@ -8,6 +8,21 @@
 
 namespace jdrive64 {
 
+namespace {
+
+constexpr std::size_t kOpcodeOffset = 0;
+constexpr std::size_t kHandleOffset = kOpcodeOffset + sizeof(std::uint32_t);
+constexpr std::size_t kOffsetOffset = kHandleOffset + sizeof(std::uint64_t);
+constexpr std::size_t kSizeOffset = kOffsetOffset + sizeof(std::uint64_t);
+constexpr std::size_t kPathBytesOffset = kSizeOffset + sizeof(std::uint32_t);
+
+constexpr std::size_t kSuccessOffset = 0;
+constexpr std::size_t kPayloadBytesOffset = kSuccessOffset + sizeof(std::uint32_t);
+constexpr std::size_t kHandleOutOffset = kPayloadBytesOffset + sizeof(std::uint32_t);
+constexpr std::size_t kErrorBytesOffset = kHandleOutOffset + sizeof(std::uint64_t);
+
+}  // namespace
+
 bool KernelTransport::SetMode(Mode mode) {
   if (connected_) {
     last_error_ = "Cannot change transport mode while connected";
@@ -115,6 +130,14 @@ bool KernelTransport::Send(const KernelRequest& request, KernelResponse* respons
       return false;
     }
 
+    KernelResponse parsed;
+    if (!ParseDeviceFrame({}, &parsed)) {
+      response->success = false;
+      response->error = "Device response parsing failed";
+      last_error_ = response->error;
+      return false;
+    }
+
     response->success = false;
     response->error = "Device transport request path not implemented";
   }
@@ -128,15 +151,8 @@ bool KernelTransport::BuildDeviceFrame(const KernelRequest& request,
     return false;
   }
 
-  constexpr std::size_t kOpcodeOffset = 0;
-  constexpr std::size_t kHandleOffset = kOpcodeOffset + sizeof(std::uint32_t);
-  constexpr std::size_t kOffsetOffset = kHandleOffset + sizeof(std::uint64_t);
-  constexpr std::size_t kSizeOffset = kOffsetOffset + sizeof(std::uint64_t);
-  constexpr std::size_t kPathBytesOffset = kSizeOffset + sizeof(std::uint32_t);
-  constexpr std::size_t kHeaderSize = kPathBytesOffset + sizeof(std::uint32_t);
-
   const std::size_t path_size = request.windows_name.size();
-  frame->assign(kHeaderSize + path_size, 0);
+  frame->assign(kDeviceRequestHeaderSize + path_size, 0);
 
   const std::uint32_t opcode = static_cast<std::uint32_t>(request.opcode);
   const std::uint32_t path_bytes = static_cast<std::uint32_t>(path_size);
@@ -146,7 +162,57 @@ bool KernelTransport::BuildDeviceFrame(const KernelRequest& request,
   std::memcpy(frame->data() + kSizeOffset, &request.size, sizeof(request.size));
   std::memcpy(frame->data() + kPathBytesOffset, &path_bytes, sizeof(path_bytes));
   if (path_size > 0) {
-    std::memcpy(frame->data() + kHeaderSize, request.windows_name.data(), path_size);
+    std::memcpy(frame->data() + kDeviceRequestHeaderSize, request.windows_name.data(), path_size);
+  }
+
+  return true;
+}
+
+bool KernelTransport::ParseDeviceFrame(const std::vector<std::uint8_t>& frame,
+                                       KernelResponse* response) const {
+  if (response == nullptr) {
+    return false;
+  }
+
+  *response = KernelResponse{};
+  if (frame.empty()) {
+    response->success = false;
+    response->error = "Device response frame is empty";
+    return true;
+  }
+  if (frame.size() < kDeviceResponseHeaderSize) {
+    response->success = false;
+    response->error = "Device response frame is truncated";
+    return true;
+  }
+
+  std::uint32_t success = 0;
+  std::uint32_t payload_bytes = 0;
+  std::uint64_t handle = 0;
+  std::uint32_t error_bytes = 0;
+  std::memcpy(&success, frame.data() + kSuccessOffset, sizeof(success));
+  std::memcpy(&payload_bytes, frame.data() + kPayloadBytesOffset, sizeof(payload_bytes));
+  std::memcpy(&handle, frame.data() + kHandleOutOffset, sizeof(handle));
+  std::memcpy(&error_bytes, frame.data() + kErrorBytesOffset, sizeof(error_bytes));
+
+  const std::size_t expected_min = kDeviceResponseHeaderSize + static_cast<std::size_t>(payload_bytes) +
+                                   static_cast<std::size_t>(error_bytes);
+  if (frame.size() < expected_min) {
+    response->success = false;
+    response->error = "Device response payload is truncated";
+    return true;
+  }
+
+  response->success = (success != 0);
+  response->handle = handle;
+  if (payload_bytes > 0) {
+    const std::uint8_t* payload = frame.data() + kDeviceResponseHeaderSize;
+    response->data.assign(payload, payload + payload_bytes);
+  }
+  if (error_bytes > 0) {
+    const char* error_ptr = reinterpret_cast<const char*>(
+        frame.data() + kDeviceResponseHeaderSize + static_cast<std::size_t>(payload_bytes));
+    response->error.assign(error_ptr, error_bytes);
   }
 
   return true;

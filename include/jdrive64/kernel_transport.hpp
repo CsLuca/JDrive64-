@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,13 @@ class KernelTransport {
   bool Send(const KernelRequest& request, KernelResponse* response);
 
   bool BuildDeviceFrame(const KernelRequest& request, std::vector<std::uint8_t>* frame) const;
+  bool ParseDeviceFrame(const std::vector<std::uint8_t>& frame, KernelResponse* response) const;
+
+  static constexpr std::size_t kDeviceRequestHeaderSize = sizeof(std::uint32_t) + sizeof(std::uint64_t) +
+                                                           sizeof(std::uint64_t) + sizeof(std::uint32_t) +
+                                                           sizeof(std::uint32_t);
+  static constexpr std::size_t kDeviceResponseHeaderSize = sizeof(std::uint32_t) + sizeof(std::uint32_t) +
+                                                            sizeof(std::uint64_t) + sizeof(std::uint32_t);
 
   bool IsConnected() const;
   const std::string& LastError() const;

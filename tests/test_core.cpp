@@ -1171,6 +1171,65 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
     return false;
   }
 
+  KernelResponse parsed;
+  if (!Assert(transport.ParseDeviceFrame({}, &parsed), "KernelTransport parses empty response frame")) {
+    return false;
+  }
+  if (!Assert(!parsed.success && parsed.error.find("empty") != std::string::npos,
+              "KernelTransport empty response frame is explicit")) {
+    return false;
+  }
+
+  if (!Assert(transport.ParseDeviceFrame(std::vector<std::uint8_t>{1, 2, 3}, &parsed),
+              "KernelTransport parses truncated response frame")) {
+    return false;
+  }
+  if (!Assert(!parsed.success && parsed.error.find("truncated") != std::string::npos,
+              "KernelTransport truncated response frame is explicit")) {
+    return false;
+  }
+
+  const std::string payload_text = "HELLO";
+  const std::string error_text = "DEVICE_ERR";
+  std::vector<std::uint8_t> response_frame(KernelTransport::kDeviceResponseHeaderSize +
+                                           payload_text.size() + error_text.size(),
+                                           0);
+  const std::uint32_t success = 0;
+  const std::uint32_t payload_bytes = static_cast<std::uint32_t>(payload_text.size());
+  const std::uint64_t response_handle = 99;
+  const std::uint32_t error_bytes = static_cast<std::uint32_t>(error_text.size());
+  std::memcpy(response_frame.data() + 0, &success, sizeof(success));
+  std::memcpy(response_frame.data() + sizeof(std::uint32_t), &payload_bytes, sizeof(payload_bytes));
+  std::memcpy(response_frame.data() + sizeof(std::uint32_t) + sizeof(std::uint32_t),
+              &response_handle,
+              sizeof(response_handle));
+  std::memcpy(response_frame.data() + sizeof(std::uint32_t) + sizeof(std::uint32_t) +
+                  sizeof(std::uint64_t),
+              &error_bytes,
+              sizeof(error_bytes));
+  std::memcpy(response_frame.data() + KernelTransport::kDeviceResponseHeaderSize,
+              payload_text.data(),
+              payload_text.size());
+  std::memcpy(response_frame.data() + KernelTransport::kDeviceResponseHeaderSize + payload_text.size(),
+              error_text.data(),
+              error_text.size());
+
+  if (!Assert(transport.ParseDeviceFrame(response_frame, &parsed),
+              "KernelTransport parses populated response frame")) {
+    return false;
+  }
+  if (!Assert(!parsed.success && parsed.handle == response_handle,
+              "KernelTransport parsed success flag and handle")) {
+    return false;
+  }
+  if (!Assert(std::string(parsed.data.begin(), parsed.data.end()) == payload_text,
+              "KernelTransport parsed payload bytes")) {
+    return false;
+  }
+  if (!Assert(parsed.error == error_text, "KernelTransport parsed error text")) {
+    return false;
+  }
+
   return true;
 }
 
