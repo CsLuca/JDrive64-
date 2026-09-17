@@ -946,11 +946,13 @@ bool TestMountBackendFactory(const std::filesystem::path& image_path) {
   if (!Assert(normalized == "kdrv", "Mount backend factory normalizes kdrv name")) {
     return false;
   }
-  if (!Assert(!kdrv->MountReadOnly(image_path.string(), "Q:"), "Kdrv backend not implemented yet")) {
+  if (!Assert(kdrv->MountReadOnly(image_path.string(), "Q:"), "Kdrv backend mount through interface")) {
     return false;
   }
-  if (!Assert(kdrv->LastError().find("not implemented") != std::string::npos,
-              "Kdrv backend returns scaffold not implemented error")) {
+  if (!Assert(kdrv->HealthCheck(), "Kdrv backend health check")) {
+    return false;
+  }
+  if (!Assert(kdrv->Unmount("Q:"), "Kdrv backend unmount through interface")) {
     return false;
   }
 
@@ -976,12 +978,10 @@ bool TestKernelMountManagerScaffold() {
     return false;
   }
 
-  if (!Assert(!manager.AssignDriveLetter("R:"),
-              "KernelMountManager returns deterministic not-implemented on assign")) {
+  if (!Assert(manager.AssignDriveLetter("R:"), "KernelMountManager assigns valid mount point")) {
     return false;
   }
-  if (!Assert(manager.LastError().find("not implemented") != std::string::npos,
-              "KernelMountManager assign not-implemented error")) {
+  if (!Assert(manager.LastError().empty(), "KernelMountManager clears error after assign success")) {
     return false;
   }
   if (!Assert(manager.IsAssigned(), "KernelMountManager tracks assigned state")) {

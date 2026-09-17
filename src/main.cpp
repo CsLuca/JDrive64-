@@ -1376,7 +1376,7 @@ int CmdExtract(const std::string& image_path, const std::string& output_dir_arg)
 }
 
 int CmdMount(const std::string& image_path, std::string mount_point) {
-  return CmdMountWithBackend(image_path, std::move(mount_point), "winfsp");
+  return CmdMountWithBackend(image_path, std::move(mount_point), "kdrv");
 }
 
 int CmdMountWithBackend(const std::string& image_path,
@@ -2724,7 +2724,7 @@ int main(int argc, char** argv) {
       return 1;
     }
 
-    std::string backend_name = "winfsp";
+    std::string backend_name = "kdrv";
     if (argc == 6) {
       if (std::string(argv[4]) != "--backend") {
         PrintUsage();
@@ -2742,7 +2742,7 @@ int main(int argc, char** argv) {
       return 1;
     }
 
-    std::string backend_name = "winfsp";
+    std::string backend_name = "kdrv";
     bool as_json = false;
     for (int i = 3; i < argc; ++i) {
       const std::string arg = argv[i];

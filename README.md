@@ -90,9 +90,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 
 ## Kernel Backend Status
 
-- `kdrv` backend is scaffolded for K2 and currently returns a deterministic not-implemented mount error.
+- Default backend for `mount` and `backend-diag` is now `kdrv` (override with `--backend winfsp` when needed).
+- `kdrv` backend is scaffolded and now supports end-to-end CLI mount/unmount flow in loopback transport mode.
 - Driver/service binaries (`jdrive64k.sys`, `jdrive64ksvc.exe`) are not wired yet.
-- Drive-letter assignment path now includes K3 mount-manager scaffold with deterministic not-implemented behavior.
+- Drive-letter assignment path now includes K3 mount-manager scaffold with deterministic assign/release semantics.
 - K4 read-only catalog/open/read scaffolding is available internally for kdrv request path shaping.
 - K5 IOCTL-like bridge scaffolding (`KernelUserBridge`) now maps opcode requests to K4 read-only handlers.
 - K6 IPC channel scaffold (`KernelIpcChannel`) is wired in controller lifecycle for directory request flow.

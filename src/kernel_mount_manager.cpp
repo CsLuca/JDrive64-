@@ -14,8 +14,8 @@ bool KernelMountManager::AssignDriveLetter(const std::string& mount_point) {
 
   assigned_ = true;
   assigned_mount_point_ = mount_point;
-  last_error_ = "Mount manager integration not implemented yet";
-  return false;
+  last_error_.clear();
+  return true;
 }
 
 bool KernelMountManager::ReleaseDriveLetter(const std::string& mount_point) {

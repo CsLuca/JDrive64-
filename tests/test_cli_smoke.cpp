@@ -152,9 +152,20 @@ int main(int argc, char** argv) {
     const auto mount_kdrv_cmd = Quote(exe_path.string()) + " mount " + Quote(golden.valid_small.string()) +
                                 " Y: --backend kdrv";
     const auto mount_kdrv_r = Run(mount_kdrv_cmd);
-    ok = ok && Check(mount_kdrv_r.exit_code != 0, "mount with kdrv backend fails (not implemented)");
-    ok = ok && Check(Contains(mount_kdrv_r.output, "not implemented"),
-                     "mount with kdrv reports not implemented");
+    ok = ok && Check(mount_kdrv_r.exit_code == 0, "mount with kdrv backend exits 0");
+    ok = ok && Check(Contains(mount_kdrv_r.output, "backend=kdrv"),
+                     "mount with kdrv reports backend kdrv");
+
+    const auto backend_diag_kdrv_mounted_cmd = Quote(exe_path.string()) + " backend-diag-mounted Y:";
+    const auto backend_diag_kdrv_mounted_r = Run(backend_diag_kdrv_mounted_cmd);
+    ok = ok && Check(backend_diag_kdrv_mounted_r.exit_code == 0,
+                     "backend-diag-mounted exits 0 for kdrv mount");
+    ok = ok && Check(Contains(backend_diag_kdrv_mounted_r.output, "Backend: kdrv"),
+                     "backend-diag-mounted reports kdrv backend");
+
+    const auto unmount_kdrv_cmd = Quote(exe_path.string()) + " unmount Y:";
+    const auto unmount_kdrv_r = Run(unmount_kdrv_cmd);
+    ok = ok && Check(unmount_kdrv_r.exit_code == 0, "unmount kdrv backend exits 0");
 
     const auto mounts_cmd = Quote(exe_path.string()) + " mounts";
     const auto mounts_r = Run(mounts_cmd);
@@ -192,7 +203,7 @@ int main(int argc, char** argv) {
     const auto backend_diag_mounted_cmd = Quote(exe_path.string()) + " backend-diag-mounted Z:";
     const auto backend_diag_mounted_r = Run(backend_diag_mounted_cmd);
     ok = ok && Check(backend_diag_mounted_r.exit_code == 0, "backend-diag-mounted exits 0");
-    ok = ok && Check(Contains(backend_diag_mounted_r.output, "Backend: winfsp"),
+    ok = ok && Check(Contains(backend_diag_mounted_r.output, "Backend: kdrv"),
                      "backend-diag-mounted reports persisted backend");
 
     const auto backend_diag_mounted_json_cmd =
@@ -200,7 +211,7 @@ int main(int argc, char** argv) {
     const auto backend_diag_mounted_json_r = Run(backend_diag_mounted_json_cmd);
     ok = ok && Check(backend_diag_mounted_json_r.exit_code == 0,
                      "backend-diag-mounted --json exits 0");
-    ok = ok && Check(Contains(backend_diag_mounted_json_r.output, "\"backend\": \"winfsp\""),
+    ok = ok && Check(Contains(backend_diag_mounted_json_r.output, "\"backend\": \"kdrv\""),
                      "backend-diag-mounted --json reports persisted backend");
     ok = ok && Check(Contains(backend_diag_mounted_json_r.output, "\"telemetry_jsonl\":"),
                      "backend-diag-mounted --json reports telemetry path field");
