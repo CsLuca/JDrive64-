@@ -2716,7 +2716,7 @@ Status: done
 
 ## K52 - Query-plan Warning Tags Scaffold
 
-Status: in progress
+Status: done
 
 ### K52.1 Warning tags field
 
@@ -2748,6 +2748,41 @@ Status: in progress
 
 - Query-plan warning tags are integrated and test-covered.
 - Ready for K53 query-plan profile metadata scaffold.
+
+## K53 - Query-plan Profile Metadata Scaffold
+
+Status: in progress
+
+### K53.1 Profile classification field
+
+- Task: add query-plan profile classification in explain output.
+- PASS:
+  - explain output includes `query_plan_profile`.
+  - profile is emitted as `focused`, `exploratory`, or `expensive` using deterministic heuristics.
+- FAIL:
+  - explain output has no profile classification.
+
+### K53.2 Regression coverage
+
+- Task: validate profile field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_profile` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for profile metadata.
+
+### K53 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K53 exit criteria
+
+- Query-plan profile metadata is integrated and test-covered.
+- Ready for K54 explain flag summary scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

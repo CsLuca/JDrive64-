@@ -2008,6 +2008,14 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
                                     ? 1.0
                                     : std::max(0.1, 1.0 - (static_cast<double>(planner_score) / 100.0));
       std::cout << "  \"query_plan_confidence\": " << confidence << ",\n";
+      std::string profile = "focused";
+      if (rpn_or >= 2 || pred_detail >= 3) {
+        profile = "exploratory";
+      }
+      if (confidence < 0.5 || planner_score > 18) {
+        profile = "expensive";
+      }
+      std::cout << "  \"query_plan_profile\": \"" << profile << "\",\n";
       std::cout << "  \"query_plan_warnings\": [";
       bool first_warning = true;
       if (confidence < 0.6) {
