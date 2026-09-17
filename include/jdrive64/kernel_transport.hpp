@@ -13,6 +13,11 @@ namespace jdrive64 {
 
 class KernelTransport {
  public:
+  enum class FeaturePolicy {
+    kStrict = 0,
+    kBestEffort,
+  };
+
   enum class Mode {
     kLoopback = 0,
     kDevice,
@@ -20,6 +25,9 @@ class KernelTransport {
 
   bool SetMode(Mode mode);
   Mode GetMode() const;
+
+  bool SetFeaturePolicy(FeaturePolicy policy);
+  FeaturePolicy GetFeaturePolicy() const;
 
   class DeviceIoApi {
    public:
@@ -60,6 +68,7 @@ class KernelTransport {
   DeviceIoApi* ResolveDeviceIoApi();
 
   Mode mode_ = Mode::kLoopback;
+  FeaturePolicy feature_policy_ = FeaturePolicy::kStrict;
   bool connected_ = false;
   void* device_handle_ = nullptr;
   std::unique_ptr<DeviceIoApi> default_device_io_api_;

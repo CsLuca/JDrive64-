@@ -981,7 +981,7 @@ Status: done
 
 ## K12 - Command-level Policy Routing Scaffold
 
-Status: in progress
+Status: done
 
 ### K12.1 Opcode policy evaluator
 
@@ -1031,6 +1031,61 @@ Status: in progress
 
 - Command-level policy routing is integrated and test-covered.
 - Ready for K13 richer operation policy and driver feature rollout strategy.
+
+## K13 - Feature Rollout Strategy Scaffold
+
+Status: in progress
+
+### K13.1 Feature policy modes
+
+- Task: introduce strict/best-effort feature policy modes in transport.
+- PASS:
+  - transport exposes feature policy setters/getters.
+  - strict mode requires full default feature set during handshake.
+  - best-effort mode accepts reduced optional features while enforcing required ones.
+- FAIL:
+  - no selectable feature policy mode.
+
+### K13.2 Granular handle-operation gating
+
+- Task: enforce dedicated feature requirement for handle-oriented ops.
+- PASS:
+  - `OpenFile`/`CloseFile` require stable-handle feature.
+  - denial reason is explicit when stable-handle feature is missing.
+- FAIL:
+  - handle operations are not feature-gated.
+
+### K13.3 Runtime policy immutability while connected
+
+- Task: prevent policy changes mid-session to avoid inconsistent contracts.
+- PASS:
+  - changing feature policy while connected fails deterministically.
+  - error text indicates connected-state lock.
+- FAIL:
+  - policy can be changed while transport is connected.
+
+### K13.4 Regression tests
+
+- Task: add tests for strict vs best-effort behavior and handle-op gating.
+- PASS:
+  - tests validate strict mode rejection of missing optional feature.
+  - tests validate best-effort connect with reduced features plus handle-op denial.
+  - tests validate policy change rejection while connected.
+- FAIL:
+  - no coverage for rollout modes.
+
+### K13 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K13 exit criteria
+
+- Rollout policy mode and granular feature gating are integrated and test-covered.
+- Ready for K14 backend-level policy surfacing and CLI diagnostics.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

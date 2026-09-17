@@ -102,6 +102,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K10 handshake scaffold adds protocol-version and capability negotiation before non-handshake device requests.
 - K11 compatibility scaffold extends handshake with protocol window support and feature-flag negotiation policy.
 - K12 policy scaffold adds opcode-level request gating from negotiated capabilities/features with explicit denial reasons.
+- K13 rollout scaffold introduces strict vs best-effort feature policy and granular handle-operation gating.
 
 ## Domain Layer (Step 3)
 

@@ -112,6 +112,20 @@ bool KernelTransport::SetMode(Mode mode) {
 
 KernelTransport::Mode KernelTransport::GetMode() const { return mode_; }
 
+bool KernelTransport::SetFeaturePolicy(FeaturePolicy policy) {
+  if (connected_) {
+    last_error_ = "Cannot change feature policy while connected";
+    return false;
+  }
+  feature_policy_ = policy;
+  last_error_.clear();
+  return true;
+}
+
+KernelTransport::FeaturePolicy KernelTransport::GetFeaturePolicy() const {
+  return feature_policy_;
+}
+
 bool KernelTransport::SetDeviceIoApiForTesting(DeviceIoApi* api) {
   if (connected_) {
     last_error_ = "Cannot change device IO API while connected";
@@ -268,6 +282,20 @@ bool KernelTransport::Connect(const std::string& image_path) {
     negotiated_capabilities_ = 0;
     negotiated_features_ = 0;
     last_error_ = "Kernel features are incompatible";
+    return false;
+  }
+
+  if (feature_policy_ == FeaturePolicy::kStrict &&
+      (features & kKernelFeatureDefault) != kKernelFeatureDefault) {
+    std::string close_error;
+    api->Close(device_handle_, &close_error);
+    device_handle_ = nullptr;
+    connected_ = false;
+    handshake_complete_ = false;
+    negotiated_protocol_version_ = 0;
+    negotiated_capabilities_ = 0;
+    negotiated_features_ = 0;
+    last_error_ = "Kernel features are incompatible with strict policy";
     return false;
   }
 
@@ -513,6 +541,10 @@ bool KernelTransport::IsRequestAllowedByPolicy(const KernelRequest& request, std
       break;
     case KernelOpcode::kOpenFile:
     case KernelOpcode::kCloseFile:
+      if ((negotiated_features_ & kKernelFeatureStableHandleIo) == 0) {
+        *reason = "Kernel policy denied file handle operation: stable-handle feature missing";
+        return false;
+      }
       if (!has_capability(kKernelCapabilityReadFile)) {
         *reason = "Kernel policy denied file handle operation: capability missing";
         return false;

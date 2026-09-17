@@ -49,6 +49,7 @@ using jdrive64::kKernelCapabilityAllReadOnly;
 using jdrive64::kKernelCapabilityReadDirectory;
 using jdrive64::kKernelFeatureAllowDirectorySnapshot;
 using jdrive64::kKernelFeatureDefault;
+using jdrive64::kKernelFeatureStableHandleIo;
 using jdrive64::kKernelFeatureStrictReadonly;
 using jdrive64::kKernelProtocolVersionCurrent;
 using jdrive64::kKernelProtocolVersionMin;
@@ -1607,6 +1608,12 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
               "KernelTransport allows ReadFile with negotiated capabilities")) {
     return false;
   }
+  if (!Assert(policy_eval_transport.IsRequestAllowedByPolicy(
+                 KernelRequest{KernelOpcode::kOpenFile, "HELLO.PRG", 0, 0, 0},
+                 &policy_reason),
+              "KernelTransport allows OpenFile when stable-handle feature is present")) {
+    return false;
+  }
   if (!Assert(!policy_eval_transport.IsRequestAllowedByPolicy(
                  KernelRequest{KernelOpcode::kInvalid, "", 0, 0, 0},
                  &policy_reason),
@@ -1618,6 +1625,104 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
     return false;
   }
   if (!Assert(policy_eval_transport.Disconnect(), "KernelTransport policy-eval instance disconnects")) {
+    return false;
+  }
+
+  FakeDeviceIoApi best_effort_api;
+  const std::uint32_t best_effort_features =
+      kKernelFeatureStrictReadonly | kKernelFeatureAllowDirectorySnapshot;
+  best_effort_api.next_response_frame = BuildHandshakeResponseFrame(kKernelProtocolVersionCurrent,
+                                                                    kKernelCapabilityAllReadOnly,
+                                                                    true,
+                                                                    best_effort_features);
+  KernelTransport strict_transport;
+  if (!Assert(strict_transport.SetMode(KernelTransport::Mode::kDevice),
+              "KernelTransport strict instance switches mode")) {
+    return false;
+  }
+  if (!Assert(strict_transport.SetDeviceIoApiForTesting(&best_effort_api),
+              "KernelTransport strict instance accepts injected API")) {
+    return false;
+  }
+  if (!Assert(!strict_transport.Connect(image_path.string()),
+              "KernelTransport strict policy rejects missing optional feature")) {
+    return false;
+  }
+  if (!Assert(strict_transport.LastError().find("strict policy") != std::string::npos,
+              "KernelTransport strict policy rejection message is explicit")) {
+    return false;
+  }
+
+  KernelTransport best_effort_transport;
+  if (!Assert(best_effort_transport.SetMode(KernelTransport::Mode::kDevice),
+              "KernelTransport best-effort instance switches mode")) {
+    return false;
+  }
+  if (!Assert(best_effort_transport.SetFeaturePolicy(KernelTransport::FeaturePolicy::kBestEffort),
+              "KernelTransport accepts best-effort feature policy")) {
+    return false;
+  }
+  if (!Assert(best_effort_transport.GetFeaturePolicy() == KernelTransport::FeaturePolicy::kBestEffort,
+              "KernelTransport reports best-effort feature policy")) {
+    return false;
+  }
+  if (!Assert(best_effort_transport.SetDeviceIoApiForTesting(&best_effort_api),
+              "KernelTransport best-effort instance accepts injected API")) {
+    return false;
+  }
+  best_effort_api.next_response_frame = BuildHandshakeResponseFrame(kKernelProtocolVersionCurrent,
+                                                                    kKernelCapabilityAllReadOnly,
+                                                                    true,
+                                                                    best_effort_features);
+  if (!Assert(best_effort_transport.Connect(image_path.string()),
+              "KernelTransport best-effort policy accepts missing optional feature")) {
+    return false;
+  }
+  if (!Assert(!best_effort_transport.IsRequestAllowedByPolicy(
+                 KernelRequest{KernelOpcode::kOpenFile, "HELLO.PRG", 0, 0, 0},
+                 &policy_reason),
+              "KernelTransport denies OpenFile when stable-handle feature missing")) {
+    return false;
+  }
+  if (!Assert(policy_reason.find("stable-handle") != std::string::npos,
+              "KernelTransport stable-handle denial message is explicit")) {
+    return false;
+  }
+  if (!Assert(best_effort_transport.Disconnect(),
+              "KernelTransport best-effort instance disconnects")) {
+    return false;
+  }
+
+  KernelTransport policy_lock_transport;
+  if (!Assert(policy_lock_transport.SetMode(KernelTransport::Mode::kDevice),
+              "KernelTransport policy-lock instance switches mode")) {
+    return false;
+  }
+  if (!Assert(policy_lock_transport.SetFeaturePolicy(KernelTransport::FeaturePolicy::kBestEffort),
+              "KernelTransport policy-lock instance sets best-effort policy")) {
+    return false;
+  }
+  if (!Assert(policy_lock_transport.SetDeviceIoApiForTesting(&best_effort_api),
+              "KernelTransport policy-lock instance accepts injected API")) {
+    return false;
+  }
+  best_effort_api.next_response_frame = BuildHandshakeResponseFrame(kKernelProtocolVersionCurrent,
+                                                                    kKernelCapabilityAllReadOnly,
+                                                                    true,
+                                                                    kKernelFeatureDefault);
+  if (!Assert(policy_lock_transport.Connect(image_path.string()),
+              "KernelTransport policy-lock instance connects")) {
+    return false;
+  }
+  if (!Assert(!policy_lock_transport.SetFeaturePolicy(KernelTransport::FeaturePolicy::kStrict),
+              "KernelTransport rejects feature policy changes while connected")) {
+    return false;
+  }
+  if (!Assert(policy_lock_transport.LastError().find("while connected") != std::string::npos,
+              "KernelTransport policy-lock error message is explicit")) {
+    return false;
+  }
+  if (!Assert(policy_lock_transport.Disconnect(), "KernelTransport policy-lock instance disconnects")) {
     return false;
   }
 
