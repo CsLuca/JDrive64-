@@ -2751,7 +2751,7 @@ Status: done
 
 ## K53 - Query-plan Profile Metadata Scaffold
 
-Status: in progress
+Status: done
 
 ### K53.1 Profile classification field
 
@@ -2783,6 +2783,41 @@ Status: in progress
 
 - Query-plan profile metadata is integrated and test-covered.
 - Ready for K54 explain flag summary scaffold.
+
+## K54 - Query-plan Flag Summary Scaffold
+
+Status: in progress
+
+### K54.1 Flag summary object
+
+- Task: add concise boolean flag summary for explain output.
+- PASS:
+  - explain output includes `query_plan_flags` object.
+  - object includes `has_negation`, `has_disjunction`, and `has_detail_predicates`.
+- FAIL:
+  - explain output has no flag summary object.
+
+### K54.2 Regression coverage
+
+- Task: validate flag summary field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_flags` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for flag summary metadata.
+
+### K54 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K54 exit criteria
+
+- Query-plan flag summary metadata is integrated and test-covered.
+- Ready for K55 explain rule-id trace scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

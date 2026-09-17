@@ -2037,6 +2037,11 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
       }
       std::cout << "],\n";
       std::cout << "  \"query_plan_complexity\": \"" << complexity << "\",\n";
+      std::cout << "  \"query_plan_flags\": {\n";
+      std::cout << "    \"has_negation\": " << (rpn_not > 0 ? "true" : "false") << ",\n";
+      std::cout << "    \"has_disjunction\": " << (rpn_or > 0 ? "true" : "false") << ",\n";
+      std::cout << "    \"has_detail_predicates\": " << (pred_detail > 0 ? "true" : "false") << "\n";
+      std::cout << "  },\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";

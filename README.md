@@ -143,6 +143,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K51 explainability scaffold adds numeric `query_plan_confidence` derived from plan score.
 - K52 explainability scaffold adds `query_plan_warnings` tags for complex/low-confidence plans.
 - K53 explainability scaffold adds `query_plan_profile` classification (`focused|exploratory|expensive`).
+- K54 explainability scaffold adds boolean `query_plan_flags` summary (`has_negation`, `has_disjunction`, `has_detail_predicates`).
 
 ## Domain Layer (Step 3)
 
