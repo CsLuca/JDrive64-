@@ -1433,7 +1433,7 @@ Status: done
 
 ## K21 - Telemetry Query Filter Scaffold
 
-Status: in progress
+Status: done
 
 ### K21.1 Filter parsing
 
@@ -1474,6 +1474,50 @@ Status: in progress
 
 - Telemetry query filters are integrated and test-covered.
 - Ready for K22 structured query output modes and pagination.
+
+## K22 - Telemetry Query JSON and Pagination Scaffold
+
+Status: in progress
+
+### K22.1 Query output mode
+
+- Task: add structured JSON output mode for filtered telemetry dumps.
+- PASS:
+  - `telemetry-dump-mounted ... --json` emits object with metadata and entries.
+  - entries are JSON-escaped serialized telemetry lines.
+- FAIL:
+  - filtered telemetry supports text output only.
+
+### K22.2 Pagination options
+
+- Task: add offset/limit pagination over filtered telemetry results.
+- PASS:
+  - `--offset` and `--limit` are parsed and applied.
+  - pagination works with filters and `--tail` preselection.
+- FAIL:
+  - no pagination controls for filtered telemetry dumps.
+
+### K22.3 Regression coverage
+
+- Task: validate JSON+paging telemetry query in CLI smoke.
+- PASS:
+  - smoke runs filtered/paginated JSON dump command successfully.
+  - smoke validates JSON key presence (`entries`).
+- FAIL:
+  - no tests for JSON query mode.
+
+### K22 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K22 exit criteria
+
+- Telemetry query JSON output and pagination are integrated and test-covered.
+- Ready for K23 richer query DSL and cross-file search.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

@@ -213,6 +213,14 @@ int main(int argc, char** argv) {
     ok = ok && Check(telemetry_dump_filter_r.exit_code == 0,
                      "telemetry-dump-mounted with filters exits 0");
 
+    const auto telemetry_dump_json_cmd =
+        Quote(exe_path.string()) + " telemetry-dump-mounted Z: --event send.loopback --offset 0 --limit 1 --json";
+    const auto telemetry_dump_json_r = Run(telemetry_dump_json_cmd);
+    ok = ok && Check(telemetry_dump_json_r.exit_code == 0,
+                     "telemetry-dump-mounted --json with pagination exits 0");
+    ok = ok && Check(Contains(telemetry_dump_json_r.output, "\"entries\":"),
+                     "telemetry-dump-mounted --json reports entries field");
+
     const auto telemetry_clear_cmd = Quote(exe_path.string()) + " telemetry-clear-mounted Z:";
     const auto telemetry_clear_r = Run(telemetry_clear_cmd);
     ok = ok && Check(telemetry_clear_r.exit_code == 0, "telemetry-clear-mounted exits 0");

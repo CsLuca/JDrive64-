@@ -318,6 +318,9 @@ struct TelemetryDumpOptions {
   std::string event_name;
   int success_filter = -1;
   std::size_t tail = 0;
+  std::size_t offset = 0;
+  std::size_t limit = 0;
+  bool as_json = false;
 };
 
 int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDumpOptions& opt);
@@ -447,7 +450,7 @@ void PrintUsage() {
             << "  jdrive64 check-mounted <drive_letter:>\n"
             << "  jdrive64 backend-diag <image.d64> [--backend <winfsp|kdrv>] [--json]\n"
             << "  jdrive64 backend-diag-mounted <drive_letter:> [--json]\n"
-            << "  jdrive64 telemetry-dump-mounted <drive_letter:> [--event <name>] [--success <true|false>] [--tail N]\n"
+            << "  jdrive64 telemetry-dump-mounted <drive_letter:> [--event <name>] [--success <true|false>] [--tail N] [--offset N] [--limit N] [--json]\n"
             << "  jdrive64 telemetry-clear-mounted <drive_letter:>\n"
             << "  jdrive64 telemetry-list-mounted <drive_letter:>\n"
             << "  jdrive64 winfsp-preflight <image.d64> <drive_letter:>\n"
@@ -1055,8 +1058,40 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
   if (opt.tail > 0 && matched.size() > opt.tail) {
     start = matched.size() - opt.tail;
   }
+
+  std::vector<std::string> sliced;
   for (std::size_t i = start; i < matched.size(); ++i) {
-    std::cout << matched[i] << "\n";
+    sliced.push_back(matched[i]);
+  }
+
+  std::size_t page_start = opt.offset;
+  if (page_start > sliced.size()) {
+    page_start = sliced.size();
+  }
+  std::size_t page_end = sliced.size();
+  if (opt.limit > 0 && page_start + opt.limit < page_end) {
+    page_end = page_start + opt.limit;
+  }
+
+  if (opt.as_json) {
+    std::cout << "{\n";
+    std::cout << "  \"total_matched\": " << sliced.size() << ",\n";
+    std::cout << "  \"offset\": " << page_start << ",\n";
+    std::cout << "  \"limit\": " << opt.limit << ",\n";
+    std::cout << "  \"entries\": [";
+    for (std::size_t i = page_start; i < page_end; ++i) {
+      if (i != page_start) {
+        std::cout << ", ";
+      }
+      std::cout << "\"" << EscapeJson(sliced[i]) << "\"";
+    }
+    std::cout << "]\n";
+    std::cout << "}\n";
+    return 0;
+  }
+
+  for (std::size_t i = page_start; i < page_end; ++i) {
+    std::cout << sliced[i] << "\n";
   }
   return 0;
 }
@@ -1318,10 +1353,41 @@ int main(int argc, char** argv) {
         }
         continue;
       }
+      if (arg == "--offset") {
+        if (i + 1 >= argc) {
+          PrintUsage();
+          return 1;
+        }
+        try {
+          opt.offset = static_cast<std::size_t>(std::stoul(argv[++i]));
+        } catch (...) {
+          PrintUsage();
+          return 1;
+        }
+        continue;
+      }
+      if (arg == "--limit") {
+        if (i + 1 >= argc) {
+          PrintUsage();
+          return 1;
+        }
+        try {
+          opt.limit = static_cast<std::size_t>(std::stoul(argv[++i]));
+        } catch (...) {
+          PrintUsage();
+          return 1;
+        }
+        continue;
+      }
+      if (arg == "--json") {
+        opt.as_json = true;
+        continue;
+      }
       PrintUsage();
       return 1;
     }
-    if (opt.event_name.empty() && opt.success_filter == -1 && opt.tail == 0) {
+    if (opt.event_name.empty() && opt.success_filter == -1 && opt.tail == 0 && opt.offset == 0 &&
+        opt.limit == 0 && !opt.as_json) {
       return CmdTelemetryDumpMounted(argv[2]);
     }
     return CmdTelemetryDumpMountedFiltered(argv[2], opt);
