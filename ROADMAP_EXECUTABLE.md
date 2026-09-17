@@ -3031,7 +3031,7 @@ Status: done
 
 ## K61 - Query-plan Stage Count Scaffold
 
-Status: in progress
+Status: done
 
 ### K61.1 Stage count field
 
@@ -3063,6 +3063,41 @@ Status: in progress
 
 - Query-plan stage count metadata is integrated and test-covered.
 - Ready for K62 rule-count metadata scaffold.
+
+## K62 - Query-plan Rule Count Scaffold
+
+Status: in progress
+
+### K62.1 Rule count field
+
+- Task: add explicit count metadata for activated planner rules.
+- PASS:
+  - explain output includes `query_plan_rule_count`.
+  - value reflects emitted `query_plan_rule_ids` cardinality deterministically.
+- FAIL:
+  - explain output has no rule count metadata.
+
+### K62.2 Regression coverage
+
+- Task: validate rule count field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_rule_count` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for rule count metadata.
+
+### K62 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K62 exit criteria
+
+- Query-plan rule count metadata is integrated and test-covered.
+- Ready for K63 selector density metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

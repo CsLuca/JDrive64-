@@ -349,6 +349,8 @@ int main(int argc, char** argv) {
                      "telemetry-dump-mounted --explain reports query_plan_trace_id");
     ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"query_plan_stage_count\":"),
                      "telemetry-dump-mounted --explain reports query_plan_stage_count");
+    ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"query_plan_rule_count\":"),
+                     "telemetry-dump-mounted --explain reports query_plan_rule_count");
     ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"pred_event\":"),
                      "telemetry-dump-mounted --explain reports pred_event");
     ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"pred_detail\":"),

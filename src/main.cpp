@@ -2049,11 +2049,13 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
       std::cout << "  },\n";
       std::cout << "  \"query_plan_rule_ids\": [";
       bool first_rule = true;
+      std::size_t rule_count = 0;
       auto emit_rule = [&](const std::string& rule) {
         if (!first_rule) {
           std::cout << ", ";
         }
         first_rule = false;
+        ++rule_count;
         std::cout << "\"" << rule << "\"";
       };
       emit_rule("R_BASE_FILTER");
@@ -2073,6 +2075,7 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
         emit_rule("R_LOW_CONFIDENCE");
       }
       std::cout << "],\n";
+      std::cout << "  \"query_plan_rule_count\": " << rule_count << ",\n";
       const std::uint64_t trace_id_seed = StableWhereHash(opt.where_expression_normalized) ^
                                           static_cast<std::uint64_t>(opt.where_compiled.rpn.size() * 131);
       std::cout << "  \"query_plan_trace_id\": \"trace-" << trace_id_seed << "\",\n";

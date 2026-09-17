@@ -151,6 +151,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K59 explainability scaffold adds deterministic `query_plan_trace_id` correlation field.
 - K60 schema scaffold adds `explain_schema_policy` for planner metadata evolution compatibility.
 - K61 explainability scaffold adds fixed planner stage cardinality via `query_plan_stage_count`.
+- K62 explainability scaffold adds planner rule cardinality via `query_plan_rule_count`.
 
 ## Domain Layer (Step 3)
 
