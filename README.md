@@ -132,6 +132,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K40 explainability scaffold adds `normalized_where_hash` metadata for stable query fingerprinting in explain output.
 - K41 predicate-family scaffold adds `event_starts_with==...` for explicit event prefix matching.
 - K42 predicate-family scaffold adds `event_ends_with==...` for explicit event suffix matching.
+- K43 predicate-family scaffold adds case-insensitive detail contains via `detail_icontains==...`.
 
 ## Domain Layer (Step 3)
 

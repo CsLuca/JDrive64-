@@ -2348,7 +2348,7 @@ Status: done
 
 ## K42 - Event Ends-with Predicate Scaffold
 
-Status: in progress
+Status: done
 
 ### K42.1 Parser support
 
@@ -2389,6 +2389,50 @@ Status: in progress
 
 - Event ends-with predicate is integrated and test-covered.
 - Ready for K43 event detail case-insensitive predicate scaffold.
+
+## K43 - Case-insensitive Detail Contains Scaffold
+
+Status: in progress
+
+### K43.1 Parser support
+
+- Task: add case-insensitive detail contains predicate.
+- PASS:
+  - parser accepts `detail_icontains==...`.
+  - normalized where output preserves predicate form.
+- FAIL:
+  - parser rejects `detail_icontains` predicate.
+
+### K43.2 Evaluator support
+
+- Task: evaluate detail contains predicate ignoring ASCII case.
+- PASS:
+  - evaluator compares lowercased detail value and needle.
+  - deterministic behavior for mixed-case inputs.
+- FAIL:
+  - detail contains remains case-sensitive.
+
+### K43.3 Regression coverage
+
+- Task: validate case-insensitive detail-contains predicate in CLI smoke.
+- PASS:
+  - smoke executes uppercase `detail_icontains` query successfully.
+  - smoke asserts normalized output contains `detail_icontains` predicate.
+- FAIL:
+  - no tests for `detail_icontains` path.
+
+### K43 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K43 exit criteria
+
+- Case-insensitive detail contains is integrated and test-covered.
+- Ready for K44 query-plan complexity metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

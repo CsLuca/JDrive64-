@@ -332,6 +332,7 @@ struct TelemetryWherePredicate {
     kDetailPrefix,
     kDetailSuffix,
     kDetailContains,
+    kDetailIContains,
     kSuccessEquals,
   };
 
@@ -556,6 +557,9 @@ std::string FormatWhereValueNormalized(const std::string& value, bool prefer_quo
 bool JsonStringFieldContains(const std::string& line,
                              const std::string& field_name,
                              const std::string& needle);
+bool JsonStringFieldIContains(const std::string& line,
+                              const std::string& field_name,
+                              const std::string& needle);
 bool JsonStringFieldStartsWith(const std::string& line,
                                const std::string& field_name,
                                const std::string& prefix);
@@ -617,6 +621,10 @@ bool ParseWherePredicateToken(const std::string& token,
   }
   if (parse_value("detail_contains==", TelemetryWherePredicate::Kind::kDetailContains,
                   "detail_contains==")) {
+    return error_out->empty();
+  }
+  if (parse_value("detail_icontains==", TelemetryWherePredicate::Kind::kDetailIContains,
+                  "detail_icontains==")) {
     return error_out->empty();
   }
   if (parse_value("detail_prefix==", TelemetryWherePredicate::Kind::kDetailPrefix,
@@ -857,6 +865,8 @@ bool EvaluateWherePredicate(const std::string& line,
       return JsonStringFieldEndsWith(line, "detail", predicate.value);
     case TelemetryWherePredicate::Kind::kDetailContains:
       return JsonStringFieldContains(line, "detail", predicate.value);
+    case TelemetryWherePredicate::Kind::kDetailIContains:
+      return JsonStringFieldIContains(line, "detail", predicate.value);
     case TelemetryWherePredicate::Kind::kSuccessEquals:
       return success != -1 && success == predicate.success;
   }
@@ -1079,6 +1089,13 @@ bool JsonStringFieldContains(const std::string& line,
   }
   const std::string value = ExtractJsonStringField(line, field_name);
   return value.find(needle) != std::string::npos;
+}
+
+bool JsonStringFieldIContains(const std::string& line,
+                              const std::string& field_name,
+                              const std::string& needle) {
+  const std::string value = ExtractJsonStringField(line, field_name);
+  return LowerAscii(value).find(LowerAscii(needle)) != std::string::npos;
 }
 
 bool JsonStringFieldStartsWith(const std::string& line,
