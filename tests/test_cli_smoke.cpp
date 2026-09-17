@@ -236,6 +236,10 @@ int main(int argc, char** argv) {
                      "telemetry-dump-mounted --bundle exits 0");
     ok = ok && Check(Contains(telemetry_dump_bundle_r.output, "\"schema_version\": \"telemetry-query.v1\""),
                      "telemetry-dump-mounted --bundle reports schema version");
+    ok = ok && Check(Contains(telemetry_dump_bundle_r.output, "\"schema_policy\":"),
+                     "telemetry-dump-mounted --bundle reports schema policy");
+    ok = ok && Check(Contains(telemetry_dump_bundle_r.output, "\"versioning\": \"semver-compatible\""),
+                     "telemetry-dump-mounted --bundle reports schema versioning policy");
     ok = ok && Check(Contains(telemetry_dump_bundle_r.output, "\"query\":"),
                      "telemetry-dump-mounted --bundle reports query field");
     ok = ok && Check(Contains(telemetry_dump_bundle_r.output, "\"selector_mode\": \"any\""),
@@ -244,6 +248,14 @@ int main(int argc, char** argv) {
                      "telemetry-dump-mounted --bundle reports stats field");
     ok = ok && Check(Contains(telemetry_dump_bundle_r.output, "\"files_scanned\":"),
                      "telemetry-dump-mounted --bundle reports files_scanned field");
+
+    const auto telemetry_dump_norm_cmd = Quote(exe_path.string()) +
+                                         " telemetry-dump-mounted Z: --exclude-event connect.loopback --selector-mode any --bundle";
+    const auto telemetry_dump_norm_r = Run(telemetry_dump_norm_cmd);
+    ok = ok && Check(telemetry_dump_norm_r.exit_code == 0,
+                     "telemetry-dump-mounted normalized query exits 0");
+    ok = ok && Check(Contains(telemetry_dump_norm_r.output, "\"selector_mode\": \"all\""),
+                     "telemetry-dump-mounted normalizes selector mode without positive selectors");
 
     const auto telemetry_clear_cmd = Quote(exe_path.string()) + " telemetry-clear-mounted Z:";
     const auto telemetry_clear_r = Run(telemetry_clear_cmd);

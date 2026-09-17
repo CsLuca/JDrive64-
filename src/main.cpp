@@ -335,6 +335,40 @@ struct TelemetryDumpOptions {
   bool bundle = false;
 };
 
+bool HasPositiveSelectors(const TelemetryDumpOptions& opt) {
+  return !opt.include_events.empty() || !opt.event_prefix.empty() || !opt.event_contains.empty();
+}
+
+void NormalizeStringList(std::vector<std::string>* values) {
+  if (values == nullptr) {
+    return;
+  }
+
+  std::vector<std::string> filtered;
+  filtered.reserve(values->size());
+  for (const auto& value : *values) {
+    const auto trimmed = TrimAsciiWhitespace(value);
+    if (!trimmed.empty()) {
+      filtered.push_back(trimmed);
+    }
+  }
+
+  std::sort(filtered.begin(), filtered.end());
+  filtered.erase(std::unique(filtered.begin(), filtered.end()), filtered.end());
+  *values = std::move(filtered);
+}
+
+TelemetryDumpOptions NormalizeTelemetryDumpOptions(TelemetryDumpOptions opt) {
+  NormalizeStringList(&opt.include_events);
+  NormalizeStringList(&opt.exclude_events);
+  opt.event_prefix = TrimAsciiWhitespace(opt.event_prefix);
+  opt.event_contains = TrimAsciiWhitespace(opt.event_contains);
+  if (!HasPositiveSelectors(opt)) {
+    opt.selector_mode = TelemetryDumpOptions::SelectorMode::kAll;
+  }
+  return opt;
+}
+
 int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDumpOptions& opt);
 
 std::string EscapeJson(const std::string& value) {
@@ -479,7 +513,7 @@ bool TelemetryLineMatchesFilter(const std::string& line, const TelemetryDumpOpti
       return false;
     }
   } else {
-    const bool has_positive_selector = has_exact || has_prefix || has_contains;
+    const bool has_positive_selector = HasPositiveSelectors(opt);
     if (has_positive_selector && !(matches_exact || matches_prefix || matches_contains)) {
       return false;
     }
@@ -1155,6 +1189,11 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
   if (opt.as_json) {
     std::cout << "{\n";
     std::cout << "  \"schema_version\": \"telemetry-query.v1\",\n";
+    std::cout << "  \"schema_policy\": {\n";
+    std::cout << "    \"versioning\": \"semver-compatible\",\n";
+    std::cout << "    \"major_breaking_changes\": true,\n";
+    std::cout << "    \"minor_additive_changes\": true\n";
+    std::cout << "  },\n";
     std::cout << "  \"mount\": \"" << EscapeJson(mount_point) << "\",\n";
     std::cout << "  \"files_scanned\": " << files.size() << ",\n";
     std::cout << "  \"total_matched\": " << sliced.size() << ",\n";
@@ -1644,9 +1683,10 @@ int main(int argc, char** argv) {
       PrintUsage();
       return 1;
     }
-    if (opt.include_events.empty() && opt.exclude_events.empty() && opt.event_prefix.empty() &&
-        opt.event_contains.empty() && opt.success_filter == -1 && opt.tail == 0 && opt.offset == 0 &&
-        opt.limit == 0 && !opt.as_json && !opt.bundle) {
+    opt = NormalizeTelemetryDumpOptions(std::move(opt));
+
+    if (!HasPositiveSelectors(opt) && opt.exclude_events.empty() && opt.success_filter == -1 && opt.tail == 0 &&
+        opt.offset == 0 && opt.limit == 0 && !opt.as_json && !opt.bundle) {
       return CmdTelemetryDumpMounted(argv[2]);
     }
     return CmdTelemetryDumpMountedFiltered(argv[2], opt);

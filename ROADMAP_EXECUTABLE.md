@@ -1662,7 +1662,7 @@ Status: done
 
 ## K26 - Telemetry Selector Semantics and Export Schema Scaffold
 
-Status: in progress
+Status: done
 
 ### K26.1 Selector semantics
 
@@ -1703,6 +1703,50 @@ Status: in progress
 
 - Selector semantics and schema metadata are integrated and test-covered.
 - Ready for K27 query expression normalization and schema versioning policy.
+
+## K27 - Query Normalization and Schema Policy Scaffold
+
+Status: in progress
+
+### K27.1 Query normalization
+
+- Task: normalize telemetry query options into deterministic internal/output representation.
+- PASS:
+  - include/exclude event lists are trimmed, deduplicated, and stable-ordered.
+  - selector mode is normalized for selector-less positive query cases.
+- FAIL:
+  - equivalent queries can produce unstable metadata/output representation.
+
+### K27.2 Schema versioning policy metadata
+
+- Task: include explicit schema evolution policy metadata in telemetry JSON exports.
+- PASS:
+  - telemetry query JSON includes `schema_policy` object.
+  - policy states compatibility model for major/minor evolution.
+- FAIL:
+  - no explicit schema policy metadata in export payload.
+
+### K27.3 Regression coverage
+
+- Task: validate normalization and schema policy fields in CLI smoke tests.
+- PASS:
+  - smoke asserts `schema_policy.versioning` field presence.
+  - smoke validates normalized selector mode when positive selectors are absent.
+- FAIL:
+  - no tests for normalization/policy metadata behavior.
+
+### K27 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K27 exit criteria
+
+- Query normalization and schema policy metadata are integrated and test-covered.
+- Ready for K28 structured expression parser scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
