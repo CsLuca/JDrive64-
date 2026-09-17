@@ -2821,7 +2821,7 @@ Status: done
 
 ## K55 - Explain Rule-id Trace Scaffold
 
-Status: in progress
+Status: done
 
 ### K55.1 Rule-id trace list
 
@@ -2853,6 +2853,41 @@ Status: in progress
 
 - Rule-id trace metadata is integrated and test-covered.
 - Ready for K56 explain planner phase timings scaffold.
+
+## K56 - Explain Planner Phase Timings Scaffold
+
+Status: in progress
+
+### K56.1 Phase timing metadata
+
+- Task: add planner phase timing estimates in explain output.
+- PASS:
+  - explain output includes `query_plan_phase_ms` object.
+  - object includes deterministic stage timings for `parse`, `filter`, and `aggregate`.
+- FAIL:
+  - explain output has no phase timing metadata.
+
+### K56.2 Regression coverage
+
+- Task: validate phase timing field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_phase_ms` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for phase timing metadata.
+
+### K56 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K56 exit criteria
+
+- Planner phase timing metadata is integrated and test-covered.
+- Ready for K57 phase budget metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

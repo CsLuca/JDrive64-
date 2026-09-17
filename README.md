@@ -145,6 +145,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K53 explainability scaffold adds `query_plan_profile` classification (`focused|exploratory|expensive`).
 - K54 explainability scaffold adds boolean `query_plan_flags` summary (`has_negation`, `has_disjunction`, `has_detail_predicates`).
 - K55 explainability scaffold adds `query_plan_rule_ids` trace list for activated planner rules.
+- K56 explainability scaffold adds phase timing estimate metadata (`query_plan_phase_ms`) for parse/filter/aggregate stages.
 
 ## Domain Layer (Step 3)
 

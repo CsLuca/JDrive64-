@@ -2068,6 +2068,14 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
         emit_rule("R_LOW_CONFIDENCE");
       }
       std::cout << "],\n";
+      const std::size_t phase_parse_ms = 1 + (opt.where_compiled.rpn.size() / 4);
+      const std::size_t phase_filter_ms = 1 + (scanned_entries / 64);
+      const std::size_t phase_aggregate_ms = 1 + (total_by_event.size() / 8);
+      std::cout << "  \"query_plan_phase_ms\": {\n";
+      std::cout << "    \"parse\": " << phase_parse_ms << ",\n";
+      std::cout << "    \"filter\": " << phase_filter_ms << ",\n";
+      std::cout << "    \"aggregate\": " << phase_aggregate_ms << "\n";
+      std::cout << "  },\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";
