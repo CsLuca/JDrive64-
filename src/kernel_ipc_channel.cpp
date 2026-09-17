@@ -66,6 +66,10 @@ bool KernelIpcChannel::SetTransportMode(KernelTransport::Mode mode) {
   return true;
 }
 
+bool KernelIpcChannel::SetTelemetrySinkForTesting(KernelTransport::TelemetrySink* sink) {
+  return transport_.SetTelemetrySinkForTesting(sink);
+}
+
 KernelTransport::Mode KernelIpcChannel::GetTransportMode() const { return transport_.GetMode(); }
 
 KernelTransport::FeaturePolicy KernelIpcChannel::GetFeaturePolicy() const {
@@ -85,5 +89,7 @@ std::uint32_t KernelIpcChannel::NegotiatedCapabilities() const {
 std::uint32_t KernelIpcChannel::NegotiatedFeatures() const {
   return transport_.NegotiatedFeatures();
 }
+
+bool KernelIpcChannel::HasTelemetrySink() const { return transport_.HasTelemetrySink(); }
 
 }  // namespace jdrive64

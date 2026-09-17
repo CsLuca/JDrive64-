@@ -20,6 +20,7 @@ add_library(jdrive64_core
   src/file_chain_reader.cpp
   src/kernel_backend.cpp
   src/kernel_ipc_channel.cpp
+  src/kernel_telemetry_jsonl_sink.cpp
   src/kernel_transport.cpp
   src/kernel_user_bridge.cpp
   src/kernel_mount_manager.cpp

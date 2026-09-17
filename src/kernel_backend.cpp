@@ -2,6 +2,8 @@
 
 #include <sstream>
 
+#include "jdrive64/kernel_telemetry_jsonl_sink.hpp"
+
 namespace jdrive64 {
 
 bool KernelBackendController::SetTransportMode(KernelTransport::Mode mode) {
@@ -106,6 +108,12 @@ bool KernelBackendController::ReadDirectory(std::vector<std::string>* entries) {
   return true;
 }
 
+bool KernelBackendController::EnableTelemetryJsonl(const std::string& file_path) {
+  telemetry_sink_ = std::make_unique<KernelTelemetryJsonlSink>(file_path);
+  ipc_channel_.SetTelemetrySinkForTesting(telemetry_sink_.get());
+  return true;
+}
+
 std::string KernelBackendController::GetDiagnosticsText() const {
   auto mode_to_string = [](KernelTransport::Mode mode) {
     return mode == KernelTransport::Mode::kDevice ? "device" : "loopback";
@@ -124,6 +132,13 @@ std::string KernelBackendController::GetDiagnosticsText() const {
   out << "NegotiatedCapabilities=0x" << std::hex << ipc_channel_.NegotiatedCapabilities() << std::dec
       << "\n";
   out << "NegotiatedFeatures=0x" << std::hex << ipc_channel_.NegotiatedFeatures() << std::dec;
+  out << "\nTelemetrySink=" << (ipc_channel_.HasTelemetrySink() ? "enabled" : "disabled");
+  if (telemetry_sink_) {
+    const auto& err = telemetry_sink_->LastError();
+    if (!err.empty()) {
+      out << "\nTelemetryLastError=" << err;
+    }
+  }
   return out.str();
 }
 

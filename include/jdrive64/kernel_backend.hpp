@@ -1,10 +1,12 @@
 #pragma once
 
 #include <string>
+#include <memory>
 #include <vector>
 
 #include "jdrive64/kernel_ioctl_protocol.hpp"
 #include "jdrive64/kernel_ipc_channel.hpp"
+#include "jdrive64/kernel_telemetry_jsonl_sink.hpp"
 
 namespace jdrive64 {
 
@@ -21,12 +23,15 @@ class KernelBackendController {
 
   bool ReadDirectory(std::vector<std::string>* entries);
 
+  bool EnableTelemetryJsonl(const std::string& file_path);
+
   std::string GetDiagnosticsText() const;
 
   bool IsServiceRunning() const;
   const std::string& LastError() const;
 
  private:
+  std::unique_ptr<KernelTelemetryJsonlSink> telemetry_sink_;
   bool service_installed_ = false;
   bool service_running_ = false;
   KernelIpcChannel ipc_channel_;

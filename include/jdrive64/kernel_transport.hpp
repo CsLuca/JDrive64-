@@ -54,6 +54,7 @@ class KernelTransport {
 
   bool SetDeviceIoApiForTesting(DeviceIoApi* api);
   bool SetTelemetrySinkForTesting(TelemetrySink* sink);
+  bool HasTelemetrySink() const;
 
   bool Connect(const std::string& image_path);
   bool Disconnect();

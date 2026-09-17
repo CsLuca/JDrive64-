@@ -475,6 +475,8 @@ bool KernelTransport::SetTelemetrySinkForTesting(TelemetrySink* sink) {
   return true;
 }
 
+bool KernelTransport::HasTelemetrySink() const { return telemetry_sink_ != nullptr; }
+
 bool KernelTransport::BuildDeviceFrame(const KernelRequest& request,
                                        std::vector<std::uint8_t>* frame) const {
   if (frame == nullptr) {

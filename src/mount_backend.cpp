@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <string>
 
@@ -45,6 +46,14 @@ class KernelMountBackend final : public IMountBackend {
     if (!controller_.SetTransportMode(KernelTransport::Mode::kLoopback)) {
       last_error_ = controller_.LastError();
       return false;
+    }
+
+    const char* telemetry_path = std::getenv("JDRIVE64_TELEMETRY_JSONL");
+    if (telemetry_path != nullptr && *telemetry_path != '\0') {
+      if (!controller_.EnableTelemetryJsonl(telemetry_path)) {
+        last_error_ = controller_.LastError();
+        return false;
+      }
     }
 
     if (!controller_.InstallService("jdrive64ksvc.exe")) {

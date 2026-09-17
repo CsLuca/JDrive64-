@@ -1248,7 +1248,7 @@ Status: done
 
 ## K17 - Structured Transport Telemetry Scaffold
 
-Status: in progress
+Status: done
 
 ### K17.1 Telemetry sink abstraction
 
@@ -1289,6 +1289,50 @@ Status: in progress
 
 - Structured telemetry sink and event emission are integrated and test-covered.
 - Ready for K18 persistent telemetry sink and export pipeline.
+
+## K18 - Persistent Telemetry JSONL Sink Scaffold
+
+Status: in progress
+
+### K18.1 JSONL telemetry sink implementation
+
+- Task: add persistent telemetry sink writing one JSON event per line.
+- PASS:
+  - dedicated JSONL sink class exists.
+  - sink safely escapes JSON string fields and appends events.
+- FAIL:
+  - no persistent telemetry sink implementation.
+
+### K18.2 Backend wiring
+
+- Task: allow kernel backend to enable JSONL telemetry sink via environment configuration.
+- PASS:
+  - kernel backend enables sink when `JDRIVE64_TELEMETRY_JSONL` is set.
+  - diagnostics report telemetry sink status.
+- FAIL:
+  - telemetry sink cannot be enabled from runtime config.
+
+### K18.3 Regression tests
+
+- Task: validate JSONL sink persistence path.
+- PASS:
+  - tests emit transport telemetry through JSONL sink.
+  - tests validate output file contains expected event names.
+- FAIL:
+  - no tests for persistent telemetry sink.
+
+### K18 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K18 exit criteria
+
+- Persistent JSONL telemetry sink is integrated and test-covered.
+- Ready for K19 telemetry rotation/export management.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

@@ -16,12 +16,14 @@ class KernelIpcChannel {
   bool Send(const KernelRequest& request, KernelResponse* response);
 
   bool SetTransportMode(KernelTransport::Mode mode);
+  bool SetTelemetrySinkForTesting(KernelTransport::TelemetrySink* sink);
   KernelTransport::Mode GetTransportMode() const;
   KernelTransport::FeaturePolicy GetFeaturePolicy() const;
   bool IsHandshakeComplete() const;
   std::uint32_t NegotiatedProtocolVersion() const;
   std::uint32_t NegotiatedCapabilities() const;
   std::uint32_t NegotiatedFeatures() const;
+  bool HasTelemetrySink() const;
 
   bool IsConnected() const;
   const std::string& LastError() const;

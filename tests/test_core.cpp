@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <cstdio>
 #include <iterator>
 #include <string>
 #include <vector>
@@ -15,6 +16,7 @@
 #include "jdrive64/file_cache.hpp"
 #include "jdrive64/file_chain_reader.hpp"
 #include "jdrive64/kernel_backend.hpp"
+#include "jdrive64/kernel_telemetry_jsonl_sink.hpp"
 #include "jdrive64/kernel_mount_manager.hpp"
 #include "jdrive64/kernel_ipc_channel.hpp"
 #include "jdrive64/kernel_ioctl_protocol.hpp"
@@ -1816,6 +1818,48 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
   if (!Assert(policy_lock_transport.Disconnect(), "KernelTransport policy-lock instance disconnects")) {
     return false;
   }
+
+  const auto telemetry_file = std::filesystem::temp_directory_path() / "jdrive64_kernel_telemetry_test.jsonl";
+  std::error_code telemetry_ec;
+  std::filesystem::remove(telemetry_file, telemetry_ec);
+
+  jdrive64::KernelTelemetryJsonlSink jsonl_sink(telemetry_file.string());
+  KernelTransport jsonl_transport;
+  if (!Assert(jsonl_transport.SetTelemetrySinkForTesting(&jsonl_sink),
+              "KernelTransport accepts JSONL telemetry sink")) {
+    return false;
+  }
+  if (!Assert(jsonl_transport.Connect(image_path.string()),
+              "KernelTransport connects with JSONL telemetry sink")) {
+    return false;
+  }
+  if (!Assert(jsonl_transport.Send(KernelRequest{KernelOpcode::kReadDirectory, "", 0, 0, 0}, &response),
+              "KernelTransport sends with JSONL telemetry sink")) {
+    return false;
+  }
+  if (!Assert(jsonl_transport.Disconnect(),
+              "KernelTransport disconnects with JSONL telemetry sink")) {
+    return false;
+  }
+  std::ifstream telemetry_in(telemetry_file, std::ios::binary);
+  std::string telemetry_text((std::istreambuf_iterator<char>(telemetry_in)),
+                             std::istreambuf_iterator<char>());
+  if (!Assert(!telemetry_text.empty(), "KernelTelemetryJsonlSink writes telemetry file")) {
+    return false;
+  }
+  if (!Assert(telemetry_text.find("\"name\":\"connect.loopback\"") != std::string::npos,
+              "KernelTelemetryJsonlSink contains connect event")) {
+    return false;
+  }
+  if (!Assert(telemetry_text.find("\"name\":\"send.loopback\"") != std::string::npos,
+              "KernelTelemetryJsonlSink contains send event")) {
+    return false;
+  }
+  if (!Assert(telemetry_text.find("\"name\":\"disconnect.loopback\"") != std::string::npos,
+              "KernelTelemetryJsonlSink contains disconnect event")) {
+    return false;
+  }
+  std::filesystem::remove(telemetry_file, telemetry_ec);
 
   return true;
 }
