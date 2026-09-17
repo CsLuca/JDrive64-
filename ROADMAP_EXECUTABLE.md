@@ -2014,7 +2014,7 @@ Status: done
 
 ## K34 - Detail Predicate Family Scaffold
 
-Status: in progress
+Status: done
 
 ### K34.1 Detail predicate parser support
 
@@ -2055,6 +2055,50 @@ Status: in progress
 
 - Detail predicate support is integrated and test-covered.
 - Ready for K35 advanced comparison predicates.
+
+## K35 - Detail Prefix Predicate Scaffold
+
+Status: in progress
+
+### K35.1 Detail prefix parser support
+
+- Task: add detail prefix predicate for where expressions.
+- PASS:
+  - parser accepts `detail_prefix==...`.
+  - normalized where output preserves detail-prefix predicate.
+- FAIL:
+  - parser rejects detail prefix predicate.
+
+### K35.2 Detail prefix evaluator support
+
+- Task: evaluate detail prefix predicate against telemetry detail field.
+- PASS:
+  - evaluator performs starts-with match on `detail` value.
+  - missing detail field yields deterministic false.
+- FAIL:
+  - detail prefix predicate is ignored or mis-evaluated.
+
+### K35.3 Regression coverage
+
+- Task: validate detail prefix predicate in CLI smoke.
+- PASS:
+  - smoke executes detail-prefix query successfully.
+  - smoke asserts normalized output contains `detail_prefix` predicate.
+- FAIL:
+  - no tests for detail-prefix predicate.
+
+### K35 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K35 exit criteria
+
+- Detail prefix predicate is integrated and test-covered.
+- Ready for K36 detail suffix predicate scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

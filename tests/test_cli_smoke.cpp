@@ -325,6 +325,15 @@ int main(int argc, char** argv) {
                               "\"where\": \"detail_contains==success\""),
                      "telemetry-dump-mounted detail --where preserves detail predicate");
 
+    const auto telemetry_dump_where_detail_prefix_cmd = Quote(exe_path.string()) +
+                                                        " telemetry-dump-mounted Z: --where \"detail_prefix==send\" --bundle";
+    const auto telemetry_dump_where_detail_prefix_r = Run(telemetry_dump_where_detail_prefix_cmd);
+    ok = ok && Check(telemetry_dump_where_detail_prefix_r.exit_code == 0,
+                     "telemetry-dump-mounted detail prefix --where exits 0");
+    ok = ok && Check(Contains(telemetry_dump_where_detail_prefix_r.output,
+                              "\"where\": \"detail_prefix==send\""),
+                     "telemetry-dump-mounted detail prefix --where preserves predicate");
+
     const auto telemetry_clear_cmd = Quote(exe_path.string()) + " telemetry-clear-mounted Z:";
     const auto telemetry_clear_r = Run(telemetry_clear_cmd);
     ok = ok && Check(telemetry_clear_r.exit_code == 0, "telemetry-clear-mounted exits 0");
