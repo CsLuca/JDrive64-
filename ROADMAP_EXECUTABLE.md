@@ -1750,7 +1750,7 @@ Status: done
 
 ## K28 - Structured Query Expression Parser Scaffold
 
-Status: in progress
+Status: done
 
 ### K28.1 Where expression syntax
 
@@ -1791,6 +1791,50 @@ Status: in progress
 
 - Structured expression parser scaffold is integrated and test-covered.
 - Ready for K29 expression precedence/grouping scaffold.
+
+## K29 - Expression Precedence and Grouping Scaffold
+
+Status: in progress
+
+### K29.1 Precedence-aware parser
+
+- Task: add deterministic operator precedence for telemetry where-expression evaluation.
+- PASS:
+  - parser enforces `AND` precedence above `OR`.
+  - malformed operator chains still fail with explicit errors.
+- FAIL:
+  - expression evaluation remains strict left-to-right only.
+
+### K29.2 Parenthesis grouping
+
+- Task: support grouped conditions with `(` and `)`.
+- PASS:
+  - parser accepts grouped expressions and rejects unmatched parentheses.
+  - grouped expressions evaluate via compiled expression form.
+- FAIL:
+  - no parenthesis support in expression parser.
+
+### K29.3 Regression coverage
+
+- Task: validate grouped expression queries in CLI smoke.
+- PASS:
+  - smoke executes grouped `--where` expression successfully.
+  - smoke asserts normalized grouped expression in JSON query metadata.
+- FAIL:
+  - no test coverage for precedence/grouping behavior.
+
+### K29 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K29 exit criteria
+
+- Expression precedence/grouping scaffold is integrated and test-covered.
+- Ready for K30 expression token quoting and escaped-value support.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

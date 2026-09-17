@@ -318,28 +318,6 @@ int CmdTelemetryClearMounted(std::string mount_point);
 int CmdTelemetryListMounted(std::string mount_point);
 int CmdTelemetryStatsMounted(std::string mount_point, bool as_json);
 
-struct TelemetryDumpOptions {
-  enum class SelectorMode {
-    kAll,
-    kAny,
-  };
-
-  std::vector<std::string> include_events;
-  std::vector<std::string> exclude_events;
-  std::string event_prefix;
-  std::string event_contains;
-  std::string where_expression;
-  std::string where_expression_normalized;
-  SelectorMode selector_mode = SelectorMode::kAll;
-  int success_filter = -1;
-  std::size_t tail = 0;
-  std::size_t offset = 0;
-  std::size_t limit = 0;
-  bool as_json = false;
-  bool bundle = false;
-  bool where_enabled = false;
-};
-
 struct TelemetryWherePredicate {
   enum class Kind {
     kEventEquals,
@@ -354,9 +332,97 @@ struct TelemetryWherePredicate {
 };
 
 struct TelemetryWhereExpression {
-  std::vector<TelemetryWherePredicate> predicates;
-  std::vector<bool> is_or;
+  struct CompiledToken {
+    enum class Kind {
+      kPredicate,
+      kAnd,
+      kOr,
+    };
+
+    Kind kind = Kind::kPredicate;
+    TelemetryWherePredicate predicate;
+  };
+
+  std::vector<CompiledToken> rpn;
 };
+
+struct TelemetryDumpOptions {
+  enum class SelectorMode {
+    kAll,
+    kAny,
+  };
+
+  std::vector<std::string> include_events;
+  std::vector<std::string> exclude_events;
+  std::string event_prefix;
+  std::string event_contains;
+  std::string where_expression;
+  std::string where_expression_normalized;
+  TelemetryWhereExpression where_compiled;
+  SelectorMode selector_mode = SelectorMode::kAll;
+  int success_filter = -1;
+  std::size_t tail = 0;
+  std::size_t offset = 0;
+  std::size_t limit = 0;
+  bool as_json = false;
+  bool bundle = false;
+  bool where_enabled = false;
+};
+
+std::string UpperAscii(std::string value) {
+  for (char& c : value) {
+    c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+  }
+  return value;
+}
+
+bool TokenizeWhereExpression(const std::string& expression,
+                             std::vector<std::string>* tokens_out,
+                             std::string* error_out) {
+  if (tokens_out == nullptr || error_out == nullptr) {
+    return false;
+  }
+
+  tokens_out->clear();
+  std::string current;
+  for (char c : expression) {
+    if (c == '(' || c == ')') {
+      if (!current.empty()) {
+        tokens_out->push_back(current);
+        current.clear();
+      }
+      tokens_out->push_back(std::string(1, c));
+      continue;
+    }
+    if (std::isspace(static_cast<unsigned char>(c))) {
+      if (!current.empty()) {
+        tokens_out->push_back(current);
+        current.clear();
+      }
+      continue;
+    }
+    current.push_back(c);
+  }
+  if (!current.empty()) {
+    tokens_out->push_back(current);
+  }
+
+  if (tokens_out->empty()) {
+    *error_out = "where expression cannot be empty";
+    return false;
+  }
+  return true;
+}
+
+int WhereOperatorPrecedence(const std::string& op_upper) {
+  if (op_upper == "AND") {
+    return 2;
+  }
+  if (op_upper == "OR") {
+    return 1;
+  }
+  return 0;
+}
 
 bool ParseWherePredicateToken(const std::string& token,
                               TelemetryWherePredicate* predicate_out,
@@ -429,67 +495,134 @@ bool ParseWhereExpression(const std::string& expression,
     return false;
   }
 
-  std::istringstream in(trimmed);
   std::vector<std::string> tokens;
-  std::string token;
-  while (in >> token) {
-    tokens.push_back(token);
-  }
-
-  if (tokens.empty()) {
-    *error_out = "where expression cannot be empty";
+  if (!TokenizeWhereExpression(trimmed, &tokens, error_out)) {
     return false;
   }
 
-  TelemetryWhereExpression parsed;
+  std::vector<TelemetryWhereExpression::CompiledToken> output;
+  std::vector<std::string> op_stack;
   std::string normalized;
   bool expect_predicate = true;
+
   for (const auto& t : tokens) {
-    if (expect_predicate) {
-      TelemetryWherePredicate predicate;
-      std::string normalized_predicate;
-      std::string parse_error;
-      if (!ParseWherePredicateToken(t, &predicate, &normalized_predicate, &parse_error)) {
-        *error_out = parse_error;
+    if (t == "(") {
+      if (!expect_predicate) {
+        *error_out = "where expression missing operator before (";
         return false;
       }
-      parsed.predicates.push_back(std::move(predicate));
+      op_stack.push_back(t);
       if (!normalized.empty()) {
         normalized += " ";
       }
-      normalized += normalized_predicate;
-      expect_predicate = false;
+      normalized += "(";
       continue;
     }
 
-    std::string upper = t;
-    for (char& c : upper) {
-      c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    if (t == ")") {
+      if (expect_predicate) {
+        *error_out = "where expression has empty group or trailing operator before )";
+        return false;
+      }
+      bool found_open = false;
+      while (!op_stack.empty()) {
+        const std::string top = op_stack.back();
+        op_stack.pop_back();
+        if (top == "(") {
+          found_open = true;
+          break;
+        }
+        TelemetryWhereExpression::CompiledToken op_token;
+        op_token.kind = UpperAscii(top) == "AND"
+                            ? TelemetryWhereExpression::CompiledToken::Kind::kAnd
+                            : TelemetryWhereExpression::CompiledToken::Kind::kOr;
+        output.push_back(op_token);
+      }
+      if (!found_open) {
+        *error_out = "where expression has unmatched )";
+        return false;
+      }
+      normalized += " )";
+      continue;
     }
-    if (upper == "AND") {
-      parsed.is_or.push_back(false);
-      normalized += " AND";
-    } else if (upper == "OR") {
-      parsed.is_or.push_back(true);
-      normalized += " OR";
-    } else {
-      *error_out = "where expression expects AND or OR, got: " + t;
+
+    const std::string upper = UpperAscii(t);
+    if (upper == "AND" || upper == "OR") {
+      if (expect_predicate) {
+        *error_out = "where expression expects predicate before operator " + upper;
+        return false;
+      }
+      while (!op_stack.empty()) {
+        const std::string top = UpperAscii(op_stack.back());
+        if (top == "(") {
+          break;
+        }
+        if (WhereOperatorPrecedence(top) < WhereOperatorPrecedence(upper)) {
+          break;
+        }
+        const std::string popped = UpperAscii(op_stack.back());
+        op_stack.pop_back();
+        TelemetryWhereExpression::CompiledToken op_token;
+        op_token.kind = popped == "AND" ? TelemetryWhereExpression::CompiledToken::Kind::kAnd
+                                          : TelemetryWhereExpression::CompiledToken::Kind::kOr;
+        output.push_back(op_token);
+      }
+      op_stack.push_back(upper);
+      normalized += " " + upper;
+      expect_predicate = true;
+      continue;
+    }
+
+    if (!expect_predicate) {
+      *error_out = "where expression missing operator before token: " + t;
       return false;
     }
-    expect_predicate = true;
+
+    TelemetryWherePredicate predicate;
+    std::string normalized_predicate;
+    std::string parse_error;
+    if (!ParseWherePredicateToken(t, &predicate, &normalized_predicate, &parse_error)) {
+      *error_out = parse_error;
+      return false;
+    }
+
+    TelemetryWhereExpression::CompiledToken predicate_token;
+    predicate_token.kind = TelemetryWhereExpression::CompiledToken::Kind::kPredicate;
+    predicate_token.predicate = std::move(predicate);
+    output.push_back(std::move(predicate_token));
+
+    if (!normalized.empty() && normalized.back() != '(' && normalized.back() != ' ') {
+      normalized += " ";
+    }
+    normalized += normalized_predicate;
+    expect_predicate = false;
   }
 
   if (expect_predicate) {
     *error_out = "where expression cannot end with logical operator";
     return false;
   }
-  if (parsed.is_or.size() + 1 != parsed.predicates.size()) {
+
+  while (!op_stack.empty()) {
+    const std::string top = UpperAscii(op_stack.back());
+    op_stack.pop_back();
+    if (top == "(") {
+      *error_out = "where expression has unmatched (";
+      return false;
+    }
+    TelemetryWhereExpression::CompiledToken op_token;
+    op_token.kind = top == "AND" ? TelemetryWhereExpression::CompiledToken::Kind::kAnd
+                                   : TelemetryWhereExpression::CompiledToken::Kind::kOr;
+    output.push_back(op_token);
+  }
+
+  if (output.empty()) {
     *error_out = "where expression is malformed";
     return false;
   }
 
-  *where_out = std::move(parsed);
-  *normalized_out = std::move(normalized);
+  where_out->rpn = std::move(output);
+  *normalized_out = TrimAsciiWhitespace(std::move(normalized));
   return true;
 }
 
@@ -510,20 +643,37 @@ bool EvaluateWherePredicate(const std::string& name, int success, const Telemetr
 bool EvaluateWhereExpression(const std::string& name,
                             int success,
                             const TelemetryWhereExpression& where_expression) {
-  if (where_expression.predicates.empty()) {
+  if (where_expression.rpn.empty()) {
     return true;
   }
 
-  bool acc = EvaluateWherePredicate(name, success, where_expression.predicates[0]);
-  for (std::size_t i = 1; i < where_expression.predicates.size(); ++i) {
-    const bool rhs = EvaluateWherePredicate(name, success, where_expression.predicates[i]);
-    if (where_expression.is_or[i - 1]) {
-      acc = acc || rhs;
+  std::vector<bool> eval_stack;
+  for (const auto& token : where_expression.rpn) {
+    if (token.kind == TelemetryWhereExpression::CompiledToken::Kind::kPredicate) {
+      eval_stack.push_back(EvaluateWherePredicate(name, success, token.predicate));
+      continue;
+    }
+
+    if (eval_stack.size() < 2) {
+      return false;
+    }
+
+    const bool rhs = eval_stack.back();
+    eval_stack.pop_back();
+    const bool lhs = eval_stack.back();
+    eval_stack.pop_back();
+
+    if (token.kind == TelemetryWhereExpression::CompiledToken::Kind::kAnd) {
+      eval_stack.push_back(lhs && rhs);
     } else {
-      acc = acc && rhs;
+      eval_stack.push_back(lhs || rhs);
     }
   }
-  return acc;
+
+  if (eval_stack.size() != 1) {
+    return false;
+  }
+  return eval_stack[0];
 }
 
 bool HasPositiveSelectors(const TelemetryDumpOptions& opt) {
@@ -568,8 +718,10 @@ bool NormalizeTelemetryDumpOptions(TelemetryDumpOptions* opt, std::string* error
       return false;
     }
     opt->where_expression_normalized = std::move(normalized_where);
+    opt->where_compiled = std::move(parsed_where);
   } else {
     opt->where_expression_normalized.clear();
+    opt->where_compiled = TelemetryWhereExpression{};
   }
 
   if (!HasPositiveSelectors(*opt)) {
@@ -692,16 +844,7 @@ bool TelemetryLineMatchesFilter(const std::string& line, const TelemetryDumpOpti
   const int success = ExtractJsonBoolField(line, "success");
 
   if (opt.where_enabled) {
-    TelemetryWhereExpression parsed_where;
-    std::string normalized_where;
-    std::string parse_error;
-    const std::string& expression = opt.where_expression_normalized.empty()
-                                        ? opt.where_expression
-                                        : opt.where_expression_normalized;
-    if (!ParseWhereExpression(expression, &parsed_where, &normalized_where, &parse_error)) {
-      return false;
-    }
-    if (!EvaluateWhereExpression(name, success, parsed_where)) {
+    if (!EvaluateWhereExpression(name, success, opt.where_compiled)) {
       return false;
     }
   }

@@ -265,6 +265,20 @@ int main(int argc, char** argv) {
     ok = ok && Check(Contains(telemetry_dump_where_r.output, "\"where\": \"event_prefix==send. AND success==true\""),
                      "telemetry-dump-mounted --where reports normalized expression");
 
+    const auto telemetry_dump_where_grouped_cmd = Quote(exe_path.string()) +
+                                                  " telemetry-dump-mounted Z: --where \"( event_prefix==send. AND success==true ) OR event==disconnect.loopback\" --bundle";
+    const auto telemetry_dump_where_grouped_r = Run(telemetry_dump_where_grouped_cmd);
+    ok = ok && Check(telemetry_dump_where_grouped_r.exit_code == 0,
+                     "telemetry-dump-mounted grouped --where exits 0");
+    ok = ok && Check(Contains(telemetry_dump_where_grouped_r.output, "\"where\":"),
+                     "telemetry-dump-mounted grouped --where reports where field");
+    ok = ok && Check(Contains(telemetry_dump_where_grouped_r.output,
+                              "event_prefix==send. AND success==true"),
+                     "telemetry-dump-mounted grouped --where keeps grouped conjunction");
+    ok = ok && Check(Contains(telemetry_dump_where_grouped_r.output,
+                              "OR event==disconnect.loopback"),
+                     "telemetry-dump-mounted grouped --where keeps OR branch");
+
     const auto telemetry_clear_cmd = Quote(exe_path.string()) + " telemetry-clear-mounted Z:";
     const auto telemetry_clear_r = Run(telemetry_clear_cmd);
     ok = ok && Check(telemetry_clear_r.exit_code == 0, "telemetry-clear-mounted exits 0");
