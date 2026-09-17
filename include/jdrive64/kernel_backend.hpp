@@ -10,6 +10,9 @@ namespace jdrive64 {
 
 class KernelBackendController {
  public:
+  bool SetTransportMode(KernelTransport::Mode mode);
+  KernelTransport::Mode GetTransportMode() const;
+
   bool InstallService(const std::string& service_path);
   bool RemoveService();
 

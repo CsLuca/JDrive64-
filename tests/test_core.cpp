@@ -1,4 +1,5 @@
 #include <array>
+#include <cstring>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -17,6 +18,7 @@
 #include "jdrive64/kernel_ipc_channel.hpp"
 #include "jdrive64/kernel_ioctl_protocol.hpp"
 #include "jdrive64/kernel_readonly_fs.hpp"
+#include "jdrive64/kernel_transport.hpp"
 #include "jdrive64/kernel_user_bridge.hpp"
 #include "jdrive64/mount_backend.hpp"
 #include "jdrive64/sector_cache.hpp"
@@ -41,6 +43,7 @@ using jdrive64::KernelOpcode;
 using jdrive64::KernelRequest;
 using jdrive64::KernelResponse;
 using jdrive64::KernelReadOnlyFilesystem;
+using jdrive64::KernelTransport;
 using jdrive64::KernelUserBridge;
 using jdrive64::SectorCache;
 using jdrive64::WinFspAdapter;
@@ -993,6 +996,23 @@ bool TestKernelUserBridgeScaffold(const std::filesystem::path& image_path) {
 bool TestKernelIpcChannelScaffold(const std::filesystem::path& image_path) {
   KernelIpcChannel channel;
 
+  if (!Assert(channel.GetTransportMode() == KernelTransport::Mode::kLoopback,
+              "KernelIpcChannel default transport mode is loopback")) {
+    return false;
+  }
+  if (!Assert(channel.SetTransportMode(KernelTransport::Mode::kDevice),
+              "KernelIpcChannel transport mode setter accepts device")) {
+    return false;
+  }
+  if (!Assert(channel.GetTransportMode() == KernelTransport::Mode::kDevice,
+              "KernelIpcChannel transport mode setter works")) {
+    return false;
+  }
+  if (!Assert(channel.SetTransportMode(KernelTransport::Mode::kLoopback),
+              "KernelIpcChannel transport mode setter accepts loopback")) {
+    return false;
+  }
+
   KernelResponse response;
   if (!Assert(!channel.Send(KernelRequest{KernelOpcode::kReadDirectory, "", 0, 0, 0}, &response),
               "KernelIpcChannel send fails before connect")) {
@@ -1000,6 +1020,14 @@ bool TestKernelIpcChannelScaffold(const std::filesystem::path& image_path) {
   }
 
   if (!Assert(channel.Connect(image_path.string()), "KernelIpcChannel connect")) {
+    return false;
+  }
+  if (!Assert(!channel.SetTransportMode(KernelTransport::Mode::kDevice),
+              "KernelIpcChannel rejects mode switch while connected")) {
+    return false;
+  }
+  if (!Assert(channel.LastError().find("while connected") != std::string::npos,
+              "KernelIpcChannel reports connected mode-switch error")) {
     return false;
   }
   if (!Assert(channel.IsConnected(), "KernelIpcChannel connected state")) {
@@ -1025,6 +1053,127 @@ bool TestKernelIpcChannelScaffold(const std::filesystem::path& image_path) {
   return true;
 }
 
+bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
+  KernelTransport transport;
+
+  if (!Assert(transport.GetMode() == KernelTransport::Mode::kLoopback,
+              "KernelTransport default mode is loopback")) {
+    return false;
+  }
+
+  KernelResponse response;
+  if (!Assert(!transport.Send(KernelRequest{KernelOpcode::kReadDirectory, "", 0, 0, 0}, &response),
+              "KernelTransport send fails before connect")) {
+    return false;
+  }
+
+  if (!Assert(transport.Connect(image_path.string()), "KernelTransport loopback connect")) {
+    return false;
+  }
+  if (!Assert(!transport.SetMode(KernelTransport::Mode::kDevice),
+              "KernelTransport rejects mode switch while connected")) {
+    return false;
+  }
+  if (!Assert(transport.LastError().find("while connected") != std::string::npos,
+              "KernelTransport mode switch error is explicit")) {
+    return false;
+  }
+  if (!Assert(transport.Send(KernelRequest{KernelOpcode::kReadDirectory, "", 0, 0, 0}, &response),
+              "KernelTransport loopback send")) {
+    return false;
+  }
+  if (!Assert(response.success && response.directory_entries.size() == 1,
+              "KernelTransport loopback response")) {
+    return false;
+  }
+  if (!Assert(transport.Disconnect(), "KernelTransport loopback disconnect")) {
+    return false;
+  }
+
+  if (!Assert(transport.SetMode(KernelTransport::Mode::kDevice),
+              "KernelTransport switches to device mode before connect")) {
+    return false;
+  }
+  if (!Assert(!transport.Connect(image_path.string()), "KernelTransport device connect not available in scaffold")) {
+    return false;
+  }
+  if (!Assert(transport.LastError().find("not available") != std::string::npos,
+              "KernelTransport device connect error is explicit")) {
+    return false;
+  }
+
+  if (!Assert(transport.SetMode(KernelTransport::Mode::kLoopback),
+              "KernelTransport reset to loopback after failed device connect")) {
+    return false;
+  }
+  if (!Assert(transport.Connect(image_path.string()), "KernelTransport reconnect loopback")) {
+    return false;
+  }
+  if (!Assert(transport.Disconnect(), "KernelTransport disconnect succeeds after resetting loopback mode")) {
+    return false;
+  }
+
+  if (!Assert(transport.SetMode(KernelTransport::Mode::kDevice),
+              "KernelTransport switches to device mode when disconnected")) {
+    return false;
+  }
+  if (!Assert(!transport.Connect(image_path.string()), "KernelTransport device connect not available in scaffold")) {
+    return false;
+  }
+  if (!Assert(transport.LastError().find("not available") != std::string::npos,
+              "KernelTransport device connect error is explicit")) {
+    return false;
+  }
+
+  std::vector<std::uint8_t> frame;
+  const KernelRequest request{KernelOpcode::kReadFile, "HELLO.PRG", 42, 7, 128};
+  if (!Assert(transport.BuildDeviceFrame(request, &frame), "KernelTransport builds device request frame")) {
+    return false;
+  }
+  if (!Assert(frame.size() == (sizeof(std::uint32_t) + sizeof(std::uint64_t) + sizeof(std::uint64_t) +
+                                 sizeof(std::uint32_t) + sizeof(std::uint32_t) + request.windows_name.size()),
+              "KernelTransport frame size matches header plus path")) {
+    return false;
+  }
+
+  std::uint32_t probe_opcode = 0;
+  std::uint64_t probe_handle = 0;
+  std::uint64_t probe_offset = 0;
+  std::uint32_t probe_size = 0;
+  std::uint32_t probe_path_bytes = 0;
+  std::memcpy(&probe_opcode, frame.data(), sizeof(probe_opcode));
+  std::memcpy(&probe_handle, frame.data() + sizeof(std::uint32_t), sizeof(probe_handle));
+  std::memcpy(&probe_offset, frame.data() + sizeof(std::uint32_t) + sizeof(std::uint64_t), sizeof(probe_offset));
+  std::memcpy(&probe_size,
+              frame.data() + sizeof(std::uint32_t) + sizeof(std::uint64_t) + sizeof(std::uint64_t),
+              sizeof(probe_size));
+  std::memcpy(&probe_path_bytes,
+              frame.data() + sizeof(std::uint32_t) + sizeof(std::uint64_t) + sizeof(std::uint64_t) +
+                  sizeof(std::uint32_t),
+              sizeof(probe_path_bytes));
+  if (!Assert(probe_opcode == static_cast<std::uint32_t>(KernelOpcode::kReadFile),
+              "KernelTransport frame opcode encoded")) {
+    return false;
+  }
+  if (!Assert(probe_handle == 42 && probe_offset == 7 && probe_size == 128,
+              "KernelTransport frame numeric payload encoded")) {
+    return false;
+  }
+  if (!Assert(probe_path_bytes == request.windows_name.size(),
+              "KernelTransport frame path length encoded")) {
+    return false;
+  }
+  const std::string encoded_path(
+      reinterpret_cast<const char*>(frame.data() + sizeof(std::uint32_t) + sizeof(std::uint64_t) +
+                                    sizeof(std::uint64_t) + sizeof(std::uint32_t) + sizeof(std::uint32_t)),
+      probe_path_bytes);
+  if (!Assert(encoded_path == request.windows_name, "KernelTransport frame path encoded")) {
+    return false;
+  }
+
+  return true;
+}
+
 }  // namespace
 
 int main() {
@@ -1043,6 +1192,7 @@ int main() {
   ok = ok && TestKernelReadOnlyFilesystemScaffold(image_path);
   ok = ok && TestKernelUserBridgeScaffold(image_path);
   ok = ok && TestKernelIpcChannelScaffold(image_path);
+  ok = ok && TestKernelTransportScaffold(image_path);
   ok = ok && TestWinFspAdapterScaffold(image_path);
   ok = ok && TestWinFspRuntimeScaffold(image_path);
 

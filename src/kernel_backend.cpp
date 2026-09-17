@@ -2,6 +2,19 @@
 
 namespace jdrive64 {
 
+bool KernelBackendController::SetTransportMode(KernelTransport::Mode mode) {
+  if (!ipc_channel_.SetTransportMode(mode)) {
+    last_error_ = ipc_channel_.LastError();
+    return false;
+  }
+  last_error_.clear();
+  return true;
+}
+
+KernelTransport::Mode KernelBackendController::GetTransportMode() const {
+  return ipc_channel_.GetTransportMode();
+}
+
 bool KernelBackendController::InstallService(const std::string& service_path) {
   if (service_path.empty()) {
     last_error_ = "Invalid service path";

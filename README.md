@@ -96,6 +96,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K4 read-only catalog/open/read scaffolding is available internally for kdrv request path shaping.
 - K5 IOCTL-like bridge scaffolding (`KernelUserBridge`) now maps opcode requests to K4 read-only handlers.
 - K6 IPC channel scaffold (`KernelIpcChannel`) is wired in controller lifecycle for directory request flow.
+- K7 transport scaffold (`KernelTransport`) introduces loopback/device modes and placeholder device-channel connect.
 
 ## Domain Layer (Step 3)
 

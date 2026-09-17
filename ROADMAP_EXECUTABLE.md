@@ -660,7 +660,7 @@ Status: done
 
 ## K6 - Service IPC Channel Scaffold
 
-Status: in progress
+Status: done
 
 ### K6.1 IPC channel abstraction
 
@@ -711,6 +711,60 @@ Status: in progress
 - IPC channel scaffold is integrated in controller and kdrv dispatch path.
 - Lifecycle and dispatch behavior are test-covered.
 - Ready for K7 real kernel driver transport channel implementation.
+
+## K7 - Transport Mode Scaffold
+
+Status: in progress
+
+### K7.1 Transport abstraction
+
+- Task: introduce transport abstraction to separate loopback and device-channel modes.
+- PASS:
+  - `include/jdrive64/kernel_transport.hpp` exists.
+  - `src/kernel_transport.cpp` exists.
+  - API supports mode selection, connect/disconnect/send.
+- FAIL:
+  - IPC path has no transport abstraction.
+
+### K7.2 IPC integration
+
+- Task: route IPC channel through transport abstraction.
+- PASS:
+  - `KernelIpcChannel` delegates connect/send/disconnect to transport.
+  - transport mode can be queried/set from IPC channel.
+- FAIL:
+  - IPC channel still directly owns bridge dispatch.
+
+### K7.3 Device-mode placeholder
+
+- Task: provide placeholder Windows device-channel connect path for future driver wiring.
+- PASS:
+  - transport attempts opening `\\.\JDrive64Kdrv` in device mode.
+  - deterministic not-implemented request path for device mode.
+- FAIL:
+  - no device-mode path prepared.
+
+### K7.4 Test coverage
+
+- Task: add transport lifecycle tests.
+- PASS:
+  - tests cover loopback mode send flow.
+  - tests cover device mode connect failure contract in current scaffold.
+- FAIL:
+  - no tests for transport modes.
+
+### K7 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K7 exit criteria
+
+- Transport abstraction is integrated and test-covered.
+- Device-mode connect placeholder exists for real driver channel wiring in K8.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

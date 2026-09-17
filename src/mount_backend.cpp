@@ -36,6 +36,11 @@ class WinFspMountBackend final : public IMountBackend {
 class KernelMountBackend final : public IMountBackend {
  public:
   bool MountReadOnly(const std::string& image_path, const std::string& mount_point) override {
+    if (!controller_.SetTransportMode(KernelTransport::Mode::kLoopback)) {
+      last_error_ = controller_.LastError();
+      return false;
+    }
+
     if (!controller_.InstallService("jdrive64ksvc.exe")) {
       last_error_ = controller_.LastError();
       return false;
@@ -53,8 +58,8 @@ class KernelMountBackend final : public IMountBackend {
     }
 
     mounted_ = true;
-    last_error_ = mount_manager_.LastError();
-    return false;
+    last_error_.clear();
+    return true;
   }
 
   bool Unmount(const std::string& mount_point) override {
@@ -93,7 +98,7 @@ class KernelMountBackend final : public IMountBackend {
   }
 
   std::string GetVolumeInfoText() const override {
-    return "Kernel backend scaffold active (K4 RO catalog/open/read path scaffolded)";
+    return "Kernel backend scaffold active (K7 transport loopback mode)";
   }
 
   const std::string& LastError() const override { return last_error_; }

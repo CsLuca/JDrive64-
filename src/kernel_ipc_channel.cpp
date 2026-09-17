@@ -8,8 +8,8 @@ bool KernelIpcChannel::Connect(const std::string& image_path) {
     return false;
   }
 
-  if (!bridge_.Initialize(image_path)) {
-    last_error_ = bridge_.LastError();
+  if (!transport_.Connect(image_path)) {
+    last_error_ = transport_.LastError();
     return false;
   }
 
@@ -24,6 +24,11 @@ bool KernelIpcChannel::Disconnect() {
     return false;
   }
 
+  if (!transport_.Disconnect()) {
+    last_error_ = transport_.LastError();
+    return false;
+  }
+
   connected_ = false;
   last_error_.clear();
   return true;
@@ -35,7 +40,7 @@ bool KernelIpcChannel::Send(const KernelRequest& request, KernelResponse* respon
     return false;
   }
 
-  if (!bridge_.Dispatch(request, response)) {
+  if (!transport_.Send(request, response)) {
     if (response != nullptr && !response->error.empty()) {
       last_error_ = response->error;
     } else {
@@ -51,5 +56,16 @@ bool KernelIpcChannel::Send(const KernelRequest& request, KernelResponse* respon
 bool KernelIpcChannel::IsConnected() const { return connected_; }
 
 const std::string& KernelIpcChannel::LastError() const { return last_error_; }
+
+bool KernelIpcChannel::SetTransportMode(KernelTransport::Mode mode) {
+  if (!transport_.SetMode(mode)) {
+    last_error_ = transport_.LastError();
+    return false;
+  }
+  last_error_.clear();
+  return true;
+}
+
+KernelTransport::Mode KernelIpcChannel::GetTransportMode() const { return transport_.GetMode(); }
 
 }  // namespace jdrive64

@@ -1,28 +1,38 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
+#include <vector>
 
 #include "jdrive64/kernel_ioctl_protocol.hpp"
-#include "jdrive64/kernel_transport.hpp"
+#include "jdrive64/kernel_user_bridge.hpp"
 
 namespace jdrive64 {
 
-class KernelIpcChannel {
+class KernelTransport {
  public:
+  enum class Mode {
+    kLoopback = 0,
+    kDevice,
+  };
+
+  bool SetMode(Mode mode);
+  Mode GetMode() const;
+
   bool Connect(const std::string& image_path);
   bool Disconnect();
-
   bool Send(const KernelRequest& request, KernelResponse* response);
 
-  bool SetTransportMode(KernelTransport::Mode mode);
-  KernelTransport::Mode GetTransportMode() const;
+  bool BuildDeviceFrame(const KernelRequest& request, std::vector<std::uint8_t>* frame) const;
 
   bool IsConnected() const;
   const std::string& LastError() const;
 
  private:
+  Mode mode_ = Mode::kLoopback;
   bool connected_ = false;
-  KernelTransport transport_;
+  void* device_handle_ = nullptr;
+  KernelUserBridge bridge_;
   std::string last_error_;
 };
 
