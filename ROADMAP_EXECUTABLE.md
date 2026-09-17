@@ -3241,7 +3241,7 @@ Status: done
 
 ## K67 - Query-plan Predicate Density Scaffold
 
-Status: in progress
+Status: done
 
 ### K67.1 Predicate density field
 
@@ -3273,6 +3273,41 @@ Status: in progress
 
 - Query-plan predicate density metadata is integrated and test-covered.
 - Ready for K68 negation ratio metadata scaffold.
+
+## K68 - Query-plan Negation Ratio Scaffold
+
+Status: in progress
+
+### K68.1 Negation ratio field
+
+- Task: add metadata for unary-negation intensity in compiled plans.
+- PASS:
+  - explain output includes `query_plan_negation_ratio`.
+  - value is deterministic and safe when predicate count is zero.
+- FAIL:
+  - explain output has no negation ratio metadata.
+
+### K68.2 Regression coverage
+
+- Task: validate negation ratio field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_negation_ratio` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for negation ratio metadata.
+
+### K68 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K68 exit criteria
+
+- Query-plan negation ratio metadata is integrated and test-covered.
+- Ready for K69 stage budget ratio metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

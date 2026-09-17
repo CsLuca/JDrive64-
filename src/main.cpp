@@ -2124,6 +2124,11 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
                                            : static_cast<double>(rpn_predicates) /
                                                  static_cast<double>(opt.where_compiled.rpn.size());
       std::cout << "  \"query_plan_predicate_density\": " << predicate_density << ",\n";
+      const double negation_ratio = rpn_predicates == 0
+                                        ? 0.0
+                                        : static_cast<double>(rpn_not) /
+                                              static_cast<double>(rpn_predicates);
+      std::cout << "  \"query_plan_negation_ratio\": " << negation_ratio << ",\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";
