@@ -135,6 +135,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K43 predicate-family scaffold adds case-insensitive detail contains via `detail_icontains==...`.
 - K44 explainability scaffold adds `query_plan_complexity` classification (`simple|moderate|complex`).
 - K45 explainability scaffold adds numeric `query_plan_score` for quick query complexity ranking.
+- K46 explainability scaffold adds predicate-kind counters (`pred_event`, `pred_detail`, `pred_success`) in query-plan metadata.
 
 ## Domain Layer (Step 3)
 

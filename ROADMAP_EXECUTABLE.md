@@ -2471,7 +2471,7 @@ Status: done
 
 ## K45 - Query-plan Score Metadata Scaffold
 
-Status: in progress
+Status: done
 
 ### K45.1 Explain score field
 
@@ -2503,6 +2503,41 @@ Status: in progress
 
 - Query-plan score metadata is integrated and test-covered.
 - Ready for K46 explain predicate-kind counters scaffold.
+
+## K46 - Explain Predicate-kind Counter Scaffold
+
+Status: in progress
+
+### K46.1 Predicate-kind counters
+
+- Task: extend explain output with predicate category counters.
+- PASS:
+  - `query_plan` includes `pred_event`, `pred_detail`, and `pred_success`.
+  - counters reflect compiled predicate kinds deterministically.
+- FAIL:
+  - explain output lacks predicate-kind counters.
+
+### K46.2 Regression coverage
+
+- Task: validate predicate-kind counters in CLI smoke.
+- PASS:
+  - smoke asserts `pred_event`, `pred_detail`, and `pred_success` fields.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for predicate-kind counters.
+
+### K46 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K46 exit criteria
+
+- Predicate-kind counters are integrated and test-covered.
+- Ready for K47 explain/filter scan-efficiency metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

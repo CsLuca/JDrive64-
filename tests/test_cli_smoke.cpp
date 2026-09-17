@@ -325,6 +325,12 @@ int main(int argc, char** argv) {
                      "telemetry-dump-mounted --explain reports query_plan_complexity");
     ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"query_plan_score\":"),
                      "telemetry-dump-mounted --explain reports query_plan_score");
+    ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"pred_event\":"),
+                     "telemetry-dump-mounted --explain reports pred_event");
+    ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"pred_detail\":"),
+                     "telemetry-dump-mounted --explain reports pred_detail");
+    ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"pred_success\":"),
+                     "telemetry-dump-mounted --explain reports pred_success");
 
     const auto telemetry_dump_where_detail_cmd = Quote(exe_path.string()) +
                                                  " telemetry-dump-mounted Z: --where \"detail_contains==success\" --bundle";

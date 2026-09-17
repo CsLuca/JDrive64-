@@ -1879,9 +1879,33 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
       std::size_t rpn_not = 0;
       std::size_t rpn_and = 0;
       std::size_t rpn_or = 0;
+      std::size_t pred_event = 0;
+      std::size_t pred_detail = 0;
+      std::size_t pred_success = 0;
       for (const auto& token : opt.where_compiled.rpn) {
         if (token.kind == TelemetryWhereExpression::CompiledToken::Kind::kPredicate) {
           ++rpn_predicates;
+          switch (token.predicate.kind) {
+            case TelemetryWherePredicate::Kind::kEventEquals:
+            case TelemetryWherePredicate::Kind::kEventIEquals:
+            case TelemetryWherePredicate::Kind::kEventIContains:
+            case TelemetryWherePredicate::Kind::kEventStartsWith:
+            case TelemetryWherePredicate::Kind::kEventEndsWith:
+            case TelemetryWherePredicate::Kind::kEventPrefix:
+            case TelemetryWherePredicate::Kind::kEventSuffix:
+            case TelemetryWherePredicate::Kind::kEventContains:
+              ++pred_event;
+              break;
+            case TelemetryWherePredicate::Kind::kDetailPrefix:
+            case TelemetryWherePredicate::Kind::kDetailSuffix:
+            case TelemetryWherePredicate::Kind::kDetailContains:
+            case TelemetryWherePredicate::Kind::kDetailIContains:
+              ++pred_detail;
+              break;
+            case TelemetryWherePredicate::Kind::kSuccessEquals:
+              ++pred_success;
+              break;
+          }
         } else if (token.kind == TelemetryWhereExpression::CompiledToken::Kind::kNot) {
           ++rpn_not;
         } else if (token.kind == TelemetryWhereExpression::CompiledToken::Kind::kAnd) {
@@ -1907,7 +1931,10 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
       std::cout << "    \"rpn_predicates\": " << rpn_predicates << ",\n";
       std::cout << "    \"rpn_not\": " << rpn_not << ",\n";
       std::cout << "    \"rpn_and\": " << rpn_and << ",\n";
-      std::cout << "    \"rpn_or\": " << rpn_or << "\n";
+      std::cout << "    \"rpn_or\": " << rpn_or << ",\n";
+      std::cout << "    \"pred_event\": " << pred_event << ",\n";
+      std::cout << "    \"pred_detail\": " << pred_detail << ",\n";
+      std::cout << "    \"pred_success\": " << pred_success << "\n";
       std::cout << "  },\n";
       const std::size_t planner_score = (rpn_predicates * 2) + (rpn_not * 3) + (rpn_and * 4) + (rpn_or * 5);
       std::string complexity = "simple";
