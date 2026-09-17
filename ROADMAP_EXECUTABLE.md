@@ -1970,7 +1970,7 @@ Status: done
 
 ## K33 - Query Plan Explainability Scaffold
 
-Status: in progress
+Status: done
 
 ### K33.1 Explain mode option
 
@@ -2011,6 +2011,50 @@ Status: in progress
 
 - Explain mode and query plan metadata are integrated and test-covered.
 - Ready for K34 richer detail predicates.
+
+## K34 - Detail Predicate Family Scaffold
+
+Status: in progress
+
+### K34.1 Detail predicate parser support
+
+- Task: add detail payload predicate for where-expression filtering.
+- PASS:
+  - parser accepts `detail_contains==...` predicate.
+  - normalized where output preserves detail predicate form.
+- FAIL:
+  - detail predicate not recognized by parser.
+
+### K34.2 Detail predicate evaluator support
+
+- Task: evaluate detail predicate against telemetry event detail field.
+- PASS:
+  - evaluator reads `detail` JSON field and applies contains match.
+  - behavior remains deterministic for missing detail field.
+- FAIL:
+  - detail predicate is ignored during evaluation.
+
+### K34.3 Regression coverage
+
+- Task: validate detail predicate path in CLI smoke tests.
+- PASS:
+  - smoke executes detail predicate query successfully.
+  - smoke asserts normalized query contains detail predicate.
+- FAIL:
+  - no tests for detail predicate.
+
+### K34 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K34 exit criteria
+
+- Detail predicate support is integrated and test-covered.
+- Ready for K35 advanced comparison predicates.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

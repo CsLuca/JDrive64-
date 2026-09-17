@@ -324,6 +324,7 @@ struct TelemetryWherePredicate {
     kEventPrefix,
     kEventSuffix,
     kEventContains,
+    kDetailContains,
     kSuccessEquals,
   };
 
@@ -538,6 +539,10 @@ std::string FormatWhereValueNormalized(const std::string& value, bool prefer_quo
   return "\"" + EscapeWhereValue(value) + "\"";
 }
 
+bool JsonStringFieldContains(const std::string& line,
+                             const std::string& field_name,
+                             const std::string& needle);
+
 bool ParseWherePredicateToken(const std::string& token,
                               TelemetryWherePredicate* predicate_out,
                               std::string* normalized_out,
@@ -573,6 +578,10 @@ bool ParseWherePredicateToken(const std::string& token,
   }
   if (parse_value("event_contains==", TelemetryWherePredicate::Kind::kEventContains,
                   "event_contains==")) {
+    return error_out->empty();
+  }
+  if (parse_value("detail_contains==", TelemetryWherePredicate::Kind::kDetailContains,
+                  "detail_contains==")) {
     return error_out->empty();
   }
 
@@ -776,7 +785,10 @@ bool ParseWhereExpression(const std::string& expression,
   return true;
 }
 
-bool EvaluateWherePredicate(const std::string& name, int success, const TelemetryWherePredicate& predicate) {
+bool EvaluateWherePredicate(const std::string& line,
+                           const std::string& name,
+                           int success,
+                           const TelemetryWherePredicate& predicate) {
   switch (predicate.kind) {
     case TelemetryWherePredicate::Kind::kEventEquals:
       return name == predicate.value;
@@ -787,13 +799,16 @@ bool EvaluateWherePredicate(const std::string& name, int success, const Telemetr
              name.compare(name.size() - predicate.value.size(), predicate.value.size(), predicate.value) == 0;
     case TelemetryWherePredicate::Kind::kEventContains:
       return name.find(predicate.value) != std::string::npos;
+    case TelemetryWherePredicate::Kind::kDetailContains:
+      return JsonStringFieldContains(line, "detail", predicate.value);
     case TelemetryWherePredicate::Kind::kSuccessEquals:
       return success != -1 && success == predicate.success;
   }
   return false;
 }
 
-bool EvaluateWhereExpression(const std::string& name,
+bool EvaluateWhereExpression(const std::string& line,
+                            const std::string& name,
                             int success,
                             const TelemetryWhereExpression& where_expression) {
   if (where_expression.rpn.empty()) {
@@ -803,7 +818,7 @@ bool EvaluateWhereExpression(const std::string& name,
   std::vector<bool> eval_stack;
   for (const auto& token : where_expression.rpn) {
     if (token.kind == TelemetryWhereExpression::CompiledToken::Kind::kPredicate) {
-      eval_stack.push_back(EvaluateWherePredicate(name, success, token.predicate));
+      eval_stack.push_back(EvaluateWherePredicate(line, name, success, token.predicate));
       continue;
     }
 
@@ -1000,12 +1015,22 @@ int ExtractJsonBoolField(const std::string& line, const std::string& field_name)
   return -1;
 }
 
+bool JsonStringFieldContains(const std::string& line,
+                             const std::string& field_name,
+                             const std::string& needle) {
+  if (needle.empty()) {
+    return true;
+  }
+  const std::string value = ExtractJsonStringField(line, field_name);
+  return value.find(needle) != std::string::npos;
+}
+
 bool TelemetryLineMatchesFilter(const std::string& line, const TelemetryDumpOptions& opt) {
   const std::string name = ExtractJsonStringField(line, "name");
   const int success = ExtractJsonBoolField(line, "success");
 
   if (opt.where_enabled) {
-    if (!EvaluateWhereExpression(name, success, opt.where_compiled)) {
+    if (!EvaluateWhereExpression(line, name, success, opt.where_compiled)) {
       return false;
     }
   }

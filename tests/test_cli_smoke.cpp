@@ -316,6 +316,15 @@ int main(int argc, char** argv) {
     ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"where_rpn_tokens\":"),
                      "telemetry-dump-mounted --explain reports where_rpn_tokens");
 
+    const auto telemetry_dump_where_detail_cmd = Quote(exe_path.string()) +
+                                                 " telemetry-dump-mounted Z: --where \"detail_contains==success\" --bundle";
+    const auto telemetry_dump_where_detail_r = Run(telemetry_dump_where_detail_cmd);
+    ok = ok && Check(telemetry_dump_where_detail_r.exit_code == 0,
+                     "telemetry-dump-mounted detail --where exits 0");
+    ok = ok && Check(Contains(telemetry_dump_where_detail_r.output,
+                              "\"where\": \"detail_contains==success\""),
+                     "telemetry-dump-mounted detail --where preserves detail predicate");
+
     const auto telemetry_clear_cmd = Quote(exe_path.string()) + " telemetry-clear-mounted Z:";
     const auto telemetry_clear_r = Run(telemetry_clear_cmd);
     ok = ok && Check(telemetry_clear_r.exit_code == 0, "telemetry-clear-mounted exits 0");
