@@ -3171,7 +3171,7 @@ Status: done
 
 ## K65 - Query-plan Signature Metadata Scaffold
 
-Status: in progress
+Status: done
 
 ### K65.1 Signature field
 
@@ -3203,6 +3203,41 @@ Status: in progress
 
 - Query-plan signature metadata is integrated and test-covered.
 - Ready for K66 explain diagnostics envelope hardening.
+
+## K66 - Query-plan Diagnostics Envelope Scaffold
+
+Status: in progress
+
+### K66.1 Diagnostics envelope field
+
+- Task: add diagnostics envelope metadata for explain payload evolution.
+- PASS:
+  - explain output includes `query_plan_diagnostics_envelope` object.
+  - object reports deterministic envelope version and compatibility semantics.
+- FAIL:
+  - explain output has no diagnostics envelope metadata.
+
+### K66.2 Regression coverage
+
+- Task: validate diagnostics envelope field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_diagnostics_envelope` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for diagnostics envelope metadata.
+
+### K66 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K66 exit criteria
+
+- Query-plan diagnostics envelope metadata is integrated and test-covered.
+- Ready for K67 predicate density metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

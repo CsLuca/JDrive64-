@@ -2114,6 +2114,11 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
       signature_stream << "p" << rpn_predicates << "-n" << rpn_not << "-a" << rpn_and
                        << "-o" << rpn_or << "-d" << pred_detail << "-s" << pred_success;
       std::cout << "  \"query_plan_signature\": \"" << signature_stream.str() << "\",\n";
+      std::cout << "  \"query_plan_diagnostics_envelope\": {\n";
+      std::cout << "    \"version\": \"diag.v1\",\n";
+      std::cout << "    \"compatibility\": \"backward-additive\",\n";
+      std::cout << "    \"stable_keys\": true\n";
+      std::cout << "  },\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";
