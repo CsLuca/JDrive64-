@@ -2891,7 +2891,7 @@ Status: done
 
 ## K57 - Explain Phase Budget Metadata Scaffold
 
-Status: in progress
+Status: done
 
 ### K57.1 Phase budget fields
 
@@ -2923,6 +2923,41 @@ Status: in progress
 
 - Planner phase budget metadata is integrated and test-covered.
 - Ready for K58 phase status metadata scaffold.
+
+## K58 - Explain Phase Status Metadata Scaffold
+
+Status: in progress
+
+### K58.1 Phase status fields
+
+- Task: add planner phase budget-evaluation status in explain output.
+- PASS:
+  - explain output includes `query_plan_phase_status` object.
+  - object reports `ok` or `over_budget` for `parse`, `filter`, and `aggregate`.
+- FAIL:
+  - explain output has no phase status metadata.
+
+### K58.2 Regression coverage
+
+- Task: validate phase status field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_phase_status` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for phase status metadata.
+
+### K58 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K58 exit criteria
+
+- Planner phase status metadata is integrated and test-covered.
+- Ready for K59 query trace-id metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

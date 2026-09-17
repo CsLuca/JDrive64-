@@ -147,6 +147,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K55 explainability scaffold adds `query_plan_rule_ids` trace list for activated planner rules.
 - K56 explainability scaffold adds phase timing estimate metadata (`query_plan_phase_ms`) for parse/filter/aggregate stages.
 - K57 explainability scaffold adds planner phase budget metadata (`query_plan_phase_budget_ms`).
+- K58 explainability scaffold adds phase status metadata (`query_plan_phase_status`) with `ok|over_budget` evaluation.
 
 ## Domain Layer (Step 3)
 

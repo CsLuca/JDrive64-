@@ -2081,6 +2081,11 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
       std::cout << "    \"filter\": 12,\n";
       std::cout << "    \"aggregate\": 8\n";
       std::cout << "  },\n";
+      std::cout << "  \"query_plan_phase_status\": {\n";
+      std::cout << "    \"parse\": \"" << (phase_parse_ms <= 5 ? "ok" : "over_budget") << "\",\n";
+      std::cout << "    \"filter\": \"" << (phase_filter_ms <= 12 ? "ok" : "over_budget") << "\",\n";
+      std::cout << "    \"aggregate\": \"" << (phase_aggregate_ms <= 8 ? "ok" : "over_budget") << "\"\n";
+      std::cout << "  },\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";
