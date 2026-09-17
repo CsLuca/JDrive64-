@@ -2105,6 +2105,11 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
                                           : static_cast<double>(positive_selector_count) /
                                                 static_cast<double>(scanned_entries);
       std::cout << "  \"query_plan_selector_density\": " << selector_density << ",\n";
+      const std::size_t logical_ops = rpn_and + rpn_or;
+      const double operator_balance = logical_ops == 0
+                                          ? 0.0
+                                          : static_cast<double>(rpn_or) / static_cast<double>(logical_ops);
+      std::cout << "  \"query_plan_operator_balance\": " << operator_balance << ",\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";

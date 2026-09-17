@@ -3101,7 +3101,7 @@ Status: done
 
 ## K63 - Query-plan Selector Density Scaffold
 
-Status: in progress
+Status: done
 
 ### K63.1 Selector density field
 
@@ -3133,6 +3133,41 @@ Status: in progress
 
 - Query-plan selector density metadata is integrated and test-covered.
 - Ready for K64 operator-balance metadata scaffold.
+
+## K64 - Query-plan Operator Balance Scaffold
+
+Status: in progress
+
+### K64.1 Operator balance field
+
+- Task: add metadata describing logical-operator mix in compiled query plan.
+- PASS:
+  - explain output includes `query_plan_operator_balance`.
+  - value is deterministic and safe when no logical operators are present.
+- FAIL:
+  - explain output has no operator-balance metadata.
+
+### K64.2 Regression coverage
+
+- Task: validate operator balance field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_operator_balance` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for operator-balance metadata.
+
+### K64 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K64 exit criteria
+
+- Query-plan operator balance metadata is integrated and test-covered.
+- Ready for K65 query-plan signature metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

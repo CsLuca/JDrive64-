@@ -153,6 +153,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K61 explainability scaffold adds fixed planner stage cardinality via `query_plan_stage_count`.
 - K62 explainability scaffold adds planner rule cardinality via `query_plan_rule_count`.
 - K63 explainability scaffold adds `query_plan_selector_density` to relate positive selector breadth to scanned entries.
+- K64 explainability scaffold adds `query_plan_operator_balance` to summarize OR-vs-logical-op mix in compiled plans.
 
 ## Domain Layer (Step 3)
 
