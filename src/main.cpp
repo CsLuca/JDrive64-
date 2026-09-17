@@ -335,6 +335,17 @@ int CmdTelemetryListMounted(std::string mount_point);
 int CmdTelemetryStatsMounted(std::string mount_point, bool as_json);
 int CmdTray();
 
+#if defined(_WIN32)
+void HideConsoleInRelease() {
+#if !defined(_DEBUG)
+  HWND console = GetConsoleWindow();
+  if (console != nullptr) {
+    ShowWindow(console, SW_HIDE);
+  }
+#endif
+}
+#endif
+
 struct TelemetryWherePredicate {
   enum class Kind {
     kEventEquals,
@@ -3103,6 +3114,9 @@ int CmdTray() {
 
 int main(int argc, char** argv) {
   if (argc < 2) {
+#if defined(_WIN32)
+    HideConsoleInRelease();
+#endif
     return CmdTray();
   }
 
@@ -3113,6 +3127,9 @@ int main(int argc, char** argv) {
   }
 
   if (command == "tray") {
+#if defined(_WIN32)
+    HideConsoleInRelease();
+#endif
     return CmdTray();
   }
 

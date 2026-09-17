@@ -49,6 +49,7 @@ Kernel lab setup docs are in `K1_DRIVER_LAB_SETUP.md` and `K1_LAB_VALIDATION.md`
 - `jdrive64 winfsp-preflight <image.d64> <drive_letter:>`
 
 If started without arguments on Windows, `jdrive64` opens tray mode by default.
+In Release builds, tray mode hides the console window; in Debug builds the console remains visible.
 
 Tray mode features:
 - remembers last selected `.d64` image between runs;
