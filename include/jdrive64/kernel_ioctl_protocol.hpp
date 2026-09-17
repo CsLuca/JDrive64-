@@ -6,12 +6,18 @@
 
 namespace jdrive64 {
 
-constexpr std::uint32_t kKernelProtocolVersion = 1;
+constexpr std::uint32_t kKernelProtocolVersionMin = 1;
+constexpr std::uint32_t kKernelProtocolVersionMax = 1;
+constexpr std::uint32_t kKernelProtocolVersionCurrent = kKernelProtocolVersionMax;
 constexpr std::uint32_t kKernelCapabilityReadDirectory = 1u << 0;
 constexpr std::uint32_t kKernelCapabilityQueryFile = 1u << 1;
 constexpr std::uint32_t kKernelCapabilityReadFile = 1u << 2;
 constexpr std::uint32_t kKernelCapabilityAllReadOnly =
     kKernelCapabilityReadDirectory | kKernelCapabilityQueryFile | kKernelCapabilityReadFile;
+constexpr std::uint32_t kKernelFeatureStrictReadonly = 1u << 0;
+constexpr std::uint32_t kKernelFeatureAllowDirectorySnapshot = 1u << 1;
+constexpr std::uint32_t kKernelFeatureDefault =
+    kKernelFeatureStrictReadonly | kKernelFeatureAllowDirectorySnapshot;
 
 enum class KernelOpcode : std::uint32_t {
   kInvalid = 0,

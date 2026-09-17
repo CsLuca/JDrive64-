@@ -145,7 +145,9 @@ bool KernelTransport::Connect(const std::string& image_path) {
   }
 
   handshake_complete_ = false;
+  negotiated_protocol_version_ = 0;
   negotiated_capabilities_ = 0;
+  negotiated_features_ = 0;
 
   if (mode_ == Mode::kLoopback) {
     if (!bridge_.Initialize(image_path)) {
@@ -154,7 +156,9 @@ bool KernelTransport::Connect(const std::string& image_path) {
     }
     connected_ = true;
     handshake_complete_ = true;
+    negotiated_protocol_version_ = kKernelProtocolVersionCurrent;
     negotiated_capabilities_ = kKernelCapabilityAllReadOnly;
+    negotiated_features_ = kKernelFeatureDefault;
     last_error_.clear();
     return true;
   }
@@ -180,9 +184,9 @@ bool KernelTransport::Connect(const std::string& image_path) {
   const KernelRequest handshake_request{
       KernelOpcode::kHandshake,
       "",
-      static_cast<std::uint64_t>(kKernelProtocolVersion),
+      static_cast<std::uint64_t>(kKernelProtocolVersionCurrent),
       static_cast<std::uint64_t>(kKernelCapabilityAllReadOnly),
-      0,
+      kKernelFeatureDefault,
   };
   if (!Send(handshake_request, &handshake_response)) {
     std::string close_error;
@@ -190,7 +194,9 @@ bool KernelTransport::Connect(const std::string& image_path) {
     device_handle_ = nullptr;
     connected_ = false;
     handshake_complete_ = false;
+    negotiated_protocol_version_ = 0;
     negotiated_capabilities_ = 0;
+    negotiated_features_ = 0;
     if (last_error_.empty()) {
       last_error_ = "Kernel handshake failed";
     }
@@ -203,25 +209,38 @@ bool KernelTransport::Connect(const std::string& image_path) {
     device_handle_ = nullptr;
     connected_ = false;
     handshake_complete_ = false;
+    negotiated_protocol_version_ = 0;
     negotiated_capabilities_ = 0;
+    negotiated_features_ = 0;
     last_error_ = "Kernel handshake response is invalid";
     return false;
   }
 
   std::uint32_t protocol_version = 0;
   std::uint32_t capabilities = 0;
+  std::uint32_t features = 0;
   std::memcpy(&protocol_version, handshake_response.data.data(), sizeof(protocol_version));
   std::memcpy(&capabilities,
               handshake_response.data.data() + sizeof(protocol_version),
               sizeof(capabilities));
+  if (handshake_response.data.size() >= sizeof(protocol_version) + sizeof(capabilities) +
+                                        sizeof(features)) {
+    std::memcpy(&features,
+                handshake_response.data.data() + sizeof(protocol_version) + sizeof(capabilities),
+                sizeof(features));
+  } else {
+    features = kKernelFeatureStrictReadonly;
+  }
 
-  if (protocol_version != kKernelProtocolVersion) {
+  if (protocol_version < kKernelProtocolVersionMin || protocol_version > kKernelProtocolVersionMax) {
     std::string close_error;
     api->Close(device_handle_, &close_error);
     device_handle_ = nullptr;
     connected_ = false;
     handshake_complete_ = false;
+    negotiated_protocol_version_ = 0;
     negotiated_capabilities_ = 0;
+    negotiated_features_ = 0;
     last_error_ = "Kernel protocol version mismatch";
     return false;
   }
@@ -232,13 +251,30 @@ bool KernelTransport::Connect(const std::string& image_path) {
     device_handle_ = nullptr;
     connected_ = false;
     handshake_complete_ = false;
+    negotiated_protocol_version_ = 0;
     negotiated_capabilities_ = 0;
+    negotiated_features_ = 0;
     last_error_ = "Kernel capabilities are insufficient";
     return false;
   }
 
+  if ((features & kKernelFeatureStrictReadonly) == 0) {
+    std::string close_error;
+    api->Close(device_handle_, &close_error);
+    device_handle_ = nullptr;
+    connected_ = false;
+    handshake_complete_ = false;
+    negotiated_protocol_version_ = 0;
+    negotiated_capabilities_ = 0;
+    negotiated_features_ = 0;
+    last_error_ = "Kernel features are incompatible";
+    return false;
+  }
+
   handshake_complete_ = true;
+  negotiated_protocol_version_ = protocol_version;
   negotiated_capabilities_ = capabilities;
+  negotiated_features_ = features;
   last_error_.clear();
   return true;
 }
@@ -252,7 +288,9 @@ bool KernelTransport::Disconnect() {
   if (mode_ == Mode::kLoopback) {
     connected_ = false;
     handshake_complete_ = false;
+    negotiated_protocol_version_ = 0;
     negotiated_capabilities_ = 0;
+    negotiated_features_ = 0;
     last_error_.clear();
     return true;
   }
@@ -272,7 +310,9 @@ bool KernelTransport::Disconnect() {
   device_handle_ = nullptr;
   connected_ = false;
   handshake_complete_ = false;
+  negotiated_protocol_version_ = 0;
   negotiated_capabilities_ = 0;
+  negotiated_features_ = 0;
   last_error_.clear();
   return true;
 }
@@ -429,7 +469,13 @@ bool KernelTransport::IsConnected() const { return connected_; }
 
 bool KernelTransport::IsHandshakeComplete() const { return handshake_complete_; }
 
+std::uint32_t KernelTransport::NegotiatedProtocolVersion() const {
+  return negotiated_protocol_version_;
+}
+
 std::uint32_t KernelTransport::NegotiatedCapabilities() const { return negotiated_capabilities_; }
+
+std::uint32_t KernelTransport::NegotiatedFeatures() const { return negotiated_features_; }
 
 const std::string& KernelTransport::LastError() const { return last_error_; }
 

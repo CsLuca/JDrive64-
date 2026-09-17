@@ -874,7 +874,7 @@ Status: done
 
 ## K10 - Handshake and Capability Negotiation Scaffold
 
-Status: in progress
+Status: done
 
 ### K10.1 Protocol constants and opcode
 
@@ -924,6 +924,60 @@ Status: in progress
 
 - Handshake/version/capability negotiation is integrated and test-covered.
 - Ready for K11 driver contract expansion beyond read-only baseline.
+
+## K11 - Compatibility Matrix and Feature Policy Scaffold
+
+Status: in progress
+
+### K11.1 Protocol compatibility window
+
+- Task: accept handshake protocol versions within a bounded compatibility window.
+- PASS:
+  - protocol constants include `min/current/max` values.
+  - handshake accepts compatible range and rejects out-of-range versions.
+- FAIL:
+  - transport supports only exact single protocol version.
+
+### K11.2 Feature-flag negotiation
+
+- Task: include feature flags in handshake contract with required-feature policy.
+- PASS:
+  - handshake request includes requested feature flags.
+  - handshake response parses negotiated feature flags.
+  - connect fails when required feature bits are missing.
+- FAIL:
+  - no feature policy in handshake negotiation.
+
+### K11.3 Negotiated-state accessors
+
+- Task: expose negotiated protocol version and features for upper-layer policy decisions.
+- PASS:
+  - transport exposes negotiated protocol version and features in addition to capabilities.
+  - values reset on disconnect/failure paths.
+- FAIL:
+  - negotiated state is not queryable.
+
+### K11.4 Regression tests
+
+- Task: add tests for compatibility-range and feature-mismatch behavior.
+- PASS:
+  - tests validate compatible minimum version success.
+  - tests validate feature mismatch failure.
+- FAIL:
+  - no tests for compatibility matrix behavior.
+
+### K11 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K11 exit criteria
+
+- Compatibility matrix and feature policy are integrated and test-covered.
+- Ready for K12 command-level policy routing based on negotiated contract.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

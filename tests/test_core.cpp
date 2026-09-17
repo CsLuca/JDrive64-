@@ -47,7 +47,11 @@ using jdrive64::KernelTransport;
 using jdrive64::KernelUserBridge;
 using jdrive64::kKernelCapabilityAllReadOnly;
 using jdrive64::kKernelCapabilityReadDirectory;
-using jdrive64::kKernelProtocolVersion;
+using jdrive64::kKernelFeatureAllowDirectorySnapshot;
+using jdrive64::kKernelFeatureDefault;
+using jdrive64::kKernelFeatureStrictReadonly;
+using jdrive64::kKernelProtocolVersionCurrent;
+using jdrive64::kKernelProtocolVersionMin;
 using jdrive64::SectorCache;
 using jdrive64::WinFspAdapter;
 using jdrive64::WinFspCallbacks;
@@ -121,12 +125,16 @@ class FakeDeviceIoApi final : public KernelTransport::DeviceIoApi {
 
 std::vector<std::uint8_t> BuildHandshakeResponseFrame(std::uint32_t protocol_version,
                                                       std::uint32_t capabilities,
-                                                      bool success) {
+                                                      bool success,
+                                                      std::uint32_t features =
+                                                          kKernelFeatureStrictReadonly) {
   std::vector<std::uint8_t> frame(
-      KernelTransport::kDeviceResponseHeaderSize + sizeof(protocol_version) + sizeof(capabilities),
+      KernelTransport::kDeviceResponseHeaderSize + sizeof(protocol_version) + sizeof(capabilities) +
+          sizeof(features),
       0);
   const std::uint32_t success_flag = success ? 1u : 0u;
-  const std::uint32_t payload_bytes = sizeof(protocol_version) + sizeof(capabilities);
+  const std::uint32_t payload_bytes =
+      sizeof(protocol_version) + sizeof(capabilities) + sizeof(features);
   const std::uint64_t handle = 0;
   const std::uint32_t error_bytes = 0;
   std::memcpy(frame.data() + 0, &success_flag, sizeof(success_flag));
@@ -141,6 +149,10 @@ std::vector<std::uint8_t> BuildHandshakeResponseFrame(std::uint32_t protocol_ver
   std::memcpy(frame.data() + KernelTransport::kDeviceResponseHeaderSize + sizeof(protocol_version),
               &capabilities,
               sizeof(capabilities));
+  std::memcpy(frame.data() + KernelTransport::kDeviceResponseHeaderSize + sizeof(protocol_version) +
+                  sizeof(capabilities),
+              &features,
+              sizeof(features));
   return frame;
 }
 
@@ -1322,8 +1334,8 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
   }
 
   FakeDeviceIoApi fake_api;
-  fake_api.next_response_frame =
-      BuildHandshakeResponseFrame(kKernelProtocolVersion, kKernelCapabilityAllReadOnly, true);
+  fake_api.next_response_frame = BuildHandshakeResponseFrame(
+      kKernelProtocolVersionCurrent, kKernelCapabilityAllReadOnly, true, kKernelFeatureDefault);
   KernelTransport device_transport;
   if (!Assert(device_transport.SetMode(KernelTransport::Mode::kDevice),
               "KernelTransport test instance switches to device mode")) {
@@ -1343,6 +1355,14 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
   }
   if (!Assert(device_transport.NegotiatedCapabilities() == kKernelCapabilityAllReadOnly,
               "KernelTransport stores negotiated capabilities")) {
+    return false;
+  }
+  if (!Assert(device_transport.NegotiatedProtocolVersion() == kKernelProtocolVersionCurrent,
+              "KernelTransport stores negotiated protocol version")) {
+    return false;
+  }
+  if (!Assert(device_transport.NegotiatedFeatures() == kKernelFeatureDefault,
+              "KernelTransport stores negotiated features")) {
     return false;
   }
   if (!Assert(fake_api.open_calls == 1, "KernelTransport invokes device open once")) {
@@ -1411,8 +1431,8 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
   }
 
   FakeDeviceIoApi failing_api;
-  failing_api.next_response_frame =
-      BuildHandshakeResponseFrame(kKernelProtocolVersion, kKernelCapabilityAllReadOnly, true);
+  failing_api.next_response_frame = BuildHandshakeResponseFrame(
+      kKernelProtocolVersionCurrent, kKernelCapabilityAllReadOnly, true, kKernelFeatureDefault);
   KernelTransport failing_transport;
   if (!Assert(failing_transport.SetMode(KernelTransport::Mode::kDevice),
               "KernelTransport failing instance switches to device mode")) {
@@ -1443,8 +1463,8 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
   }
 
   FakeDeviceIoApi bad_protocol_api;
-  bad_protocol_api.next_response_frame =
-      BuildHandshakeResponseFrame(kKernelProtocolVersion + 1, kKernelCapabilityAllReadOnly, true);
+  bad_protocol_api.next_response_frame = BuildHandshakeResponseFrame(
+      kKernelProtocolVersionCurrent + 1, kKernelCapabilityAllReadOnly, true, kKernelFeatureDefault);
   KernelTransport bad_protocol_transport;
   if (!Assert(bad_protocol_transport.SetMode(KernelTransport::Mode::kDevice),
               "KernelTransport bad protocol instance switches mode")) {
@@ -1464,8 +1484,8 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
   }
 
   FakeDeviceIoApi bad_cap_api;
-  bad_cap_api.next_response_frame =
-      BuildHandshakeResponseFrame(kKernelProtocolVersion, kKernelCapabilityReadDirectory, true);
+  bad_cap_api.next_response_frame = BuildHandshakeResponseFrame(
+      kKernelProtocolVersionCurrent, kKernelCapabilityReadDirectory, true, kKernelFeatureDefault);
   KernelTransport bad_cap_transport;
   if (!Assert(bad_cap_transport.SetMode(KernelTransport::Mode::kDevice),
               "KernelTransport bad capability instance switches mode")) {
@@ -1481,6 +1501,54 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
   }
   if (!Assert(bad_cap_transport.LastError().find("insufficient") != std::string::npos,
               "KernelTransport capability mismatch error is explicit")) {
+    return false;
+  }
+
+  FakeDeviceIoApi min_ver_api;
+  min_ver_api.next_response_frame = BuildHandshakeResponseFrame(
+      kKernelProtocolVersionMin, kKernelCapabilityAllReadOnly, true, kKernelFeatureDefault);
+  KernelTransport min_ver_transport;
+  if (!Assert(min_ver_transport.SetMode(KernelTransport::Mode::kDevice),
+              "KernelTransport min-version instance switches mode")) {
+    return false;
+  }
+  if (!Assert(min_ver_transport.SetDeviceIoApiForTesting(&min_ver_api),
+              "KernelTransport min-version instance accepts injected API")) {
+    return false;
+  }
+  if (!Assert(min_ver_transport.Connect(image_path.string()),
+              "KernelTransport accepts compatible minimum protocol version")) {
+    return false;
+  }
+  if (!Assert(min_ver_transport.NegotiatedProtocolVersion() == kKernelProtocolVersionMin,
+              "KernelTransport stores compatible minimum version")) {
+    return false;
+  }
+  if (!Assert(min_ver_transport.Disconnect(), "KernelTransport min-version instance disconnects")) {
+    return false;
+  }
+
+  FakeDeviceIoApi bad_feature_api;
+  bad_feature_api.next_response_frame =
+      BuildHandshakeResponseFrame(kKernelProtocolVersionCurrent,
+                                  kKernelCapabilityAllReadOnly,
+                                  true,
+                                  kKernelFeatureAllowDirectorySnapshot);
+  KernelTransport bad_feature_transport;
+  if (!Assert(bad_feature_transport.SetMode(KernelTransport::Mode::kDevice),
+              "KernelTransport bad-feature instance switches mode")) {
+    return false;
+  }
+  if (!Assert(bad_feature_transport.SetDeviceIoApiForTesting(&bad_feature_api),
+              "KernelTransport bad-feature instance accepts injected API")) {
+    return false;
+  }
+  if (!Assert(!bad_feature_transport.Connect(image_path.string()),
+              "KernelTransport fails connect on incompatible features")) {
+    return false;
+  }
+  if (!Assert(bad_feature_transport.LastError().find("incompatible") != std::string::npos,
+              "KernelTransport feature mismatch error is explicit")) {
     return false;
   }
 
