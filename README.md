@@ -93,6 +93,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - `kdrv` backend is scaffolded for K2 and currently returns a deterministic not-implemented mount error.
 - Driver/service binaries (`jdrive64k.sys`, `jdrive64ksvc.exe`) are not wired yet.
 - Drive-letter assignment path now includes K3 mount-manager scaffold with deterministic not-implemented behavior.
+- K4 read-only catalog/open/read scaffolding is available internally for kdrv request path shaping.
 
 ## Domain Layer (Step 3)
 

@@ -7,6 +7,7 @@
 
 #include "jdrive64/kernel_backend.hpp"
 #include "jdrive64/kernel_mount_manager.hpp"
+#include "jdrive64/kernel_readonly_fs.hpp"
 #include "jdrive64/winfsp_filesystem.hpp"
 
 namespace jdrive64 {
@@ -36,6 +37,11 @@ class WinFspMountBackend final : public IMountBackend {
 class KernelMountBackend final : public IMountBackend {
  public:
   bool MountReadOnly(const std::string& image_path, const std::string& mount_point) override {
+    if (!readonly_fs_.OpenImage(image_path)) {
+      last_error_ = readonly_fs_.LastError();
+      return false;
+    }
+
     if (!controller_.InstallService("jdrive64ksvc.exe")) {
       last_error_ = controller_.LastError();
       return false;
@@ -84,10 +90,16 @@ class KernelMountBackend final : public IMountBackend {
 
   bool HealthCheck() override { return mounted_ && controller_.IsServiceRunning(); }
 
-  std::vector<std::string> ReadDirectory() const override { return {}; }
+  std::vector<std::string> ReadDirectory() const override {
+    std::vector<std::string> entries;
+    if (!readonly_fs_.ReadDirectory(&entries)) {
+      return {};
+    }
+    return entries;
+  }
 
   std::string GetVolumeInfoText() const override {
-    return "Kernel backend scaffold active (K2, read path not implemented)";
+    return "Kernel backend scaffold active (K4 RO catalog/open/read path scaffolded)";
   }
 
   const std::string& LastError() const override { return last_error_; }
@@ -96,6 +108,7 @@ class KernelMountBackend final : public IMountBackend {
   bool mounted_ = false;
   KernelBackendController controller_;
   KernelMountManager mount_manager_;
+  mutable KernelReadOnlyFilesystem readonly_fs_;
   std::string last_error_;
 };
 

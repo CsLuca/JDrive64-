@@ -525,7 +525,7 @@ Status: done
 
 ## K3 - Mount Manager Drive-letter Scaffold
 
-Status: in progress
+Status: done
 
 ### K3.1 Mount manager abstraction
 
@@ -566,6 +566,52 @@ Status: in progress
 
 - Mount manager scaffold is integrated, deterministic, and test-covered.
 - kdrv flow is ready for replacement with real mount manager APIs in K4.
+
+## K4 - Read-only Kernel Request Path Scaffold
+
+Status: in progress
+
+### K4.1 Read-only filesystem contract object
+
+- Task: introduce kernel-side read-only catalog/open/read/close contract object.
+- PASS:
+  - `include/jdrive64/kernel_readonly_fs.hpp` exists.
+  - `src/kernel_readonly_fs.cpp` exists.
+  - API includes enumerate/query/open/read/close with deterministic handle semantics.
+- FAIL:
+  - No dedicated K4 request-path object.
+
+### K4.2 kdrv backend wiring
+
+- Task: wire kdrv backend to use read-only contract object for directory and file read scaffolding.
+- PASS:
+  - kdrv mount opens image in read-only contract object.
+  - kdrv `ReadDirectory()` returns catalog entries via contract object.
+  - kdrv status text indicates K4 scaffold progression.
+- FAIL:
+  - kdrv remains mount-manager-only without read/catalog scaffold.
+
+### K4.3 Test coverage
+
+- Task: add regression tests for read-only contract object.
+- PASS:
+  - tests cover open image, enumerate, query file, open/read/close handle behavior.
+  - closed/invalid handle read path is rejected.
+- FAIL:
+  - no tests validating K4 read-only contract behavior.
+
+### K4 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K4 exit criteria
+
+- Read-only kernel request path scaffold is integrated and test-covered.
+- kdrv backend structure is ready for real IOCTL bridge in K5.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

@@ -14,6 +14,7 @@
 #include "jdrive64/file_cache.hpp"
 #include "jdrive64/file_chain_reader.hpp"
 #include "jdrive64/kernel_mount_manager.hpp"
+#include "jdrive64/kernel_readonly_fs.hpp"
 #include "jdrive64/mount_backend.hpp"
 #include "jdrive64/sector_cache.hpp"
 #include "jdrive64/winfsp_adapter.hpp"
@@ -32,6 +33,7 @@ using jdrive64::FileCache;
 using jdrive64::FileChainReader;
 using jdrive64::IMountBackend;
 using jdrive64::KernelMountManager;
+using jdrive64::KernelReadOnlyFilesystem;
 using jdrive64::SectorCache;
 using jdrive64::WinFspAdapter;
 using jdrive64::WinFspCallbacks;
@@ -880,6 +882,53 @@ bool TestKernelMountManagerScaffold() {
   return true;
 }
 
+bool TestKernelReadOnlyFilesystemScaffold(const std::filesystem::path& image_path) {
+  KernelReadOnlyFilesystem fs;
+  if (!Assert(fs.OpenImage(image_path.string()), "KernelReadOnlyFilesystem open image")) {
+    return false;
+  }
+
+  std::vector<std::string> entries;
+  if (!Assert(fs.ReadDirectory(&entries), "KernelReadOnlyFilesystem read directory")) {
+    return false;
+  }
+  if (!Assert(entries.size() == 1 && entries[0] == "HELLO.PRG",
+              "KernelReadOnlyFilesystem directory entries")) {
+    return false;
+  }
+
+  KernelReadOnlyFilesystem::FileInfo info;
+  if (!Assert(fs.QueryFile("HELLO.PRG", &info), "KernelReadOnlyFilesystem query file")) {
+    return false;
+  }
+  if (!Assert(info.size_bytes == 5, "KernelReadOnlyFilesystem query file size")) {
+    return false;
+  }
+
+  std::uint64_t handle = 0;
+  if (!Assert(fs.OpenFile("HELLO.PRG", &handle), "KernelReadOnlyFilesystem open file handle")) {
+    return false;
+  }
+
+  std::vector<std::uint8_t> bytes;
+  if (!Assert(fs.ReadFile(handle, 1, 3, &bytes), "KernelReadOnlyFilesystem read slice")) {
+    return false;
+  }
+  if (!Assert(std::string(bytes.begin(), bytes.end()) == "ELL",
+              "KernelReadOnlyFilesystem read slice payload")) {
+    return false;
+  }
+
+  if (!Assert(fs.CloseFile(handle), "KernelReadOnlyFilesystem close handle")) {
+    return false;
+  }
+  if (!Assert(!fs.ReadFile(handle, 0, 1, &bytes), "KernelReadOnlyFilesystem reject closed handle")) {
+    return false;
+  }
+
+  return true;
+}
+
 }  // namespace
 
 int main() {
@@ -895,6 +944,7 @@ int main() {
   ok = ok && TestWinFspDefaultNativeApiContract(image_path);
   ok = ok && TestMountBackendFactory(image_path);
   ok = ok && TestKernelMountManagerScaffold();
+  ok = ok && TestKernelReadOnlyFilesystemScaffold(image_path);
   ok = ok && TestWinFspAdapterScaffold(image_path);
   ok = ok && TestWinFspRuntimeScaffold(image_path);
 
