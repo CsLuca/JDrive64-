@@ -29,6 +29,17 @@ Observed result summary:
 - Driver Verifier command/query: PASS
 - Test-signing state: WARN (admin privileges required to query `bcdedit` in this context)
 
+Latest command evidence (local, non-elevated session):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
+verifier /query
+bcdedit
+```
+
+- `verifier /query`: `No drivers are currently verified.`
+- `bcdedit`: `Impossibile aprire l'archivio dati configurazione di avvio. Accesso negato.`
+
 ## Checks
 
 1) VM isolation and snapshot
@@ -49,11 +60,11 @@ Observed result summary:
 
 5) Driver Verifier baseline configured
 - PASS / FAIL: PASS (partial)
-- Evidence: `verifier /query` executed; baseline config capture still required
+- Evidence: `verifier /query` executed successfully (`No drivers are currently verified.`); baseline config capture in dev VM still required
 
 6) Test-signing mode active (dev VM only)
 - PASS / FAIL: PENDING
-- Evidence: rerun self-check/admin `bcdedit` in VM and record output
+- Evidence: current non-elevated run returns access denied on `bcdedit`; rerun elevated in VM and record output
 
 7) Snapshot rollback tested
 - PASS / FAIL: PENDING
@@ -63,5 +74,6 @@ Observed result summary:
 
 - K1 complete: NO
 - Blocking issues:
+ - Missing VM-only evidence for VM isolation/snapshot process.
   - Missing VM-only evidence for kernel attach, symbols, and snapshot rollback.
   - Test-signing state not yet confirmed from elevated VM session.
