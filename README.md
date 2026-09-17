@@ -14,6 +14,7 @@ See `ROADMAP_BASELINE.md` for milestones and final Definition of Done.
 Execution tracking is in `ROADMAP_EXECUTABLE.md`.
 Explorer host validation checklist is in `A8_EXPLORER_CHECKLIST.md`.
 Release gate checklist is in `V1_RELEASE_CHECKLIST.md`.
+Evidence template is in `A8_EVIDENCE_TEMPLATE.md`.
 
 ## Versioning
 
@@ -64,6 +65,12 @@ Step 2 focused tests:
 ```powershell
 ctest --test-dir build -R jdrive64_step2_tests --output-on-failure
 ctest --test-dir build -R jdrive64_cli_smoke_tests --output-on-failure
+```
+
+Release readiness helper:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\release-readiness.ps1
 ```
 
 ## Notes on Current WinFsp Status

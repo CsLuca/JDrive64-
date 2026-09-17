@@ -17,6 +17,7 @@ Use this checklist before tagging `v1.0.0`.
 ## Explorer end-to-end validation
 
 - [ ] `A8_EXPLORER_CHECKLIST.md` executed and archived with evidence.
+- [ ] Evidence recorded using `A8_EVIDENCE_TEMPLATE.md`.
 - [ ] Read flows stable in Explorer (open/copy/seek).
 - [ ] Write attempts denied consistently.
 - [ ] Unmount/remount cycle stable.
@@ -35,6 +36,7 @@ Use this checklist before tagging `v1.0.0`.
 
 ## Git release steps
 
+- [ ] `powershell -ExecutionPolicy Bypass -File .\scripts\release-readiness.ps1` passes.
 - [ ] `main` clean (`git status` clean).
 - [ ] Tag created: `git tag -a v1.0.0 -m "Release v1.0.0"`.
 - [ ] Tag pushed: `git push origin v1.0.0`.
