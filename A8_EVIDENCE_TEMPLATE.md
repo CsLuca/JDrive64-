@@ -1,6 +1,6 @@
 # A8 Validation Evidence Template
 
-Fill this template after running `A8_EXPLORER_CHECKLIST.md` on a WinFsp-enabled host.
+Fill this template after running `A8_EXPLORER_CHECKLIST.md` on the target host using default `kdrv` backend.
 
 ## Environment
 
@@ -8,7 +8,6 @@ Fill this template after running `A8_EXPLORER_CHECKLIST.md` on a WinFsp-enabled 
 - Operator:
 - Machine:
 - Windows version:
-- WinFsp version:
 - JDrive64 commit:
 - Test image path:
 - Drive letter used:
@@ -17,14 +16,14 @@ Fill this template after running `A8_EXPLORER_CHECKLIST.md` on a WinFsp-enabled 
 
 Paste full terminal transcript for:
 
-- `jdrive64 winfsp-preflight <image.d64> <drive_letter:>`
 - `jdrive64 mount <image.d64> <drive_letter:>`
+- `jdrive64 backend-diag-mounted <drive_letter:>`
 - `jdrive64 unmount <drive_letter:>`
 - `jdrive64 mounts` (after final unmount)
 
 ## Checklist Results
 
-- Runtime preflight: PASS / FAIL
+- kdrv diagnostics preflight: PASS / FAIL
 - Mount visibility in Explorer: PASS / FAIL
 - Read behavior: PASS / FAIL
 - Denied write policy: PASS / FAIL

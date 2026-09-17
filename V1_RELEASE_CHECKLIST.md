@@ -8,15 +8,15 @@ Use this checklist before tagging `v1.0.0`.
 - [ ] Local build succeeds (`cmake -S . -B build` + `cmake --build build`).
 - [ ] Local tests pass (`ctest --test-dir build --output-on-failure`).
 
-## WinFsp runtime readiness
+## kdrv runtime readiness
 
-- [ ] `jdrive64 winfsp-preflight <image.d64> <drive_letter:>` passes on a WinFsp host.
-- [ ] No missing symbol or DLL errors on target host.
-- [ ] Runtime start/stop works repeatedly without stale state.
+- [ ] `jdrive64 mount <image.d64> <drive_letter:>` succeeds with default backend (`kdrv`).
+- [ ] `jdrive64 backend-diag-mounted <drive_letter:>` reports `Backend: kdrv`.
+- [ ] kdrv mount/unmount cycle works repeatedly without stale state.
 
 ## Explorer end-to-end validation
 
-- [ ] `A8_EXPLORER_CHECKLIST.md` executed and archived with evidence.
+- [ ] `A8_EXPLORER_CHECKLIST.md` executed and archived with evidence (kdrv path).
 - [ ] Evidence recorded using `A8_EVIDENCE_TEMPLATE.md`.
 - [ ] Read flows stable in Explorer (open/copy/seek).
 - [ ] Write attempts denied consistently.

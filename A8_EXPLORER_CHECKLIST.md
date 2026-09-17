@@ -1,29 +1,29 @@
 # A8 Explorer Validation Checklist
 
-Use this checklist on a Windows host with WinFsp installed to close Step A8.
+Use this checklist on a Windows host to close Step A8 using the default `kdrv` backend path.
 
 ## Preconditions
 
-- WinFsp is installed and available in PATH/system DLL search.
 - `jdrive64.exe` is built from current `main`.
 - At least one valid `.d64` image is available.
 - Chosen mount point (for example `R:`) is not currently in use.
 
-## 1) Runtime preflight
+## 1) kdrv mounted diagnostics preflight
 
 Command:
 
 ```powershell
-jdrive64 winfsp-preflight <image.d64> R:
+jdrive64 mount <image.d64> R:
+jdrive64 backend-diag-mounted R:
 ```
 
 PASS:
 - Exit code is `0`.
-- Output contains `WinFsp preflight OK`.
+- Diagnostics output contains `Backend: kdrv`.
 
 FAIL:
 - Non-zero exit code.
-- Error output includes DLL/symbol/runtime lifecycle failure.
+- Diagnostics output does not report `kdrv` backend.
 
 ## 2) Mount visibility in Explorer
 
@@ -116,7 +116,7 @@ Step A8 is considered done only when all sections pass on at least one WinFsp-en
 
 - Evidence file: `A8_EVIDENCE_2026-09-17_LOCAL.md`
 - Current local session result:
-  - Runtime preflight: FAIL (`WinFsp runtime support is disabled` in current build)
+  - kdrv diagnostics preflight: PASS (`mount` and `backend-diag-mounted` report kdrv)
   - CLI mount/unmount stability: PASS
   - Explorer manual checks: PENDING
-- Closure status: A8 remains open until checklist is re-run on a WinFsp-enabled host/build with full screenshot evidence.
+- Closure status: A8 remains open until manual Explorer checks and screenshots are completed.

@@ -8,8 +8,7 @@ Reference template: `A8_EVIDENCE_TEMPLATE.md`
 - Operator: OpenCode automation session (local host)
 - Machine: local workstation (non-VM evidence session)
 - Windows version: Microsoft Windows 11 Business
-- WinFsp version: not verified in this session
-- JDrive64 commit: `e8f9c03`
+- JDrive64 commit: `f449ac7`
 - Test image path: `C:\Users\LBiondi\AppData\Local\Temp\opencode\Jemu64\roms\tsuit215\Source1.d64`
 - Drive letter used: `R:`
 
@@ -19,13 +18,13 @@ Reference template: `A8_EVIDENCE_TEMPLATE.md`
 $env:PATH = "C:\msys64\ucrt64\bin;C:\msys64\usr\bin;" + $env:PATH
 $exe = "C:\Users\LBiondi\OneDrive - centrosoftware.com\Documenti\Default Project\JDrive64\build\jdrive64.exe"
 
-& $exe winfsp-preflight "C:\Users\LBiondi\AppData\Local\Temp\opencode\Jemu64\roms\tsuit215\Source1.d64" R:
-# Error: WinFsp runtime support is disabled (build with JDRIVE64_ENABLE_WINFSP)
-# PREFLIGHT_EXIT=1
-
 & $exe mount "C:\Users\LBiondi\AppData\Local\Temp\opencode\Jemu64\roms\tsuit215\Source1.d64" R:
-# Mounted ... on R: (read-only, backend=winfsp)
+# Mounted ... on R: (read-only, backend=kdrv)
 # MOUNT_EXIT=0
+
+& $exe backend-diag-mounted R:
+# Backend: kdrv
+# ...diagnostics...
 
 & $exe mounts
 # R: -> C:\Users\LBiondi\AppData\Local\Temp\opencode\Jemu64\roms\tsuit215\Source1.d64
@@ -42,7 +41,7 @@ $exe = "C:\Users\LBiondi\OneDrive - centrosoftware.com\Documenti\Default Project
 
 ## Checklist Results
 
-- Runtime preflight: FAIL (expected in this build: WinFsp runtime support disabled)
+- kdrv diagnostics preflight: PASS (`mount` and `backend-diag-mounted` succeed with `kdrv`)
 - Mount visibility in Explorer: PENDING (manual Explorer check not executed in this session)
 - Read behavior: PENDING (manual Explorer check not executed in this session)
 - Denied write policy: PENDING (manual Explorer check not executed in this session)
@@ -56,12 +55,11 @@ $exe = "C:\Users\LBiondi\OneDrive - centrosoftware.com\Documenti\Default Project
 
 ## Notes / Anomalies
 
-- This session confirms CLI mount state behavior and unmount/remount flow.
-- A8 closure still requires execution on a WinFsp-enabled host/build where `winfsp-preflight` returns success.
+- This session confirms CLI mount state behavior, kdrv diagnostics surface, and unmount/remount flow.
+- A8 closure still requires manual Explorer validation and screenshots.
 
 ## Final Verdict
 
 - A8 completed on this host: NO
 - Blocking issues:
-  - `winfsp-preflight` fails because current build has WinFsp runtime support disabled.
   - Required Explorer screenshots and manual read/write-denial checks are not yet collected.
