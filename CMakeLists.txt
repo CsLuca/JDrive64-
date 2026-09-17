@@ -19,6 +19,8 @@ add_library(jdrive64_core
   src/file_chain_reader.cpp
   src/petscii_converter.cpp
   src/sector_cache.cpp
+  src/winfsp_callbacks.cpp
+  src/winfsp_adapter.cpp
   src/winfsp_runtime.cpp
   src/winfsp_filesystem.cpp
 )

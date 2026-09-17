@@ -14,6 +14,8 @@
 #include "jdrive64/file_cache.hpp"
 #include "jdrive64/file_chain_reader.hpp"
 #include "jdrive64/sector_cache.hpp"
+#include "jdrive64/winfsp_adapter.hpp"
+#include "jdrive64/winfsp_callbacks.hpp"
 #include "jdrive64/winfsp_filesystem.hpp"
 #include "jdrive64/winfsp_runtime.hpp"
 
@@ -26,6 +28,8 @@ using jdrive64::DirectoryReader;
 using jdrive64::FileCache;
 using jdrive64::FileChainReader;
 using jdrive64::SectorCache;
+using jdrive64::WinFspAdapter;
+using jdrive64::WinFspCallbacks;
 using jdrive64::WinFspFilesystem;
 using jdrive64::WinFspRuntime;
 
@@ -491,6 +495,98 @@ bool TestWinFspRuntimeScaffold(const std::filesystem::path& image_path) {
   return true;
 }
 
+bool TestWinFspAdapterScaffold(const std::filesystem::path& image_path) {
+  WinFspAdapter adapter;
+  WinFspFilesystem filesystem;
+#if defined(JDRIVE64_ENABLE_WINFSP)
+  if (!Assert(adapter.StartReadOnly(&filesystem, image_path.string(), "X:"),
+              "WinFspAdapter start succeeds when WinFsp support is enabled")) {
+    return false;
+  }
+  if (!Assert(adapter.Stop(&filesystem, "X:"),
+              "WinFspAdapter stop succeeds when WinFsp support is enabled")) {
+    return false;
+  }
+#else
+  if (!Assert(!adapter.StartReadOnly(&filesystem, image_path.string(), "X:"),
+              "WinFspAdapter start fails when WinFsp support is disabled")) {
+    return false;
+  }
+  if (!Assert(adapter.LastError().find("disabled") != std::string::npos,
+              "WinFspAdapter reports disabled error")) {
+    return false;
+  }
+  if (!Assert(!adapter.Stop(&filesystem, "X:"),
+              "WinFspAdapter stop fails when WinFsp support is disabled")) {
+    return false;
+  }
+#endif
+
+  return true;
+}
+
+bool TestWinFspCallbacksBridge(const std::filesystem::path& image_path) {
+  WinFspFilesystem fs;
+  if (!Assert(fs.MountReadOnly(image_path.string(), "W:"), "Callbacks bridge mount facade")) {
+    return false;
+  }
+
+  WinFspCallbacks callbacks;
+  if (!Assert(callbacks.Initialize(&fs), "Callbacks initialize")) {
+    return false;
+  }
+  if (!Assert(callbacks.IsInitialized(), "Callbacks initialized state")) {
+    return false;
+  }
+
+  WinFspFilesystem::VolumeInfo volume;
+  if (!Assert(callbacks.DispatchGetVolumeInfo(&volume), "Callbacks dispatch volume info")) {
+    return false;
+  }
+  if (!Assert(volume.filesystem == "JDrive64", "Callbacks volume filesystem")) {
+    return false;
+  }
+
+  std::vector<std::string> entries;
+  if (!Assert(callbacks.DispatchReadDirectory(&entries), "Callbacks dispatch read directory")) {
+    return false;
+  }
+  if (!Assert(entries.size() == 1 && entries[0] == "HELLO.PRG", "Callbacks directory entries")) {
+    return false;
+  }
+
+  std::uint64_t handle = 0;
+  if (!Assert(callbacks.DispatchOpen("HELLO.PRG", &handle), "Callbacks dispatch open")) {
+    return false;
+  }
+
+  std::vector<std::uint8_t> bytes;
+  if (!Assert(callbacks.DispatchRead(handle, 0, 5, &bytes), "Callbacks dispatch read")) {
+    return false;
+  }
+  if (!Assert(std::string(bytes.begin(), bytes.end()) == "HELLO", "Callbacks read payload")) {
+    return false;
+  }
+
+  if (!Assert(callbacks.DispatchClose(handle), "Callbacks dispatch close")) {
+    return false;
+  }
+
+  callbacks.Shutdown();
+  if (!Assert(!callbacks.IsInitialized(), "Callbacks shutdown state")) {
+    return false;
+  }
+  if (!Assert(!callbacks.DispatchReadDirectory(&entries), "Callbacks dispatch fails after shutdown")) {
+    return false;
+  }
+
+  if (!Assert(fs.Unmount("W:"), "Callbacks bridge unmount facade")) {
+    return false;
+  }
+
+  return true;
+}
+
 }  // namespace
 
 int main() {
@@ -500,6 +596,8 @@ int main() {
   ok = ok && TestCoreParsers(image_path);
   ok = ok && TestCaches();
   ok = ok && TestWinFspFacade(image_path);
+  ok = ok && TestWinFspCallbacksBridge(image_path);
+  ok = ok && TestWinFspAdapterScaffold(image_path);
   ok = ok && TestWinFspRuntimeScaffold(image_path);
 
   std::error_code ec;

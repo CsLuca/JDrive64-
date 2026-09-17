@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "jdrive64/winfsp_adapter.hpp"
 #include "jdrive64/winfsp_filesystem.hpp"
 
 namespace jdrive64 {
@@ -18,6 +19,7 @@ class WinFspRuntime {
  bool running_ = false;
   std::string mount_point_;
   std::string last_error_;
+  WinFspAdapter adapter_;
   WinFspFilesystem filesystem_;
 };
 

@@ -11,8 +11,8 @@ bool WinFspRuntime::StartReadOnly(const std::string& image_path, const std::stri
   }
 
 #if defined(JDRIVE64_ENABLE_WINFSP)
-  if (!filesystem_.MountReadOnly(image_path, mount_point)) {
-    last_error_ = filesystem_.LastError();
+  if (!adapter_.StartReadOnly(&filesystem_, image_path, mount_point)) {
+    last_error_ = adapter_.LastError();
     return false;
   }
 
@@ -36,8 +36,8 @@ bool WinFspRuntime::Stop() {
   }
 
 #if defined(JDRIVE64_ENABLE_WINFSP)
-  if (!filesystem_.Unmount(mount_point_)) {
-    last_error_ = filesystem_.LastError();
+  if (!adapter_.Stop(&filesystem_, mount_point_)) {
+    last_error_ = adapter_.LastError();
     return false;
   }
 
