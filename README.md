@@ -136,6 +136,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K44 explainability scaffold adds `query_plan_complexity` classification (`simple|moderate|complex`).
 - K45 explainability scaffold adds numeric `query_plan_score` for quick query complexity ranking.
 - K46 explainability scaffold adds predicate-kind counters (`pred_event`, `pred_detail`, `pred_success`) in query-plan metadata.
+- K47 explainability scaffold adds scan-efficiency telemetry (`scanned_entries`, `matched_entries`, `scan_match_ratio`).
 
 ## Domain Layer (Step 3)
 

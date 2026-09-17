@@ -1841,8 +1841,9 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
     std::cout << "  },\n";
     std::cout << "  \"mount\": \"" << EscapeJson(mount_point) << "\",\n";
     std::cout << "  \"files_scanned\": " << files.size() << ",\n";
-    std::cout << "  \"total_matched\": " << sliced.size() << ",\n";
-    std::cout << "  \"total_success\": " << total_success << ",\n";
+      const std::size_t scanned_entries = matched.size();
+      std::cout << "  \"total_matched\": " << sliced.size() << ",\n";
+      std::cout << "  \"total_success\": " << total_success << ",\n";
     std::cout << "  \"query\": {\n";
     std::cout << "    \"selector_mode\": \""
               << (opt.selector_mode == TelemetryDumpOptions::SelectorMode::kAll ? "all" : "any")
@@ -1925,6 +1926,13 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
                     (opt.event_contains.empty() ? 0 : 1))
                 << ",\n";
       std::cout << "    \"negative_selector_count\": " << opt.exclude_events.size() << ",\n";
+      std::cout << "    \"scanned_entries\": " << scanned_entries << ",\n";
+      std::cout << "    \"matched_entries\": " << sliced.size() << ",\n";
+      std::cout << "    \"scan_match_ratio\": "
+                << (scanned_entries == 0 ? 0.0
+                                         : static_cast<double>(sliced.size()) /
+                                               static_cast<double>(scanned_entries))
+                << ",\n";
       std::cout << "    \"where_rpn_tokens\": " << opt.where_compiled.rpn.size() << ",\n";
       std::cout << "    \"normalized_where_hash\": "
                 << StableWhereHash(opt.where_expression_normalized) << ",\n";

@@ -2506,7 +2506,7 @@ Status: done
 
 ## K46 - Explain Predicate-kind Counter Scaffold
 
-Status: in progress
+Status: done
 
 ### K46.1 Predicate-kind counters
 
@@ -2538,6 +2538,41 @@ Status: in progress
 
 - Predicate-kind counters are integrated and test-covered.
 - Ready for K47 explain/filter scan-efficiency metadata scaffold.
+
+## K47 - Explain Scan-efficiency Metadata Scaffold
+
+Status: in progress
+
+### K47.1 Scan-efficiency fields
+
+- Task: expose scan/match efficiency metrics in explain output.
+- PASS:
+  - `query_plan` includes `scanned_entries`, `matched_entries`, and `scan_match_ratio`.
+  - ratio is deterministic and safe for zero-scan cases.
+- FAIL:
+  - explain output lacks scan-efficiency metadata.
+
+### K47.2 Regression coverage
+
+- Task: validate scan-efficiency metadata in CLI smoke.
+- PASS:
+  - smoke asserts `scan_match_ratio` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for scan-efficiency metadata.
+
+### K47 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K47 exit criteria
+
+- Scan-efficiency metadata is integrated and test-covered.
+- Ready for K48 where-feature bitmask metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
