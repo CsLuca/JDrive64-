@@ -1034,7 +1034,7 @@ Status: done
 
 ## K13 - Feature Rollout Strategy Scaffold
 
-Status: in progress
+Status: done
 
 ### K13.1 Feature policy modes
 
@@ -1086,6 +1086,59 @@ Status: in progress
 
 - Rollout policy mode and granular feature gating are integrated and test-covered.
 - Ready for K14 backend-level policy surfacing and CLI diagnostics.
+
+## K14 - Backend Diagnostics Surfacing Scaffold
+
+Status: in progress
+
+### K14.1 Backend diagnostics interface
+
+- Task: expose backend-level diagnostics text across mount backend implementations.
+- PASS:
+  - `IMountBackend` includes diagnostics accessor.
+  - winfsp and kdrv backends provide deterministic diagnostics payloads.
+- FAIL:
+  - no backend diagnostics contract.
+
+### K14.2 Kernel diagnostics payload
+
+- Task: surface negotiated transport state from kernel backend controller.
+- PASS:
+  - diagnostics include transport mode, feature policy, handshake state, and negotiated values.
+  - diagnostics are available without ad-hoc CLI internals.
+- FAIL:
+  - negotiated kernel state is not surfaced.
+
+### K14.3 CLI command integration
+
+- Task: add CLI command to display backend diagnostics against an image and backend selection.
+- PASS:
+  - `backend-diag <image.d64> [--backend <winfsp|kdrv>]` works.
+  - command prints requested backend and diagnostics text.
+- FAIL:
+  - no CLI surface for backend diagnostics.
+
+### K14.4 Regression coverage
+
+- Task: add core/smoke tests for diagnostics surface.
+- PASS:
+  - core tests validate kernel diagnostics text includes key fields.
+  - CLI smoke validates `backend-diag` for kdrv.
+- FAIL:
+  - diagnostics path has no test coverage.
+
+### K14 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K14 exit criteria
+
+- Backend diagnostics are surfaced consistently in core and CLI layers.
+- Ready for K15 persistence/telemetry of negotiated backend state.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

@@ -1,5 +1,7 @@
 #include "jdrive64/kernel_backend.hpp"
 
+#include <sstream>
+
 namespace jdrive64 {
 
 bool KernelBackendController::SetTransportMode(KernelTransport::Mode mode) {
@@ -102,6 +104,27 @@ bool KernelBackendController::ReadDirectory(std::vector<std::string>* entries) {
   *entries = response.directory_entries;
   last_error_.clear();
   return true;
+}
+
+std::string KernelBackendController::GetDiagnosticsText() const {
+  auto mode_to_string = [](KernelTransport::Mode mode) {
+    return mode == KernelTransport::Mode::kDevice ? "device" : "loopback";
+  };
+  auto policy_to_string = [](KernelTransport::FeaturePolicy policy) {
+    return policy == KernelTransport::FeaturePolicy::kBestEffort ? "best_effort" : "strict";
+  };
+
+  std::ostringstream out;
+  out << "Backend=kdrv\n";
+  out << "ServiceRunning=" << (service_running_ ? "yes" : "no") << "\n";
+  out << "TransportMode=" << mode_to_string(ipc_channel_.GetTransportMode()) << "\n";
+  out << "FeaturePolicy=" << policy_to_string(ipc_channel_.GetFeaturePolicy()) << "\n";
+  out << "HandshakeComplete=" << (ipc_channel_.IsHandshakeComplete() ? "yes" : "no") << "\n";
+  out << "NegotiatedProtocol=" << ipc_channel_.NegotiatedProtocolVersion() << "\n";
+  out << "NegotiatedCapabilities=0x" << std::hex << ipc_channel_.NegotiatedCapabilities() << std::dec
+      << "\n";
+  out << "NegotiatedFeatures=0x" << std::hex << ipc_channel_.NegotiatedFeatures() << std::dec;
+  return out.str();
 }
 
 bool KernelBackendController::IsServiceRunning() const { return service_running_; }

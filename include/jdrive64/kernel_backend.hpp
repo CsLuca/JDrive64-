@@ -21,6 +21,8 @@ class KernelBackendController {
 
   bool ReadDirectory(std::vector<std::string>* entries);
 
+  std::string GetDiagnosticsText() const;
+
   bool IsServiceRunning() const;
   const std::string& LastError() const;
 

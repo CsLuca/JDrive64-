@@ -115,6 +115,15 @@ int main(int argc, char** argv) {
   }
 
   {
+    const auto backend_diag_cmd = Quote(exe_path.string()) + " backend-diag " +
+                                  Quote(golden.valid_small.string()) + " --backend kdrv";
+    const auto backend_diag_r = Run(backend_diag_cmd);
+    ok = ok && Check(backend_diag_r.exit_code == 0, "backend-diag exits 0 for kdrv");
+    ok = ok && Check(Contains(backend_diag_r.output, "RequestedBackend: kdrv"),
+                     "backend-diag reports requested backend");
+    ok = ok && Check(Contains(backend_diag_r.output, "Backend=kdrv"),
+                     "backend-diag reports kdrv diagnostics");
+
     const auto mount_cmd = Quote(exe_path.string()) + " mount " + Quote(golden.valid_small.string()) +
                            " Z:";
     const auto mount_r = Run(mount_cmd);

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -26,6 +27,11 @@ class WinFspMountBackend final : public IMountBackend {
   std::vector<std::string> ReadDirectory() const override { return filesystem_.ReadDirectory(); }
 
   std::string GetVolumeInfoText() const override { return filesystem_.GetVolumeInfoText(); }
+
+  std::string GetBackendDiagnosticsText() const override {
+    return "Backend=winfsp\nMode=native\nNegotiatedProtocol=n/a\nNegotiatedCapabilities=n/a\n"
+           "NegotiatedFeatures=n/a\nFeaturePolicy=n/a\nHandshakeComplete=n/a";
+  }
 
   const std::string& LastError() const override { return filesystem_.LastError(); }
 
@@ -99,6 +105,10 @@ class KernelMountBackend final : public IMountBackend {
 
   std::string GetVolumeInfoText() const override {
     return "Kernel backend scaffold active (K7 transport loopback mode)";
+  }
+
+  std::string GetBackendDiagnosticsText() const override {
+    return controller_.GetDiagnosticsText();
   }
 
   const std::string& LastError() const override { return last_error_; }

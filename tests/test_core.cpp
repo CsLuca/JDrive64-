@@ -14,6 +14,7 @@
 #include "jdrive64/directory_reader.hpp"
 #include "jdrive64/file_cache.hpp"
 #include "jdrive64/file_chain_reader.hpp"
+#include "jdrive64/kernel_backend.hpp"
 #include "jdrive64/kernel_mount_manager.hpp"
 #include "jdrive64/kernel_ipc_channel.hpp"
 #include "jdrive64/kernel_ioctl_protocol.hpp"
@@ -38,6 +39,7 @@ using jdrive64::FileCache;
 using jdrive64::FileChainReader;
 using jdrive64::IMountBackend;
 using jdrive64::KernelMountManager;
+using jdrive64::KernelBackendController;
 using jdrive64::KernelIpcChannel;
 using jdrive64::KernelOpcode;
 using jdrive64::KernelRequest;
@@ -1417,6 +1419,46 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
   }
   if (!Assert(std::string(ioctl_result.data.begin(), ioctl_result.data.end()) == ioctl_payload,
               "KernelTransport parses IOCTL payload data")) {
+    return false;
+  }
+
+  std::string diag = "";
+  KernelBackendController backend_controller;
+  if (!Assert(backend_controller.SetTransportMode(KernelTransport::Mode::kLoopback),
+              "KernelBackendController accepts loopback mode")) {
+    return false;
+  }
+  if (!Assert(backend_controller.InstallService("jdrive64ksvc.exe"),
+              "KernelBackendController installs service")) {
+    return false;
+  }
+  if (!Assert(backend_controller.StartService(image_path.string(), "K:"),
+              "KernelBackendController starts service")) {
+    return false;
+  }
+  diag = backend_controller.GetDiagnosticsText();
+  if (!Assert(diag.find("Backend=kdrv") != std::string::npos,
+              "KernelBackendController diagnostics include backend marker")) {
+    return false;
+  }
+  if (!Assert(diag.find("TransportMode=loopback") != std::string::npos,
+              "KernelBackendController diagnostics include transport mode")) {
+    return false;
+  }
+  if (!Assert(diag.find("FeaturePolicy=strict") != std::string::npos,
+              "KernelBackendController diagnostics include feature policy")) {
+    return false;
+  }
+  if (!Assert(diag.find("HandshakeComplete=yes") != std::string::npos,
+              "KernelBackendController diagnostics include handshake state")) {
+    return false;
+  }
+  if (!Assert(backend_controller.StopService(),
+              "KernelBackendController stops service for diagnostics")) {
+    return false;
+  }
+  if (!Assert(backend_controller.RemoveService(),
+              "KernelBackendController removes service for diagnostics")) {
     return false;
   }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include "jdrive64/kernel_ioctl_protocol.hpp"
@@ -16,6 +17,11 @@ class KernelIpcChannel {
 
   bool SetTransportMode(KernelTransport::Mode mode);
   KernelTransport::Mode GetTransportMode() const;
+  KernelTransport::FeaturePolicy GetFeaturePolicy() const;
+  bool IsHandshakeComplete() const;
+  std::uint32_t NegotiatedProtocolVersion() const;
+  std::uint32_t NegotiatedCapabilities() const;
+  std::uint32_t NegotiatedFeatures() const;
 
   bool IsConnected() const;
   const std::string& LastError() const;

@@ -15,6 +15,7 @@ class IMountBackend {
   virtual bool HealthCheck() = 0;
   virtual std::vector<std::string> ReadDirectory() const = 0;
   virtual std::string GetVolumeInfoText() const = 0;
+  virtual std::string GetBackendDiagnosticsText() const = 0;
   virtual const std::string& LastError() const = 0;
 };
 

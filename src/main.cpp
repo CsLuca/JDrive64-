@@ -286,6 +286,7 @@ bool PrepareMountedFilesystem(std::string mount_point,
 int CmdMountWithBackend(const std::string& image_path,
                        std::string mount_point,
                        const std::string& backend_name);
+int CmdBackendDiag(const std::string& image_path, const std::string& backend_name);
 
 void PrintUsage() {
   std::cout << "JDrive64 CLI\n"
@@ -303,6 +304,7 @@ void PrintUsage() {
             << "  jdrive64 volume-mounted <drive_letter:>\n"
             << "  jdrive64 stats-mounted <drive_letter:>\n"
             << "  jdrive64 check-mounted <drive_letter:>\n"
+            << "  jdrive64 backend-diag <image.d64> [--backend <winfsp|kdrv>]\n"
             << "  jdrive64 winfsp-preflight <image.d64> <drive_letter:>\n"
             << "  jdrive64 write-add <image.d64> <host_file> <name.ext>\n"
             << "  jdrive64 write-del <image.d64> <name.ext>\n"
@@ -705,6 +707,36 @@ int CmdWinfspPreflight(const std::string& image_path, std::string mount_point) {
   return 0;
 }
 
+int CmdBackendDiag(const std::string& image_path, const std::string& backend_name) {
+  std::error_code fs_ec;
+  auto resolved_image = std::filesystem::absolute(image_path, fs_ec);
+  if (fs_ec) {
+    resolved_image = image_path;
+  }
+  if (!std::filesystem::exists(resolved_image)) {
+    std::cerr << "Error: image file does not exist: " << resolved_image.string() << "\n";
+    return 1;
+  }
+
+  std::string normalized_backend;
+  std::string backend_error;
+  auto backend = jdrive64::CreateMountBackend(backend_name, &normalized_backend, &backend_error);
+  if (backend == nullptr) {
+    std::cerr << "Error: " << backend_error << "\n";
+    return 1;
+  }
+
+  const std::string diag = backend->GetBackendDiagnosticsText();
+  std::cout << "Image: " << resolved_image.string() << "\n";
+  std::cout << "RequestedBackend: " << normalized_backend << "\n";
+  if (diag.empty()) {
+    std::cout << "Diagnostics: unavailable\n";
+  } else {
+    std::cout << diag << "\n";
+  }
+  return 0;
+}
+
 int CmdWriteAdd(const std::string& image_path, const std::string& host_file, const std::string& windows_name) {
   D64ImageEditor editor;
   if (!editor.Open(image_path)) {
@@ -883,6 +915,24 @@ int main(int argc, char** argv) {
     }
 
     return CmdMountWithBackend(image_path, argv[3], backend_name);
+  }
+
+  if (command == "backend-diag") {
+    if (argc != 3 && argc != 5) {
+      PrintUsage();
+      return 1;
+    }
+
+    std::string backend_name = "winfsp";
+    if (argc == 5) {
+      if (std::string(argv[3]) != "--backend") {
+        PrintUsage();
+        return 1;
+      }
+      backend_name = argv[4];
+    }
+
+    return CmdBackendDiag(image_path, backend_name);
   }
 
   PrintUsage();
