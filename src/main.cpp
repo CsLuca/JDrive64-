@@ -312,6 +312,7 @@ int CmdBackendDiag(const std::string& image_path, const std::string& backend_nam
 int CmdBackendDiagMounted(std::string mount_point, bool as_json);
 int CmdTelemetryDumpMounted(std::string mount_point);
 int CmdTelemetryClearMounted(std::string mount_point);
+int CmdTelemetryListMounted(std::string mount_point);
 
 std::string EscapeJson(const std::string& value) {
   std::string out;
@@ -379,6 +380,7 @@ void PrintUsage() {
             << "  jdrive64 backend-diag-mounted <drive_letter:> [--json]\n"
             << "  jdrive64 telemetry-dump-mounted <drive_letter:>\n"
             << "  jdrive64 telemetry-clear-mounted <drive_letter:>\n"
+            << "  jdrive64 telemetry-list-mounted <drive_letter:>\n"
             << "  jdrive64 winfsp-preflight <image.d64> <drive_letter:>\n"
             << "  jdrive64 write-add <image.d64> <host_file> <name.ext>\n"
             << "  jdrive64 write-del <image.d64> <name.ext>\n"
@@ -969,6 +971,59 @@ int CmdTelemetryClearMounted(std::string mount_point) {
   return 0;
 }
 
+int CmdTelemetryListMounted(std::string mount_point) {
+  mount_point = NormalizeMountPoint(std::move(mount_point));
+  if (!IsValidMountPoint(mount_point)) {
+    std::cerr << "Error: invalid mount point, expected format X:\n";
+    return 1;
+  }
+
+  const auto state_file = MountStateFile(mount_point);
+  if (!std::filesystem::exists(state_file)) {
+    std::cerr << "Error: mount point is not mounted: " << mount_point << "\n";
+    return 1;
+  }
+
+  MountState state;
+  std::string load_error;
+  if (!LoadMountState(state_file, &state, &load_error)) {
+    std::cerr << "Error: invalid mount state: " << load_error << "\n";
+    return 1;
+  }
+  if (state.telemetry_jsonl_path.empty()) {
+    std::cerr << "Error: telemetry JSONL path is not configured for mount " << mount_point << "\n";
+    return 1;
+  }
+
+  const std::filesystem::path base = state.telemetry_jsonl_path;
+  std::vector<std::filesystem::path> files;
+  if (std::filesystem::exists(base)) {
+    files.push_back(base);
+  }
+  for (std::size_t i = 1; i <= 16; ++i) {
+    const auto candidate = base.string() + "." + std::to_string(i);
+    if (!std::filesystem::exists(candidate)) {
+      break;
+    }
+    files.emplace_back(candidate);
+  }
+
+  std::cout << "Telemetry files for " << mount_point << "\n";
+  for (const auto& f : files) {
+    std::error_code ec;
+    const auto sz = std::filesystem::file_size(f, ec);
+    if (ec) {
+      std::cout << f.string() << " size=unknown\n";
+    } else {
+      std::cout << f.string() << " size=" << sz << "\n";
+    }
+  }
+  if (files.empty()) {
+    std::cout << "(no telemetry files found)\n";
+  }
+  return 0;
+}
+
 int CmdWriteAdd(const std::string& image_path, const std::string& host_file, const std::string& windows_name) {
   D64ImageEditor editor;
   if (!editor.Open(image_path)) {
@@ -1109,6 +1164,14 @@ int main(int argc, char** argv) {
       return 1;
     }
     return CmdTelemetryClearMounted(argv[2]);
+  }
+
+  if (command == "telemetry-list-mounted") {
+    if (argc < 3) {
+      PrintUsage();
+      return 1;
+    }
+    return CmdTelemetryListMounted(argv[2]);
   }
 
   if (command == "write-add") {

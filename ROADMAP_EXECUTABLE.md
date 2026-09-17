@@ -1336,7 +1336,7 @@ Status: done
 
 ## K19 - Telemetry Rotation and Mounted Management Scaffold
 
-Status: in progress
+Status: done
 
 ### K19.1 Rotation/size cap
 
@@ -1386,6 +1386,50 @@ Status: in progress
 
 - Telemetry rotation and mounted management are integrated and test-covered.
 - Ready for K20 telemetry retention policy and multi-file indexing.
+
+## K20 - Telemetry Retention and Indexing Scaffold
+
+Status: in progress
+
+### K20.1 Multi-file retention
+
+- Task: support rotating telemetry files across multiple generations.
+- PASS:
+  - sink accepts max retained file count.
+  - rotation chain produces `.1`, `.2`, ... up to configured limit.
+- FAIL:
+  - retention supports only a single rotated file.
+
+### K20.2 Mounted telemetry index command
+
+- Task: add mounted command that lists available telemetry files with size metadata.
+- PASS:
+  - `telemetry-list-mounted <drive_letter:>` outputs base/rotated files.
+  - output includes size info and no-crash behavior on missing files.
+- FAIL:
+  - no index/list command for telemetry files.
+
+### K20.3 Regression coverage
+
+- Task: validate retention chain and list command behavior.
+- PASS:
+  - core tests validate second-generation rotation file existence.
+  - CLI smoke validates telemetry list command output.
+- FAIL:
+  - no regression tests for retention index behavior.
+
+### K20 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K20 exit criteria
+
+- Multi-file retention and mounted indexing are integrated and test-covered.
+- Ready for K21 event filters and query options.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

@@ -43,6 +43,13 @@ KernelTelemetryJsonlSink::KernelTelemetryJsonlSink(std::string file_path)
 KernelTelemetryJsonlSink::KernelTelemetryJsonlSink(std::string file_path, std::uintmax_t max_bytes)
     : file_path_(std::move(file_path)), max_bytes_(max_bytes == 0 ? kDefaultMaxBytes : max_bytes) {}
 
+KernelTelemetryJsonlSink::KernelTelemetryJsonlSink(std::string file_path,
+                                                   std::uintmax_t max_bytes,
+                                                   std::size_t max_files)
+    : file_path_(std::move(file_path)),
+      max_bytes_(max_bytes == 0 ? kDefaultMaxBytes : max_bytes),
+      max_files_(max_files == 0 ? kDefaultMaxFiles : max_files) {}
+
 void KernelTelemetryJsonlSink::RotateIfNeeded() {
   std::error_code ec;
   const auto size = std::filesystem::file_size(file_path_, ec);
@@ -53,12 +60,25 @@ void KernelTelemetryJsonlSink::RotateIfNeeded() {
     return;
   }
 
-  const std::string rotated = file_path_ + ".1";
-  std::filesystem::remove(rotated, ec);
-  ec.clear();
-  std::filesystem::rename(file_path_, rotated, ec);
-  if (ec) {
-    last_error_ = "Cannot rotate telemetry JSONL file";
+  for (std::size_t i = max_files_; i >= 1; --i) {
+    const std::string src = i == 1 ? file_path_ : (file_path_ + "." + std::to_string(i - 1));
+    const std::string dst = file_path_ + "." + std::to_string(i);
+    std::filesystem::remove(dst, ec);
+    ec.clear();
+    if (!std::filesystem::exists(src)) {
+      if (i == 1) {
+        break;
+      }
+      continue;
+    }
+    std::filesystem::rename(src, dst, ec);
+    if (ec) {
+      last_error_ = "Cannot rotate telemetry JSONL file";
+      return;
+    }
+    if (i == 1) {
+      break;
+    }
   }
 }
 

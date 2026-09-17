@@ -213,6 +213,12 @@ int main(int argc, char** argv) {
     ok = ok && Check(Contains(telemetry_clear_r.output, "Cleared telemetry JSONL"),
                      "telemetry-clear-mounted reports clear message");
 
+    const auto telemetry_list_cmd = Quote(exe_path.string()) + " telemetry-list-mounted Z:";
+    const auto telemetry_list_r = Run(telemetry_list_cmd);
+    ok = ok && Check(telemetry_list_r.exit_code == 0, "telemetry-list-mounted exits 0");
+    ok = ok && Check(Contains(telemetry_list_r.output, "Telemetry files for Z:"),
+                     "telemetry-list-mounted reports header");
+
     const auto preflight_cmd = Quote(exe_path.string()) + " winfsp-preflight " +
                                Quote(golden.valid_small.string()) + " Y:";
     const auto preflight_r = Run(preflight_cmd);

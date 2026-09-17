@@ -1865,7 +1865,7 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
   std::filesystem::remove(rotated_base, telemetry_ec);
   std::filesystem::remove(rotated_file, telemetry_ec);
 
-  jdrive64::KernelTelemetryJsonlSink rotate_sink(rotated_base.string(), 64);
+  jdrive64::KernelTelemetryJsonlSink rotate_sink(rotated_base.string(), 64, 2);
   KernelTransport rotate_transport;
   if (!Assert(rotate_transport.SetTelemetrySinkForTesting(&rotate_sink),
               "KernelTransport accepts rotation telemetry sink")) {
@@ -1887,8 +1887,16 @@ bool TestKernelTransportScaffold(const std::filesystem::path& image_path) {
               "KernelTelemetryJsonlSink rotates file when size cap exceeded")) {
     return false;
   }
+
+  rotate_sink.Emit(KernelTransport::TelemetryEvent{"extra", true, "payload"});
+  rotate_sink.Emit(KernelTransport::TelemetryEvent{"extra2", true, "payload"});
+  if (!Assert(std::filesystem::exists(rotated_base.string() + ".2"),
+              "KernelTelemetryJsonlSink keeps second rotated file")) {
+    return false;
+  }
   std::filesystem::remove(rotated_base, telemetry_ec);
   std::filesystem::remove(rotated_file, telemetry_ec);
+  std::filesystem::remove(rotated_base.string() + ".2", telemetry_ec);
 
   std::filesystem::remove(telemetry_file, telemetry_ec);
 

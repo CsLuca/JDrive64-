@@ -109,6 +109,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K17 telemetry scaffold adds structured transport events for connect/send/disconnect success/failure stages.
 - K18 persistence scaffold adds optional JSONL telemetry sink via `JDRIVE64_TELEMETRY_JSONL`.
 - K19 management scaffold adds telemetry JSONL rotation plus mounted telemetry dump/clear commands.
+- K20 retention scaffold adds multi-file telemetry rotation and mounted telemetry index listing.
 
 ## Domain Layer (Step 3)
 
