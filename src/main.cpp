@@ -371,6 +371,22 @@ std::vector<std::string> SplitNonEmptyLines(const std::string& block) {
   return lines;
 }
 
+std::vector<std::filesystem::path> CollectTelemetryFiles(const std::filesystem::path& base,
+                                                         std::size_t max_files = 16) {
+  std::vector<std::filesystem::path> files;
+  if (std::filesystem::exists(base)) {
+    files.push_back(base);
+  }
+  for (std::size_t i = 1; i <= max_files; ++i) {
+    const auto candidate = base.string() + "." + std::to_string(i);
+    if (!std::filesystem::exists(candidate)) {
+      break;
+    }
+    files.emplace_back(candidate);
+  }
+  return files;
+}
+
 std::string ExtractJsonStringField(const std::string& line, const std::string& field_name) {
   const std::string key = "\"" + field_name + "\":\"";
   const std::size_t pos = line.find(key);
@@ -1001,18 +1017,16 @@ int CmdTelemetryDumpMounted(std::string mount_point) {
     return 1;
   }
 
-  std::ifstream in(state.telemetry_jsonl_path, std::ios::binary);
-  if (!in) {
-    std::cerr << "Error: cannot open telemetry JSONL file: " << state.telemetry_jsonl_path << "\n";
-    return 1;
-  }
-  std::vector<std::string> lines;
-  std::string line;
-  while (std::getline(in, line)) {
-    lines.push_back(line);
-  }
-  for (const auto& l : lines) {
-    std::cout << l << "\n";
+  const auto files = CollectTelemetryFiles(state.telemetry_jsonl_path);
+  for (auto it = files.rbegin(); it != files.rend(); ++it) {
+    std::ifstream in(*it, std::ios::binary);
+    if (!in) {
+      continue;
+    }
+    std::string line;
+    while (std::getline(in, line)) {
+      std::cout << line << "\n";
+    }
   }
   return 0;
 }
@@ -1041,16 +1055,18 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
     return 1;
   }
 
-  std::ifstream in(state.telemetry_jsonl_path, std::ios::binary);
-  if (!in) {
-    std::cerr << "Error: cannot open telemetry JSONL file: " << state.telemetry_jsonl_path << "\n";
-    return 1;
-  }
   std::vector<std::string> matched;
-  std::string line;
-  while (std::getline(in, line)) {
-    if (TelemetryLineMatchesFilter(line, opt)) {
-      matched.push_back(line);
+  const auto files = CollectTelemetryFiles(state.telemetry_jsonl_path);
+  for (auto it = files.rbegin(); it != files.rend(); ++it) {
+    std::ifstream in(*it, std::ios::binary);
+    if (!in) {
+      continue;
+    }
+    std::string line;
+    while (std::getline(in, line)) {
+      if (TelemetryLineMatchesFilter(line, opt)) {
+        matched.push_back(line);
+      }
     }
   }
 
@@ -1154,17 +1170,7 @@ int CmdTelemetryListMounted(std::string mount_point) {
   }
 
   const std::filesystem::path base = state.telemetry_jsonl_path;
-  std::vector<std::filesystem::path> files;
-  if (std::filesystem::exists(base)) {
-    files.push_back(base);
-  }
-  for (std::size_t i = 1; i <= 16; ++i) {
-    const auto candidate = base.string() + "." + std::to_string(i);
-    if (!std::filesystem::exists(candidate)) {
-      break;
-    }
-    files.emplace_back(candidate);
-  }
+  const auto files = CollectTelemetryFiles(base);
 
   std::cout << "Telemetry files for " << mount_point << "\n";
   for (const auto& f : files) {

@@ -5,10 +5,12 @@
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
+#include <limits>
 #include <string>
 
 #include "jdrive64/kernel_backend.hpp"
 #include "jdrive64/kernel_mount_manager.hpp"
+#include "jdrive64/kernel_telemetry_jsonl_sink.hpp"
 #include "jdrive64/winfsp_filesystem.hpp"
 
 namespace jdrive64 {
@@ -50,7 +52,26 @@ class KernelMountBackend final : public IMountBackend {
 
     const char* telemetry_path = std::getenv("JDRIVE64_TELEMETRY_JSONL");
     if (telemetry_path != nullptr && *telemetry_path != '\0') {
-      if (!controller_.EnableTelemetryJsonl(telemetry_path)) {
+      std::uintmax_t max_bytes = KernelTelemetryJsonlSink::kDefaultMaxBytes;
+      std::size_t max_files = KernelTelemetryJsonlSink::kDefaultMaxFiles;
+      if (const char* max_bytes_env = std::getenv("JDRIVE64_TELEMETRY_MAX_BYTES");
+          max_bytes_env != nullptr && *max_bytes_env != '\0') {
+        try {
+          max_bytes = static_cast<std::uintmax_t>(std::stoull(max_bytes_env));
+        } catch (...) {
+          max_bytes = KernelTelemetryJsonlSink::kDefaultMaxBytes;
+        }
+      }
+      if (const char* max_files_env = std::getenv("JDRIVE64_TELEMETRY_MAX_FILES");
+          max_files_env != nullptr && *max_files_env != '\0') {
+        try {
+          max_files = static_cast<std::size_t>(std::stoul(max_files_env));
+        } catch (...) {
+          max_files = KernelTelemetryJsonlSink::kDefaultMaxFiles;
+        }
+      }
+
+      if (!controller_.EnableTelemetryJsonl(telemetry_path, max_bytes, max_files)) {
         last_error_ = controller_.LastError();
         return false;
       }

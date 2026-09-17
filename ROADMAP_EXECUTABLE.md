@@ -1477,7 +1477,7 @@ Status: done
 
 ## K22 - Telemetry Query JSON and Pagination Scaffold
 
-Status: in progress
+Status: done
 
 ### K22.1 Query output mode
 
@@ -1518,6 +1518,50 @@ Status: in progress
 
 - Telemetry query JSON output and pagination are integrated and test-covered.
 - Ready for K23 richer query DSL and cross-file search.
+
+## K23 - Cross-file Telemetry Query Scaffold
+
+Status: in progress
+
+### K23.1 Cross-file telemetry merge
+
+- Task: query telemetry over base and rotated retention files.
+- PASS:
+  - dump/query commands scan base + rotated chain.
+  - merged output preserves deterministic old->new ordering.
+- FAIL:
+  - queries read only base telemetry file.
+
+### K23.2 Retention tuning from environment
+
+- Task: allow runtime tuning of telemetry retention parameters.
+- PASS:
+  - sink max bytes/files can be set via environment variables.
+  - invalid values fall back safely to defaults.
+- FAIL:
+  - retention parameters are hardcoded only.
+
+### K23.3 Regression coverage
+
+- Task: validate rotated file visibility in CLI smoke.
+- PASS:
+  - smoke asserts rotated telemetry file presence via telemetry list command.
+  - query path remains green with filters/pagination/json.
+- FAIL:
+  - no tests that exercise rotated file querying.
+
+### K23 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K23 exit criteria
+
+- Cross-file telemetry query and retention tuning are integrated and test-covered.
+- Ready for K24 richer query DSL and aggregation stats.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

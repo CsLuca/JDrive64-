@@ -114,6 +114,14 @@ bool KernelBackendController::EnableTelemetryJsonl(const std::string& file_path)
   return true;
 }
 
+bool KernelBackendController::EnableTelemetryJsonl(const std::string& file_path,
+                                                   std::uintmax_t max_bytes,
+                                                   std::size_t max_files) {
+  telemetry_sink_ = std::make_unique<KernelTelemetryJsonlSink>(file_path, max_bytes, max_files);
+  ipc_channel_.SetTelemetrySinkForTesting(telemetry_sink_.get());
+  return true;
+}
+
 std::string KernelBackendController::GetDiagnosticsText() const {
   auto mode_to_string = [](KernelTransport::Mode mode) {
     return mode == KernelTransport::Mode::kDevice ? "device" : "loopback";

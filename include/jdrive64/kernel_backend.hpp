@@ -24,6 +24,7 @@ class KernelBackendController {
   bool ReadDirectory(std::vector<std::string>* entries);
 
   bool EnableTelemetryJsonl(const std::string& file_path);
+  bool EnableTelemetryJsonl(const std::string& file_path, std::uintmax_t max_bytes, std::size_t max_files);
 
   std::string GetDiagnosticsText() const;
 

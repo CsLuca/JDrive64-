@@ -112,6 +112,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K20 retention scaffold adds multi-file telemetry rotation and mounted telemetry index listing.
 - K21 query scaffold adds telemetry dump filters (`--event`, `--success`, `--tail`) for mounted analysis.
 - K22 query-output scaffold adds `telemetry-dump-mounted --json` plus pagination (`--offset`, `--limit`).
+- K23 cross-file query scaffold merges telemetry search across base+rotated files with env-tuned retention.
 
 ## Domain Layer (Step 3)
 

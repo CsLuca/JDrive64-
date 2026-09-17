@@ -70,8 +70,10 @@ int main(int argc, char** argv) {
 
 #if defined(_WIN32)
   _putenv_s("JDRIVE64_TELEMETRY_JSONL", (root / "telemetry.jsonl").string().c_str());
+  _putenv_s("JDRIVE64_TELEMETRY_MAX_BYTES", "128");
 #else
   setenv("JDRIVE64_TELEMETRY_JSONL", (root / "telemetry.jsonl").string().c_str(), 1);
+  setenv("JDRIVE64_TELEMETRY_MAX_BYTES", "128", 1);
 #endif
 
   bool ok = true;
