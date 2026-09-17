@@ -152,6 +152,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K60 schema scaffold adds `explain_schema_policy` for planner metadata evolution compatibility.
 - K61 explainability scaffold adds fixed planner stage cardinality via `query_plan_stage_count`.
 - K62 explainability scaffold adds planner rule cardinality via `query_plan_rule_count`.
+- K63 explainability scaffold adds `query_plan_selector_density` to relate positive selector breadth to scanned entries.
 
 ## Domain Layer (Step 3)
 

@@ -2098,6 +2098,13 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
       std::cout << "    \"aggregate\": \"" << (phase_aggregate_ms <= 8 ? "ok" : "over_budget") << "\"\n";
       std::cout << "  },\n";
       std::cout << "  \"query_plan_stage_count\": 3,\n";
+      const std::size_t positive_selector_count =
+          opt.include_events.size() + (opt.event_prefix.empty() ? 0 : 1) + (opt.event_contains.empty() ? 0 : 1);
+      const double selector_density = scanned_entries == 0
+                                          ? 0.0
+                                          : static_cast<double>(positive_selector_count) /
+                                                static_cast<double>(scanned_entries);
+      std::cout << "  \"query_plan_selector_density\": " << selector_density << ",\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";

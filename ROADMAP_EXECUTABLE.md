@@ -3066,7 +3066,7 @@ Status: done
 
 ## K62 - Query-plan Rule Count Scaffold
 
-Status: in progress
+Status: done
 
 ### K62.1 Rule count field
 
@@ -3098,6 +3098,41 @@ Status: in progress
 
 - Query-plan rule count metadata is integrated and test-covered.
 - Ready for K63 selector density metadata scaffold.
+
+## K63 - Query-plan Selector Density Scaffold
+
+Status: in progress
+
+### K63.1 Selector density field
+
+- Task: add density metadata relating positive selectors to scan volume.
+- PASS:
+  - explain output includes `query_plan_selector_density`.
+  - value is deterministic and safe when scanned entries are zero.
+- FAIL:
+  - explain output has no selector density metadata.
+
+### K63.2 Regression coverage
+
+- Task: validate selector density field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_selector_density` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for selector density metadata.
+
+### K63 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K63 exit criteria
+
+- Query-plan selector density metadata is integrated and test-covered.
+- Ready for K64 operator-balance metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
