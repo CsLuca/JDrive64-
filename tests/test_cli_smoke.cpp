@@ -157,6 +157,11 @@ int main(int argc, char** argv) {
     ok = ok && Check(Contains(check_r.output, "Status: OK"), "check-mounted reports OK status");
     ok = ok && Check(Contains(check_r.output, "Mount: Z:"), "check-mounted reports mount point");
 
+    const auto preflight_cmd = Quote(exe_path.string()) + " winfsp-preflight " +
+                               Quote(golden.valid_small.string()) + " Y:";
+    const auto preflight_r = Run(preflight_cmd);
+    ok = ok && Check(preflight_r.exit_code != 0, "winfsp-preflight fails without WinFsp runtime support");
+
     const auto unmount_cmd = Quote(exe_path.string()) + " unmount Z:";
     const auto unmount_r = Run(unmount_cmd);
     ok = ok && Check(unmount_r.exit_code == 0, "unmount exits 0");

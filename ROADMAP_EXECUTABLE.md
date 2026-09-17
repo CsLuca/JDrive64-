@@ -285,7 +285,7 @@ Status: done
 
 ## Step A7 - Default Provider Real FSP Lifecycle
 
-Status: in progress
+Status: done
 
 ### A7.1 Create/mount/start dispatcher flow
 
@@ -326,3 +326,49 @@ Status: in progress
 - Default provider executes real create/mount/start and stop/delete lifecycle calls.
 - Cleanup is robust on failure and shutdown.
 - Next step A8 can focus on end-to-end Explorer mount validation.
+
+## Step A8 - Explorer E2E Validation Readiness
+
+Status: in progress
+
+### A8.1 Preflight command for host validation
+
+- Task: add a CLI preflight command to validate runtime lifecycle on host with WinFsp.
+- PASS:
+  - `winfsp-preflight <image.d64> <drive_letter:>` command exists.
+  - Command attempts runtime start/stop and reports explicit error on failure.
+- FAIL:
+  - No host-level diagnostic command for runtime lifecycle.
+
+### A8.2 Test and docs wiring
+
+- Task: include preflight command in docs and smoke behavior.
+- PASS:
+  - `README.md` command list includes `winfsp-preflight`.
+  - CLI smoke test checks expected behavior in non-WinFsp environment.
+- FAIL:
+  - No automated/asserted behavior for preflight command.
+
+### A8.3 Manual Explorer validation checklist
+
+- Task: define manual host checks required to close A8 on a machine with WinFsp installed.
+- PASS:
+  - Checklist includes mount visibility in Explorer, file browse/read, denied write ops, clean unmount.
+- FAIL:
+  - Missing actionable E2E closure criteria.
+
+### A8 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+- Manual host preflight:
+  - `jdrive64 winfsp-preflight <image.d64> <drive_letter:>`
+
+### A8 exit criteria
+
+- Preflight command and smoke/docs are in place.
+- Manual Explorer validation executed on a host with WinFsp installed.
+- Next step can move to release hardening/package gate.

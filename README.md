@@ -40,6 +40,7 @@ Execution tracking is in `ROADMAP_EXECUTABLE.md`.
 - `jdrive64 volume-mounted <drive_letter:>`
 - `jdrive64 stats-mounted <drive_letter:>`
 - `jdrive64 check-mounted <drive_letter:>`
+- `jdrive64 winfsp-preflight <image.d64> <drive_letter:>`
 
 ## Build
 

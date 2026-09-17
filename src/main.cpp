@@ -11,12 +11,14 @@
 #include "jdrive64/d64_image_editor.hpp"
 #include "jdrive64/disk_image_session.hpp"
 #include "jdrive64/winfsp_filesystem.hpp"
+#include "jdrive64/winfsp_runtime.hpp"
 
 namespace {
 
 using jdrive64::DiskImageSession;
 using jdrive64::WinFspFilesystem;
 using jdrive64::D64ImageEditor;
+using jdrive64::WinFspRuntime;
 
 constexpr std::uint32_t kD64BlockSizeBytes = 256;
 constexpr std::uint32_t kD64TotalBlocks = 664;
@@ -295,6 +297,7 @@ void PrintUsage() {
             << "  jdrive64 volume-mounted <drive_letter:>\n"
             << "  jdrive64 stats-mounted <drive_letter:>\n"
             << "  jdrive64 check-mounted <drive_letter:>\n"
+            << "  jdrive64 winfsp-preflight <image.d64> <drive_letter:>\n"
             << "  jdrive64 write-add <image.d64> <host_file> <name.ext>\n"
             << "  jdrive64 write-del <image.d64> <name.ext>\n"
             << "  jdrive64 write-ren <image.d64> <old.ext> <new.ext>\n";
@@ -645,6 +648,35 @@ int CmdCheckMounted(std::string mount_point) {
   return 0;
 }
 
+int CmdWinfspPreflight(const std::string& image_path, std::string mount_point) {
+  mount_point = NormalizeMountPoint(std::move(mount_point));
+  if (!IsValidMountPoint(mount_point)) {
+    std::cerr << "Error: invalid mount point, expected format X:\n";
+    return 1;
+  }
+
+  std::error_code ec;
+  const auto resolved_image = std::filesystem::absolute(image_path, ec);
+  if (ec || !std::filesystem::exists(resolved_image)) {
+    std::cerr << "Error: image file does not exist: " << image_path << "\n";
+    return 1;
+  }
+
+  WinFspRuntime runtime;
+  if (!runtime.StartReadOnly(resolved_image.string(), mount_point)) {
+    std::cerr << "Error: " << runtime.LastError() << "\n";
+    return 1;
+  }
+
+  if (!runtime.Stop()) {
+    std::cerr << "Error: " << runtime.LastError() << "\n";
+    return 1;
+  }
+
+  std::cout << "WinFsp preflight OK for " << mount_point << "\n";
+  return 0;
+}
+
 int CmdWriteAdd(const std::string& image_path, const std::string& host_file, const std::string& windows_name) {
   D64ImageEditor editor;
   if (!editor.Open(image_path)) {
@@ -777,6 +809,14 @@ int main(int argc, char** argv) {
       return 1;
     }
     return CmdWriteRen(argv[2], argv[3], argv[4]);
+  }
+
+  if (command == "winfsp-preflight") {
+    if (argc < 4) {
+      PrintUsage();
+      return 1;
+    }
+    return CmdWinfspPreflight(argv[2], argv[3]);
   }
 
   if (argc < 3) {
