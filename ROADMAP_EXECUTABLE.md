@@ -3381,7 +3381,7 @@ Status: done
 
 ## K71 - Query-plan Selector Signature Scaffold
 
-Status: in progress
+Status: done
 
 ### K71.1 Selector signature field
 
