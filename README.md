@@ -33,6 +33,7 @@ Kernel lab setup docs are in `K1_DRIVER_LAB_SETUP.md` and `K1_LAB_VALIDATION.md`
 ## Commands
 
 - `jdrive64 version`
+- `jdrive64 tray` (Windows tray icon menu)
 - `jdrive64 info <image.d64>`
 - `jdrive64 ls <image.d64>`
 - `jdrive64 extract <image.d64> [output_dir]`
@@ -46,6 +47,8 @@ Kernel lab setup docs are in `K1_DRIVER_LAB_SETUP.md` and `K1_LAB_VALIDATION.md`
 - `jdrive64 stats-mounted <drive_letter:>`
 - `jdrive64 check-mounted <drive_letter:>`
 - `jdrive64 winfsp-preflight <image.d64> <drive_letter:>`
+
+If started without arguments on Windows, `jdrive64` opens tray mode by default.
 
 ## Build
 

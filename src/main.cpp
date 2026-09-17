@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <cstdio>
 #include <cstdlib>
 #include <cstdint>
 #include <algorithm>
@@ -12,6 +13,18 @@
 #include <system_error>
 #include <utility>
 #include <vector>
+
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <commdlg.h>
+#include <shellapi.h>
+#ifdef DeleteFile
+#undef DeleteFile
+#endif
+#endif
 
 #include "jdrive64/d64_image_editor.hpp"
 #include "jdrive64/disk_image_session.hpp"
@@ -318,6 +331,7 @@ int CmdTelemetryDumpMounted(std::string mount_point);
 int CmdTelemetryClearMounted(std::string mount_point);
 int CmdTelemetryListMounted(std::string mount_point);
 int CmdTelemetryStatsMounted(std::string mount_point, bool as_json);
+int CmdTray();
 
 struct TelemetryWherePredicate {
   enum class Kind {
@@ -1221,6 +1235,7 @@ void PrintUsage() {
             << "Usage:\n"
             << "  jdrive64 info <image.d64>\n"
             << "  jdrive64 version\n"
+            << "  jdrive64 tray\n"
             << "  jdrive64 ls <image.d64>\n"
             << "  jdrive64 extract <image.d64> [output_dir]\n"
             << "  jdrive64 mount <image.d64> <drive_letter:>\n"
@@ -2401,18 +2416,271 @@ int CmdWriteRen(const std::string& image_path,
   return 0;
 }
 
+int CmdTray() {
+#if !defined(_WIN32)
+  std::cerr << "Error: tray mode is only supported on Windows\n";
+  return 1;
+#else
+  constexpr UINT kTrayMessage = WM_APP + 64;
+  constexpr UINT_PTR kTrayIconId = 1001;
+  constexpr UINT kMenuSelectImage = 2001;
+  constexpr UINT kMenuMountR = 2002;
+  constexpr UINT kMenuMountS = 2003;
+  constexpr UINT kMenuUnmountR = 2004;
+  constexpr UINT kMenuUnmountS = 2005;
+  constexpr UINT kMenuDiagR = 2006;
+  constexpr UINT kMenuDiagS = 2007;
+  constexpr UINT kMenuListMounts = 2008;
+  constexpr UINT kMenuExit = 2010;
+
+  struct TrayState {
+    std::string image_path;
+    NOTIFYICONDATAA icon_data{};
+  };
+
+  auto show_info = [](HWND hwnd, const std::string& msg) {
+    MessageBoxA(hwnd, msg.c_str(), "JDrive64 tray", MB_OK | MB_ICONINFORMATION);
+  };
+
+  auto show_error = [](HWND hwnd, const std::string& msg) {
+    MessageBoxA(hwnd, msg.c_str(), "JDrive64 tray", MB_OK | MB_ICONERROR);
+  };
+
+  auto select_image = [&](HWND hwnd, TrayState* state) -> bool {
+    char file_path[MAX_PATH] = {0};
+    OPENFILENAMEA ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = hwnd;
+    ofn.lpstrFilter = "D64 image (*.d64)\0*.d64\0All files (*.*)\0*.*\0\0";
+    ofn.lpstrFile = file_path;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+    ofn.lpstrDefExt = "d64";
+    if (!GetOpenFileNameA(&ofn)) {
+      return false;
+    }
+    state->image_path = file_path;
+    show_info(hwnd, "Selected image:\n" + state->image_path);
+    return true;
+  };
+
+  auto ensure_image = [&](HWND hwnd, TrayState* state) -> bool {
+    if (!state->image_path.empty()) {
+      return true;
+    }
+    show_info(hwnd, "Select a .d64 image first.");
+    return select_image(hwnd, state);
+  };
+
+  auto run_mount = [&](HWND hwnd, TrayState* state, const std::string& mount_point) {
+    if (!ensure_image(hwnd, state)) {
+      return;
+    }
+    const int rc = CmdMountWithBackend(state->image_path, mount_point, "kdrv");
+    if (rc == 0) {
+      show_info(hwnd, "Mounted on " + mount_point + " using kdrv backend.");
+    } else {
+      show_error(hwnd, "Mount failed. Check console output for details.");
+    }
+  };
+
+  auto run_unmount = [&](HWND hwnd, const std::string& mount_point) {
+    const int rc = CmdUnmount(mount_point);
+    if (rc == 0) {
+      show_info(hwnd, "Unmounted " + mount_point + ".");
+    } else {
+      show_error(hwnd, "Unmount failed. Check console output for details.");
+    }
+  };
+
+  auto run_diag = [&](HWND hwnd, const std::string& mount_point) {
+    const int rc = CmdBackendDiagMounted(mount_point, false);
+    if (rc == 0) {
+      show_info(hwnd, "Printed backend diagnostics for " + mount_point + " to console.");
+    } else {
+      show_error(hwnd, "Diagnostics failed. Check console output for details.");
+    }
+  };
+
+  auto run_list_mounts = [&](HWND hwnd) {
+    const int rc = CmdMounts();
+    if (rc == 0) {
+      show_info(hwnd, "Printed active mounts to console.");
+    } else {
+      show_error(hwnd, "Listing mounts failed. Check console output for details.");
+    }
+  };
+
+  auto show_menu = [&](HWND hwnd, TrayState* state) {
+    HMENU menu = CreatePopupMenu();
+    if (menu == nullptr) {
+      return;
+    }
+    AppendMenuA(menu, MF_STRING, kMenuSelectImage, "Select image...");
+    AppendMenuA(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuA(menu, MF_STRING, kMenuMountR, "Mount R:");
+    AppendMenuA(menu, MF_STRING, kMenuMountS, "Mount S:");
+    AppendMenuA(menu, MF_STRING, kMenuUnmountR, "Unmount R:");
+    AppendMenuA(menu, MF_STRING, kMenuUnmountS, "Unmount S:");
+    AppendMenuA(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuA(menu, MF_STRING, kMenuDiagR, "Backend diag R:");
+    AppendMenuA(menu, MF_STRING, kMenuDiagS, "Backend diag S:");
+    AppendMenuA(menu, MF_STRING, kMenuListMounts, "List mounts");
+    AppendMenuA(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuA(menu, MF_STRING, kMenuExit, "Exit");
+
+    POINT pt{};
+    GetCursorPos(&pt);
+    SetForegroundWindow(hwnd);
+    const UINT cmd = static_cast<UINT>(
+        TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY, pt.x, pt.y, 0, hwnd, nullptr));
+    DestroyMenu(menu);
+
+    switch (cmd) {
+      case kMenuSelectImage:
+        select_image(hwnd, state);
+        break;
+      case kMenuMountR:
+        run_mount(hwnd, state, "R:");
+        break;
+      case kMenuMountS:
+        run_mount(hwnd, state, "S:");
+        break;
+      case kMenuUnmountR:
+        run_unmount(hwnd, "R:");
+        break;
+      case kMenuUnmountS:
+        run_unmount(hwnd, "S:");
+        break;
+      case kMenuDiagR:
+        run_diag(hwnd, "R:");
+        break;
+      case kMenuDiagS:
+        run_diag(hwnd, "S:");
+        break;
+      case kMenuListMounts:
+        run_list_mounts(hwnd);
+        break;
+      case kMenuExit:
+        PostMessageA(hwnd, WM_CLOSE, 0, 0);
+        break;
+      default:
+        break;
+    }
+  };
+
+  auto* state = new TrayState();
+
+  WNDCLASSA wc{};
+  wc.lpfnWndProc = [](HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) -> LRESULT {
+    if (msg == WM_NCCREATE) {
+      const auto* create = reinterpret_cast<CREATESTRUCTA*>(l_param);
+      SetWindowLongPtrA(hwnd, GWLP_USERDATA,
+                        reinterpret_cast<LONG_PTR>(create->lpCreateParams));
+      return DefWindowProcA(hwnd, msg, w_param, l_param);
+    }
+
+    auto* state_ptr = reinterpret_cast<TrayState*>(GetWindowLongPtrA(hwnd, GWLP_USERDATA));
+    if (state_ptr == nullptr) {
+      return DefWindowProcA(hwnd, msg, w_param, l_param);
+    }
+
+    if (msg == kTrayMessage) {
+      if (l_param == WM_RBUTTONUP || l_param == WM_LBUTTONUP || l_param == WM_CONTEXTMENU) {
+        auto* show_menu_ptr = reinterpret_cast<decltype(show_menu)*>(
+            GetPropA(hwnd, "JDRIVE64_SHOW_MENU_FN"));
+        if (show_menu_ptr != nullptr) {
+          (*show_menu_ptr)(hwnd, state_ptr);
+        }
+      }
+      return 0;
+    }
+
+    if (msg == WM_CLOSE) {
+      DestroyWindow(hwnd);
+      return 0;
+    }
+
+    if (msg == WM_DESTROY) {
+      Shell_NotifyIconA(NIM_DELETE, &state_ptr->icon_data);
+      RemovePropA(hwnd, "JDRIVE64_SHOW_MENU_FN");
+      delete state_ptr;
+      PostQuitMessage(0);
+      return 0;
+    }
+
+    return DefWindowProcA(hwnd, msg, w_param, l_param);
+  };
+  wc.hInstance = GetModuleHandleA(nullptr);
+  wc.lpszClassName = "JDrive64TrayWindow";
+  if (!RegisterClassA(&wc)) {
+    delete state;
+    std::cerr << "Error: failed to register tray window class\n";
+    return 1;
+  }
+
+  HWND hwnd = CreateWindowExA(0,
+                              wc.lpszClassName,
+                              "JDrive64 Tray",
+                              WS_OVERLAPPED,
+                              0,
+                              0,
+                              0,
+                              0,
+                              nullptr,
+                              nullptr,
+                              wc.hInstance,
+                              state);
+  if (hwnd == nullptr) {
+    delete state;
+    std::cerr << "Error: failed to create tray window\n";
+    return 1;
+  }
+
+  SetPropA(hwnd, "JDRIVE64_SHOW_MENU_FN", reinterpret_cast<HANDLE>(&show_menu));
+
+  state->icon_data = {};
+  state->icon_data.cbSize = sizeof(NOTIFYICONDATAA);
+  state->icon_data.hWnd = hwnd;
+  state->icon_data.uID = kTrayIconId;
+  state->icon_data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+  state->icon_data.uCallbackMessage = kTrayMessage;
+  state->icon_data.hIcon = LoadIconA(nullptr, IDI_APPLICATION);
+  std::string tip = "JDrive64 tray (kdrv)";
+  std::snprintf(state->icon_data.szTip, sizeof(state->icon_data.szTip), "%s", tip.c_str());
+  if (!Shell_NotifyIconA(NIM_ADD, &state->icon_data)) {
+    DestroyWindow(hwnd);
+    std::cerr << "Error: failed to add tray icon\n";
+    return 1;
+  }
+
+  show_info(hwnd, "JDrive64 tray started. Right-click tray icon for menu.");
+
+  MSG msg{};
+  while (GetMessageA(&msg, nullptr, 0, 0) > 0) {
+    TranslateMessage(&msg);
+    DispatchMessageA(&msg);
+  }
+
+  return 0;
+#endif
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
   if (argc < 2) {
-    PrintUsage();
-    return 1;
+    return CmdTray();
   }
 
   const std::string command = argv[1];
 
   if (command == "version") {
     return CmdVersion();
+  }
+
+  if (command == "tray") {
+    return CmdTray();
   }
 
   if (command == "unmount") {
