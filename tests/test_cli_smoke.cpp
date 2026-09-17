@@ -315,6 +315,10 @@ int main(int argc, char** argv) {
                      "telemetry-dump-mounted --explain reports query_plan");
     ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"where_rpn_tokens\":"),
                      "telemetry-dump-mounted --explain reports where_rpn_tokens");
+    ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"rpn_and\":"),
+                     "telemetry-dump-mounted --explain reports rpn_and");
+    ok = ok && Check(Contains(telemetry_dump_explain_r.output, "\"rpn_or\":"),
+                     "telemetry-dump-mounted --explain reports rpn_or");
 
     const auto telemetry_dump_where_detail_cmd = Quote(exe_path.string()) +
                                                  " telemetry-dump-mounted Z: --where \"detail_contains==success\" --bundle";

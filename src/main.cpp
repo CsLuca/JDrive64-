@@ -1838,6 +1838,22 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
     std::cout << "    \"tail\": " << opt.tail << "\n";
     std::cout << "  },\n";
     if (opt.explain) {
+      std::size_t rpn_predicates = 0;
+      std::size_t rpn_not = 0;
+      std::size_t rpn_and = 0;
+      std::size_t rpn_or = 0;
+      for (const auto& token : opt.where_compiled.rpn) {
+        if (token.kind == TelemetryWhereExpression::CompiledToken::Kind::kPredicate) {
+          ++rpn_predicates;
+        } else if (token.kind == TelemetryWhereExpression::CompiledToken::Kind::kNot) {
+          ++rpn_not;
+        } else if (token.kind == TelemetryWhereExpression::CompiledToken::Kind::kAnd) {
+          ++rpn_and;
+        } else {
+          ++rpn_or;
+        }
+      }
+
       std::cout << "  \"query_plan\": {\n";
       std::cout << "    \"where_enabled\": " << (opt.where_enabled ? "true" : "false") << ",\n";
       std::cout << "    \"selector_mode\": \""
@@ -1848,7 +1864,11 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
                     (opt.event_contains.empty() ? 0 : 1))
                 << ",\n";
       std::cout << "    \"negative_selector_count\": " << opt.exclude_events.size() << ",\n";
-      std::cout << "    \"where_rpn_tokens\": " << opt.where_compiled.rpn.size() << "\n";
+      std::cout << "    \"where_rpn_tokens\": " << opt.where_compiled.rpn.size() << ",\n";
+      std::cout << "    \"rpn_predicates\": " << rpn_predicates << ",\n";
+      std::cout << "    \"rpn_not\": " << rpn_not << ",\n";
+      std::cout << "    \"rpn_and\": " << rpn_and << ",\n";
+      std::cout << "    \"rpn_or\": " << rpn_or << "\n";
       std::cout << "  },\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";

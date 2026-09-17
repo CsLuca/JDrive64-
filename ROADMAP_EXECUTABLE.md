@@ -2190,7 +2190,7 @@ Status: done
 
 ## K38 - Case-insensitive Event Contains Scaffold
 
-Status: in progress
+Status: done
 
 ### K38.1 Parser support
 
@@ -2231,6 +2231,41 @@ Status: in progress
 
 - Case-insensitive event contains is integrated and test-covered.
 - Ready for K39 explain-plan operator breakdown metadata.
+
+## K39 - Explain-plan RPN Breakdown Scaffold
+
+Status: in progress
+
+### K39.1 Explain metadata extension
+
+- Task: extend explain mode with RPN operator breakdown counters.
+- PASS:
+  - `query_plan` includes `rpn_predicates`, `rpn_not`, `rpn_and`, `rpn_or`.
+  - counters are consistent with compiled where token stream.
+- FAIL:
+  - explain output lacks RPN breakdown counters.
+
+### K39.2 Regression coverage
+
+- Task: validate new explain counters in CLI smoke.
+- PASS:
+  - smoke asserts `rpn_and` and `rpn_or` fields.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for breakdown metadata.
+
+### K39 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K39 exit criteria
+
+- Explain RPN breakdown metadata is integrated and test-covered.
+- Ready for K40 normalized query hash metadata.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
