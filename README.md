@@ -12,6 +12,13 @@ Current implementation status is an advanced core/parser stage with a read-only 
 
 See `ROADMAP_BASELINE.md` for milestones and final Definition of Done.
 
+## Versioning
+
+- This project uses Semantic Versioning.
+- Current version is tracked in `VERSION`.
+- Release notes are tracked in `CHANGELOG.md`.
+- Git tags follow the format `vMAJOR.MINOR.PATCH`.
+
 ## Project Layout
 
 - `include/jdrive64/` public headers.
