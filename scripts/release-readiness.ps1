@@ -4,6 +4,33 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$msysBash = "C:\msys64\usr\bin\bash.exe"
+
+function Invoke-ToolCommand {
+  param(
+    [string]$Command,
+    [string]$FailureMessage
+  )
+
+  $nativeAvailable = $null -ne (Get-Command ($Command.Split(' ')[0]) -ErrorAction SilentlyContinue)
+  if ($nativeAvailable) {
+    Invoke-Expression $Command
+    if (-not $?) {
+      throw $FailureMessage
+    }
+    return
+  }
+
+  if (-not (Test-Path -LiteralPath $msysBash)) {
+    throw "Required tool not found and MSYS2 bash is unavailable: $($Command.Split(' ')[0])"
+  }
+
+  & $msysBash -lc "export PATH=/ucrt64/bin:/usr/bin:`$PATH; $Command"
+  if (-not $?) {
+    throw $FailureMessage
+  }
+}
+
 function Assert-FileExists {
   param([string]$Path)
   if (-not (Test-Path -LiteralPath $Path)) {
@@ -26,19 +53,8 @@ if ($status) {
   throw "Git worktree is not clean"
 }
 
-cmake -S . -B $BuildDir
-if (-not $?) {
-  throw "CMake configure failed"
-}
-
-cmake --build $BuildDir
-if (-not $?) {
-  throw "Build failed"
-}
-
-ctest --test-dir $BuildDir --output-on-failure
-if (-not $?) {
-  throw "CTest failed"
-}
+Invoke-ToolCommand -Command "cmake -S . -B $BuildDir" -FailureMessage "CMake configure failed"
+Invoke-ToolCommand -Command "cmake --build $BuildDir" -FailureMessage "Build failed"
+Invoke-ToolCommand -Command "ctest --test-dir $BuildDir --output-on-failure" -FailureMessage "CTest failed"
 
 Write-Host "Release readiness checks passed for VERSION $version"
