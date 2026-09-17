@@ -1891,7 +1891,7 @@ Status: done
 
 ## K31 - Unary NOT Expression Scaffold
 
-Status: in progress
+Status: done
 
 ### K31.1 Parser support
 
@@ -1932,6 +1932,41 @@ Status: in progress
 
 - Unary NOT support is integrated and test-covered.
 - Ready for K32 additional predicate families.
+
+## K32 - Additional Predicate Family Scaffold
+
+Status: in progress
+
+### K32.1 Event suffix predicate
+
+- Task: add event suffix predicate for where expressions.
+- PASS:
+  - parser accepts `event_suffix==...`.
+  - evaluator matches event names by suffix.
+- FAIL:
+  - no suffix predicate support in parser/evaluator.
+
+### K32.2 Regression coverage
+
+- Task: validate suffix predicate in CLI smoke tests.
+- PASS:
+  - smoke executes suffix predicate query successfully.
+  - smoke asserts normalized query contains `event_suffix` predicate.
+- FAIL:
+  - no tests for suffix predicate behavior.
+
+### K32 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K32 exit criteria
+
+- Additional suffix predicate support is integrated and test-covered.
+- Ready for K33 query plan explainability scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

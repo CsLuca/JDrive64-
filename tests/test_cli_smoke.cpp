@@ -297,6 +297,15 @@ int main(int argc, char** argv) {
                               "\"where\": \"NOT event==connect.loopback AND success==true\""),
                      "telemetry-dump-mounted NOT --where preserves unary not expression");
 
+    const auto telemetry_dump_where_suffix_cmd = Quote(exe_path.string()) +
+                                                 " telemetry-dump-mounted Z: --where \"event_suffix==loopback AND success==true\" --bundle";
+    const auto telemetry_dump_where_suffix_r = Run(telemetry_dump_where_suffix_cmd);
+    ok = ok && Check(telemetry_dump_where_suffix_r.exit_code == 0,
+                     "telemetry-dump-mounted suffix --where exits 0");
+    ok = ok && Check(Contains(telemetry_dump_where_suffix_r.output,
+                              "\"where\": \"event_suffix==loopback AND success==true\""),
+                     "telemetry-dump-mounted suffix --where preserves suffix expression");
+
     const auto telemetry_clear_cmd = Quote(exe_path.string()) + " telemetry-clear-mounted Z:";
     const auto telemetry_clear_r = Run(telemetry_clear_cmd);
     ok = ok && Check(telemetry_clear_r.exit_code == 0, "telemetry-clear-mounted exits 0");
