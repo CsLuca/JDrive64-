@@ -2004,6 +2004,10 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
         complexity = "moderate";
       }
       std::cout << "  \"query_plan_score\": " << planner_score << ",\n";
+      const double confidence = planner_score == 0
+                                    ? 1.0
+                                    : std::max(0.1, 1.0 - (static_cast<double>(planner_score) / 100.0));
+      std::cout << "  \"query_plan_confidence\": " << confidence << ",\n";
       std::cout << "  \"query_plan_complexity\": \"" << complexity << "\",\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";

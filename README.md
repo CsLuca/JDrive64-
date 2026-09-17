@@ -140,6 +140,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K48 explainability scaffold adds compact `where_feature_mask` bitmask metadata for active where-expression capabilities.
 - K49 explainability scaffold adds `query_plan_order` to document stable planner-metadata field ordering.
 - K50 schema scaffold splits query and explain schema markers (`schema_version`, `explain_schema_version`).
+- K51 explainability scaffold adds numeric `query_plan_confidence` derived from plan score.
 
 ## Domain Layer (Step 3)
 

@@ -2646,7 +2646,7 @@ Status: done
 
 ## K50 - Query/Explain Schema Split Scaffold
 
-Status: in progress
+Status: done
 
 ### K50.1 Dedicated explain schema marker
 
@@ -2678,6 +2678,41 @@ Status: in progress
 
 - Query/explain schema split markers are integrated and test-covered.
 - Ready for K51 query-plan confidence metadata scaffold.
+
+## K51 - Query-plan Confidence Metadata Scaffold
+
+Status: in progress
+
+### K51.1 Confidence field
+
+- Task: add confidence estimation field for query plan readability.
+- PASS:
+  - explain output includes `query_plan_confidence`.
+  - confidence is deterministically derived from planner score.
+- FAIL:
+  - explain output has no confidence metadata.
+
+### K51.2 Regression coverage
+
+- Task: validate confidence field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_confidence` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for confidence metadata.
+
+### K51 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K51 exit criteria
+
+- Query-plan confidence metadata is integrated and test-covered.
+- Ready for K52 query-plan warning tags scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
