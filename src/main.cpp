@@ -321,6 +321,7 @@ int CmdTelemetryStatsMounted(std::string mount_point, bool as_json);
 struct TelemetryWherePredicate {
   enum class Kind {
     kEventEquals,
+    kEventIEquals,
     kEventPrefix,
     kEventSuffix,
     kEventContains,
@@ -378,6 +379,13 @@ struct TelemetryDumpOptions {
 std::string UpperAscii(std::string value) {
   for (char& c : value) {
     c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+  }
+  return value;
+}
+
+std::string LowerAscii(std::string value) {
+  for (char& c : value) {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
   }
   return value;
 }
@@ -576,6 +584,9 @@ bool ParseWherePredicateToken(const std::string& token,
   };
 
   if (parse_value("event==", TelemetryWherePredicate::Kind::kEventEquals, "event==")) {
+    return error_out->empty();
+  }
+  if (parse_value("event_ieq==", TelemetryWherePredicate::Kind::kEventIEquals, "event_ieq==")) {
     return error_out->empty();
   }
   if (parse_value("event_prefix==", TelemetryWherePredicate::Kind::kEventPrefix, "event_prefix==")) {
@@ -808,6 +819,8 @@ bool EvaluateWherePredicate(const std::string& line,
   switch (predicate.kind) {
     case TelemetryWherePredicate::Kind::kEventEquals:
       return name == predicate.value;
+    case TelemetryWherePredicate::Kind::kEventIEquals:
+      return LowerAscii(name) == LowerAscii(predicate.value);
     case TelemetryWherePredicate::Kind::kEventPrefix:
       return name.starts_with(predicate.value);
     case TelemetryWherePredicate::Kind::kEventSuffix:

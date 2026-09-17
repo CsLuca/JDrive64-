@@ -2102,7 +2102,7 @@ Status: done
 
 ## K36 - Detail Suffix Predicate Scaffold
 
-Status: in progress
+Status: done
 
 ### K36.1 Detail suffix parser support
 
@@ -2143,6 +2143,50 @@ Status: in progress
 
 - Detail suffix predicate is integrated and test-covered.
 - Ready for K37 case-insensitive event equality predicate scaffold.
+
+## K37 - Case-insensitive Event Equality Scaffold
+
+Status: in progress
+
+### K37.1 Parser support
+
+- Task: add case-insensitive event equality predicate.
+- PASS:
+  - parser accepts `event_ieq==...`.
+  - normalized where output preserves predicate form.
+- FAIL:
+  - parser rejects `event_ieq` predicate.
+
+### K37.2 Evaluator support
+
+- Task: evaluate event equality ignoring ASCII case.
+- PASS:
+  - evaluator compares lowercased event names and predicate value.
+  - deterministic behavior for mixed-case inputs.
+- FAIL:
+  - evaluation remains case-sensitive.
+
+### K37.3 Regression coverage
+
+- Task: validate case-insensitive event-equality predicate in CLI smoke.
+- PASS:
+  - smoke executes uppercase `event_ieq` query successfully.
+  - smoke asserts normalized output contains `event_ieq` predicate.
+- FAIL:
+  - no tests for `event_ieq` path.
+
+### K37 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K37 exit criteria
+
+- Case-insensitive event equality is integrated and test-covered.
+- Ready for K38 case-insensitive event contains scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

@@ -126,6 +126,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K34 predicate-family scaffold extends `--where` with `detail_contains==...` matching against telemetry detail payload.
 - K35 predicate-family scaffold adds `detail_prefix==...` for telemetry detail prefix matching.
 - K36 predicate-family scaffold adds `detail_suffix==...` for telemetry detail suffix matching.
+- K37 predicate-family scaffold adds case-insensitive event equality via `event_ieq==...`.
 
 ## Domain Layer (Step 3)
 
