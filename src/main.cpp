@@ -8,6 +8,7 @@
 #include <cctype>
 #include <functional>
 #include <map>
+#include <cstring>
 #include <sstream>
 #include <string>
 #include <system_error>
@@ -2608,18 +2609,63 @@ int CmdTray() {
   };
 
   auto run_support_my_work = [&](HWND hwnd) {
+    auto copy_text_to_clipboard = [&](const std::string& text) -> bool {
+      if (!OpenClipboard(hwnd)) {
+        return false;
+      }
+      if (!EmptyClipboard()) {
+        CloseClipboard();
+        return false;
+      }
+
+      HGLOBAL mem = GlobalAlloc(GMEM_MOVEABLE, text.size() + 1);
+      if (mem == nullptr) {
+        CloseClipboard();
+        return false;
+      }
+
+      void* dst = GlobalLock(mem);
+      if (dst == nullptr) {
+        GlobalFree(mem);
+        CloseClipboard();
+        return false;
+      }
+
+      std::memcpy(dst, text.c_str(), text.size() + 1);
+      GlobalUnlock(mem);
+
+      if (SetClipboardData(CF_TEXT, mem) == nullptr) {
+        GlobalFree(mem);
+        CloseClipboard();
+        return false;
+      }
+
+      CloseClipboard();
+      return true;
+    };
+
     const std::string message =
         std::string("Support my work via PayPal:\n") + kSupportPaypalUrl +
-        "\n\nOpen this link in your browser now?";
+        "\n\nYES = Open link\nNO = Copy link to clipboard\nCANCEL = Close";
     const int choice = MessageBoxA(hwnd,
                                    message.c_str(),
                                    "Support my work",
-                                   MB_YESNO | MB_ICONINFORMATION | MB_TOPMOST);
+                                   MB_YESNOCANCEL | MB_ICONINFORMATION | MB_TOPMOST);
     if (choice == IDYES) {
       const auto result = reinterpret_cast<std::intptr_t>(
           ShellExecuteA(hwnd, "open", kSupportPaypalUrl, nullptr, nullptr, SW_SHOWNORMAL));
       if (result <= 32) {
         show_error(hwnd, "Unable to open browser.\nCopy this link manually:\n" +
+                             std::string(kSupportPaypalUrl));
+      }
+      return;
+    }
+
+    if (choice == IDNO) {
+      if (copy_text_to_clipboard(kSupportPaypalUrl)) {
+        show_info(hwnd, "PayPal link copied to clipboard.\n" + std::string(kSupportPaypalUrl));
+      } else {
+        show_error(hwnd, "Unable to copy link to clipboard.\nUse this link manually:\n" +
                              std::string(kSupportPaypalUrl));
       }
     }
