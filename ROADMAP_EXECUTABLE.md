@@ -478,7 +478,7 @@ Current status note:
 
 ## K2 - Kernel Service Skeleton
 
-Status: in progress
+Status: done
 
 ### K2.1 Kernel controller abstraction
 
@@ -522,6 +522,50 @@ Status: in progress
 - Service control skeleton exists and is wired in kdrv backend.
 - Deterministic not-implemented contract is tested and documented.
 - Ready for K3 mount manager + real drive-letter integration.
+
+## K3 - Mount Manager Drive-letter Scaffold
+
+Status: in progress
+
+### K3.1 Mount manager abstraction
+
+- Task: introduce dedicated mount manager abstraction for drive-letter assignment lifecycle.
+- PASS:
+  - `include/jdrive64/kernel_mount_manager.hpp` exists.
+  - `src/kernel_mount_manager.cpp` exists.
+  - API includes assign/release, assigned-state and error accessors.
+- FAIL:
+  - No dedicated abstraction for drive-letter state.
+
+### K3.2 kdrv integration
+
+- Task: wire mount manager scaffold into kdrv mount/unmount flow.
+- PASS:
+  - kdrv mount attempts assign-drive-letter stage and surfaces deterministic not-implemented message.
+  - kdrv unmount executes release-drive-letter validation path.
+- FAIL:
+  - kdrv flow does not include mount-manager stage.
+
+### K3.3 Regression coverage
+
+- Task: add tests for mount manager state/error transitions.
+- PASS:
+  - Core tests cover invalid mount points, deterministic assign failure, state tracking, mismatch release, successful release.
+- FAIL:
+  - No tests on mount manager scaffold state machine.
+
+### K3 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K3 exit criteria
+
+- Mount manager scaffold is integrated, deterministic, and test-covered.
+- kdrv flow is ready for replacement with real mount manager APIs in K4.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
