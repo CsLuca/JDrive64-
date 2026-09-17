@@ -2269,7 +2269,7 @@ Status: done
 
 ## K40 - Normalized Query Hash Metadata Scaffold
 
-Status: in progress
+Status: done
 
 ### K40.1 Explain hash metadata
 
@@ -2301,6 +2301,50 @@ Status: in progress
 
 - Normalized query hash metadata is integrated and test-covered.
 - Ready for K41 explain/plan export schema hardening.
+
+## K41 - Event Starts-with Predicate Scaffold
+
+Status: in progress
+
+### K41.1 Parser support
+
+- Task: add explicit event starts-with predicate.
+- PASS:
+  - parser accepts `event_starts_with==...`.
+  - normalized where output preserves predicate form.
+- FAIL:
+  - parser rejects starts-with predicate.
+
+### K41.2 Evaluator support
+
+- Task: evaluate starts-with predicate against telemetry event name.
+- PASS:
+  - evaluator uses starts-with semantics on event name.
+  - deterministic behavior for empty/non-empty prefixes.
+- FAIL:
+  - starts-with predicate is ignored or mis-evaluated.
+
+### K41.3 Regression coverage
+
+- Task: validate starts-with predicate in CLI smoke.
+- PASS:
+  - smoke executes `event_starts_with` query successfully.
+  - smoke asserts normalized output includes `event_starts_with`.
+- FAIL:
+  - no tests for starts-with predicate.
+
+### K41 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K41 exit criteria
+
+- Event starts-with predicate is integrated and test-covered.
+- Ready for K42 event ends-with predicate scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
