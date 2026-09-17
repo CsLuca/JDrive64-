@@ -9,6 +9,7 @@
 #include <functional>
 #include <map>
 #include <cstring>
+#include <cstddef>
 #include <sstream>
 #include <string>
 #include <system_error>
@@ -2433,11 +2434,20 @@ int CmdTray() {
   constexpr UINT kMenuDiagS = 2007;
   constexpr UINT kMenuListMounts = 2008;
   constexpr UINT kMenuSupportMyWork = 2009;
+  constexpr UINT kMenuToggleAutostart = 2011;
+  constexpr UINT kMenuSetMountAStart = 2100;
+  constexpr UINT kMenuSetMountBStart = 2200;
   constexpr UINT kMenuExit = 2010;
   constexpr const char* kSupportPaypalUrl = "https://paypal.me/LucadrBiondi";
+  constexpr const char* kAutostartRegPath = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+  constexpr const char* kAutostartValueName = "JDrive64Tray";
 
   struct TrayState {
     std::string image_path;
+    std::string mount_a = "R:";
+    std::string mount_b = "S:";
+    std::filesystem::path config_path;
+    bool autostart_enabled = false;
     NOTIFYICONDATAA icon_data{};
     bool owns_icon = false;
   };
@@ -2543,6 +2553,136 @@ int CmdTray() {
     MessageBoxA(hwnd, msg.c_str(), "JDrive64 tray", MB_OK | MB_ICONERROR);
   };
 
+  auto resolve_config_path = []() -> std::filesystem::path {
+    const char* appdata = std::getenv("APPDATA");
+    if (appdata != nullptr && *appdata != '\0') {
+      return std::filesystem::path(appdata) / "JDrive64" / "tray.cfg";
+    }
+    return std::filesystem::temp_directory_path() / "jdrive64_tray.cfg";
+  };
+
+  auto save_config = [](const TrayState* state) {
+    if (state == nullptr || state->config_path.empty()) {
+      return;
+    }
+    std::error_code ec;
+    std::filesystem::create_directories(state->config_path.parent_path(), ec);
+    std::ofstream out(state->config_path, std::ios::binary | std::ios::trunc);
+    if (!out) {
+      return;
+    }
+    out << "image_path=" << state->image_path << "\n";
+    out << "mount_a=" << state->mount_a << "\n";
+    out << "mount_b=" << state->mount_b << "\n";
+  };
+
+  auto load_config = [](TrayState* state) {
+    if (state == nullptr || state->config_path.empty()) {
+      return;
+    }
+    std::ifstream in(state->config_path, std::ios::binary);
+    if (!in) {
+      return;
+    }
+    std::string line;
+    while (std::getline(in, line)) {
+      std::string value;
+      if (ParsePrefixedLine(line, "image_path=", &value)) {
+        state->image_path = value;
+        continue;
+      }
+      if (ParsePrefixedLine(line, "mount_a=", &value)) {
+        value = NormalizeMountPoint(value);
+        if (IsValidMountPoint(value)) {
+          state->mount_a = value;
+        }
+        continue;
+      }
+      if (ParsePrefixedLine(line, "mount_b=", &value)) {
+        value = NormalizeMountPoint(value);
+        if (IsValidMountPoint(value)) {
+          state->mount_b = value;
+        }
+      }
+    }
+  };
+
+  auto get_executable_path = []() -> std::string {
+    char path[MAX_PATH] = {0};
+    const DWORD len = GetModuleFileNameA(nullptr, path, MAX_PATH);
+    if (len == 0 || len >= MAX_PATH) {
+      return "";
+    }
+    return path;
+  };
+
+  auto build_autostart_command = [&]() -> std::string {
+    const std::string exe = get_executable_path();
+    if (exe.empty()) {
+      return "";
+    }
+    return "\"" + exe + "\" tray";
+  };
+
+  auto is_autostart_enabled = [&]() -> bool {
+    HKEY key = nullptr;
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, kAutostartRegPath, 0, KEY_QUERY_VALUE, &key) != ERROR_SUCCESS) {
+      return false;
+    }
+
+    char value[1024] = {0};
+    DWORD value_size = sizeof(value);
+    const LONG rc = RegQueryValueExA(key,
+                                     kAutostartValueName,
+                                     nullptr,
+                                     nullptr,
+                                     reinterpret_cast<LPBYTE>(value),
+                                     &value_size);
+    RegCloseKey(key);
+    if (rc != ERROR_SUCCESS) {
+      return false;
+    }
+    const std::string expected = build_autostart_command();
+    return !expected.empty() && std::string(value).find(expected) != std::string::npos;
+  };
+
+  auto set_autostart_enabled = [&](bool enabled) -> bool {
+    HKEY key = nullptr;
+    if (RegCreateKeyExA(HKEY_CURRENT_USER,
+                        kAutostartRegPath,
+                        0,
+                        nullptr,
+                        REG_OPTION_NON_VOLATILE,
+                        KEY_SET_VALUE,
+                        nullptr,
+                        &key,
+                        nullptr) != ERROR_SUCCESS) {
+      return false;
+    }
+
+    bool ok = true;
+    if (enabled) {
+      const std::string cmd = build_autostart_command();
+      if (cmd.empty()) {
+        ok = false;
+      } else {
+        const LONG rc = RegSetValueExA(key,
+                                       kAutostartValueName,
+                                       0,
+                                       REG_SZ,
+                                       reinterpret_cast<const BYTE*>(cmd.c_str()),
+                                       static_cast<DWORD>(cmd.size() + 1));
+        ok = rc == ERROR_SUCCESS;
+      }
+    } else {
+      const LONG rc = RegDeleteValueA(key, kAutostartValueName);
+      ok = rc == ERROR_SUCCESS || rc == ERROR_FILE_NOT_FOUND;
+    }
+
+    RegCloseKey(key);
+    return ok;
+  };
+
   auto select_image = [&](HWND hwnd, TrayState* state) -> bool {
     char file_path[MAX_PATH] = {0};
     OPENFILENAMEA ofn{};
@@ -2557,6 +2697,7 @@ int CmdTray() {
       return false;
     }
     state->image_path = file_path;
+    save_config(state);
     show_info(hwnd, "Selected image:\n" + state->image_path);
     return true;
   };
@@ -2606,6 +2747,23 @@ int CmdTray() {
     } else {
       show_error(hwnd, "Listing mounts failed. Check console output for details.");
     }
+  };
+
+  auto set_mount_point = [&](HWND hwnd, TrayState* state, bool first_slot, const std::string& point) {
+    std::string normalized = NormalizeMountPoint(point);
+    if (!IsValidMountPoint(normalized)) {
+      show_error(hwnd, "Invalid mount point selection.");
+      return;
+    }
+    if (first_slot) {
+      state->mount_a = normalized;
+    } else {
+      state->mount_b = normalized;
+    }
+    save_config(state);
+    show_info(hwnd,
+              std::string(first_slot ? "Primary" : "Secondary") +
+                  " mount point set to " + normalized + ".");
   };
 
   auto run_support_my_work = [&](HWND hwnd) {
@@ -2678,14 +2836,43 @@ int CmdTray() {
     }
     AppendMenuA(menu, MF_STRING, kMenuSelectImage, "Select image...");
     AppendMenuA(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuA(menu, MF_STRING, kMenuMountR, "Mount R:");
-    AppendMenuA(menu, MF_STRING, kMenuMountS, "Mount S:");
-    AppendMenuA(menu, MF_STRING, kMenuUnmountR, "Unmount R:");
-    AppendMenuA(menu, MF_STRING, kMenuUnmountS, "Unmount S:");
+    std::string mount_a_label = "Mount " + state->mount_a;
+    std::string mount_b_label = "Mount " + state->mount_b;
+    std::string unmount_a_label = "Unmount " + state->mount_a;
+    std::string unmount_b_label = "Unmount " + state->mount_b;
+    std::string diag_a_label = "Backend diag " + state->mount_a;
+    std::string diag_b_label = "Backend diag " + state->mount_b;
+    AppendMenuA(menu, MF_STRING, kMenuMountR, mount_a_label.c_str());
+    AppendMenuA(menu, MF_STRING, kMenuMountS, mount_b_label.c_str());
+    AppendMenuA(menu, MF_STRING, kMenuUnmountR, unmount_a_label.c_str());
+    AppendMenuA(menu, MF_STRING, kMenuUnmountS, unmount_b_label.c_str());
     AppendMenuA(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuA(menu, MF_STRING, kMenuDiagR, "Backend diag R:");
-    AppendMenuA(menu, MF_STRING, kMenuDiagS, "Backend diag S:");
+    AppendMenuA(menu, MF_STRING, kMenuDiagR, diag_a_label.c_str());
+    AppendMenuA(menu, MF_STRING, kMenuDiagS, diag_b_label.c_str());
     AppendMenuA(menu, MF_STRING, kMenuListMounts, "List mounts");
+    AppendMenuA(menu, MF_SEPARATOR, 0, nullptr);
+    HMENU mount_a_menu = CreatePopupMenu();
+    HMENU mount_b_menu = CreatePopupMenu();
+    for (char letter = 'D'; letter <= 'Z'; ++letter) {
+      std::string item = std::string(1, letter) + ":";
+      UINT flag_a = MF_STRING;
+      UINT flag_b = MF_STRING;
+      if (item == state->mount_a) {
+        flag_a |= MF_CHECKED;
+      }
+      if (item == state->mount_b) {
+        flag_b |= MF_CHECKED;
+      }
+      AppendMenuA(mount_a_menu, flag_a, kMenuSetMountAStart + (letter - 'D'), item.c_str());
+      AppendMenuA(mount_b_menu, flag_b, kMenuSetMountBStart + (letter - 'D'), item.c_str());
+    }
+    AppendMenuA(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(mount_a_menu), "Set primary mount point");
+    AppendMenuA(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(mount_b_menu), "Set secondary mount point");
+    UINT autostart_flags = MF_STRING;
+    if (state->autostart_enabled) {
+      autostart_flags |= MF_CHECKED;
+    }
+    AppendMenuA(menu, autostart_flags, kMenuToggleAutostart, "Start with Windows");
     AppendMenuA(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuA(menu, MF_STRING, kMenuSupportMyWork, "Support my work");
     AppendMenuA(menu, MF_STRING, kMenuExit, "Exit");
@@ -2702,26 +2889,36 @@ int CmdTray() {
         select_image(hwnd, state);
         break;
       case kMenuMountR:
-        run_mount(hwnd, state, "R:");
+        run_mount(hwnd, state, state->mount_a);
         break;
       case kMenuMountS:
-        run_mount(hwnd, state, "S:");
+        run_mount(hwnd, state, state->mount_b);
         break;
       case kMenuUnmountR:
-        run_unmount(hwnd, "R:");
+        run_unmount(hwnd, state->mount_a);
         break;
       case kMenuUnmountS:
-        run_unmount(hwnd, "S:");
+        run_unmount(hwnd, state->mount_b);
         break;
       case kMenuDiagR:
-        run_diag(hwnd, "R:");
+        run_diag(hwnd, state->mount_a);
         break;
       case kMenuDiagS:
-        run_diag(hwnd, "S:");
+        run_diag(hwnd, state->mount_b);
         break;
       case kMenuListMounts:
         run_list_mounts(hwnd);
         break;
+      case kMenuToggleAutostart: {
+        const bool target = !state->autostart_enabled;
+        if (!set_autostart_enabled(target)) {
+          show_error(hwnd, "Failed to update autostart setting.");
+          break;
+        }
+        state->autostart_enabled = target;
+        show_info(hwnd, std::string("Start with Windows is now ") + (target ? "enabled." : "disabled."));
+        break;
+      }
       case kMenuSupportMyWork:
         run_support_my_work(hwnd);
         break;
@@ -2729,11 +2926,24 @@ int CmdTray() {
         PostMessageA(hwnd, WM_CLOSE, 0, 0);
         break;
       default:
+        if (cmd >= kMenuSetMountAStart && cmd <= (kMenuSetMountAStart + ('Z' - 'D'))) {
+          const char letter = static_cast<char>('D' + (cmd - kMenuSetMountAStart));
+          set_mount_point(hwnd, state, true, std::string(1, letter) + ":");
+          break;
+        }
+        if (cmd >= kMenuSetMountBStart && cmd <= (kMenuSetMountBStart + ('Z' - 'D'))) {
+          const char letter = static_cast<char>('D' + (cmd - kMenuSetMountBStart));
+          set_mount_point(hwnd, state, false, std::string(1, letter) + ":");
+          break;
+        }
         break;
     }
   };
 
   auto* state = new TrayState();
+  state->config_path = resolve_config_path();
+  load_config(state);
+  state->autostart_enabled = is_autostart_enabled();
 
   WNDCLASSA wc{};
   wc.lpfnWndProc = [](HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) -> LRESULT {

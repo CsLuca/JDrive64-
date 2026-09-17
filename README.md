@@ -50,6 +50,11 @@ Kernel lab setup docs are in `K1_DRIVER_LAB_SETUP.md` and `K1_LAB_VALIDATION.md`
 
 If started without arguments on Windows, `jdrive64` opens tray mode by default.
 
+Tray mode features:
+- remembers last selected `.d64` image between runs;
+- configurable primary/secondary mount letters from tray menu;
+- optional `Start with Windows` toggle.
+
 ## Build
 
 Preferred with CMake:
