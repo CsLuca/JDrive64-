@@ -156,6 +156,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K64 explainability scaffold adds `query_plan_operator_balance` to summarize OR-vs-logical-op mix in compiled plans.
 - K65 explainability scaffold adds compact deterministic `query_plan_signature` for quick plan-shape comparison.
 - K66 explainability scaffold adds `query_plan_diagnostics_envelope` metadata for diagnostics payload compatibility tracking.
+- K67 explainability scaffold adds `query_plan_predicate_density` to quantify predicate share in compiled RPN plans.
 
 ## Domain Layer (Step 3)
 

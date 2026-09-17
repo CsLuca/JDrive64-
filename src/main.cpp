@@ -2119,6 +2119,11 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
       std::cout << "    \"compatibility\": \"backward-additive\",\n";
       std::cout << "    \"stable_keys\": true\n";
       std::cout << "  },\n";
+      const double predicate_density = opt.where_compiled.rpn.empty()
+                                           ? 0.0
+                                           : static_cast<double>(rpn_predicates) /
+                                                 static_cast<double>(opt.where_compiled.rpn.size());
+      std::cout << "  \"query_plan_predicate_density\": " << predicate_density << ",\n";
     }
     std::cout << "  \"offset\": " << page_start << ",\n";
     std::cout << "  \"limit\": " << opt.limit << ",\n";

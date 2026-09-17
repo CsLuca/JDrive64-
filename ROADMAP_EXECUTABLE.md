@@ -3206,7 +3206,7 @@ Status: done
 
 ## K66 - Query-plan Diagnostics Envelope Scaffold
 
-Status: in progress
+Status: done
 
 ### K66.1 Diagnostics envelope field
 
@@ -3238,6 +3238,41 @@ Status: in progress
 
 - Query-plan diagnostics envelope metadata is integrated and test-covered.
 - Ready for K67 predicate density metadata scaffold.
+
+## K67 - Query-plan Predicate Density Scaffold
+
+Status: in progress
+
+### K67.1 Predicate density field
+
+- Task: add metadata that quantifies predicate share in compiled where plans.
+- PASS:
+  - explain output includes `query_plan_predicate_density`.
+  - value is deterministic and safe when RPN token stream is empty.
+- FAIL:
+  - explain output has no predicate density metadata.
+
+### K67.2 Regression coverage
+
+- Task: validate predicate density field in CLI smoke.
+- PASS:
+  - smoke asserts `query_plan_predicate_density` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for predicate density metadata.
+
+### K67 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K67 exit criteria
+
+- Query-plan predicate density metadata is integrated and test-covered.
+- Ready for K68 negation ratio metadata scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
