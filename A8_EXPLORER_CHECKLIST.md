@@ -111,3 +111,12 @@ FAIL:
 ## A8 Closure Rule
 
 Step A8 is considered done only when all sections pass on at least one WinFsp-enabled host and evidence is archived.
+
+## Latest status snapshot (2026-09-17)
+
+- Evidence file: `A8_EVIDENCE_2026-09-17_LOCAL.md`
+- Current local session result:
+  - Runtime preflight: FAIL (`WinFsp runtime support is disabled` in current build)
+  - CLI mount/unmount stability: PASS
+  - Explorer manual checks: PENDING
+- Closure status: A8 remains open until checklist is re-run on a WinFsp-enabled host/build with full screenshot evidence.
