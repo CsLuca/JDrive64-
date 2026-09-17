@@ -2234,7 +2234,7 @@ Status: done
 
 ## K39 - Explain-plan RPN Breakdown Scaffold
 
-Status: in progress
+Status: done
 
 ### K39.1 Explain metadata extension
 
@@ -2266,6 +2266,41 @@ Status: in progress
 
 - Explain RPN breakdown metadata is integrated and test-covered.
 - Ready for K40 normalized query hash metadata.
+
+## K40 - Normalized Query Hash Metadata Scaffold
+
+Status: in progress
+
+### K40.1 Explain hash metadata
+
+- Task: provide stable fingerprint field for normalized where expression.
+- PASS:
+  - explain output includes `normalized_where_hash`.
+  - hash is derived from normalized expression string.
+- FAIL:
+  - explain output has no query hash metadata.
+
+### K40.2 Regression coverage
+
+- Task: validate hash metadata in CLI smoke.
+- PASS:
+  - smoke asserts `normalized_where_hash` field in explain output.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for normalized query hash metadata.
+
+### K40 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K40 exit criteria
+
+- Normalized query hash metadata is integrated and test-covered.
+- Ready for K41 explain/plan export schema hardening.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

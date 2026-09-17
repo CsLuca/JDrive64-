@@ -129,6 +129,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k1-lab-selfcheck.ps1
 - K37 predicate-family scaffold adds case-insensitive event equality via `event_ieq==...`.
 - K38 predicate-family scaffold adds case-insensitive event contains via `event_icontains==...`.
 - K39 explainability scaffold extends `--explain` with RPN operator breakdown counters (`rpn_predicates`, `rpn_not`, `rpn_and`, `rpn_or`).
+- K40 explainability scaffold adds `normalized_where_hash` metadata for stable query fingerprinting in explain output.
 
 ## Domain Layer (Step 3)
 

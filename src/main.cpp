@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <cctype>
+#include <functional>
 #include <map>
 #include <sstream>
 #include <string>
@@ -1080,6 +1081,10 @@ bool JsonStringFieldEndsWith(const std::string& line,
          value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
+std::uint64_t StableWhereHash(const std::string& normalized_where) {
+  return static_cast<std::uint64_t>(std::hash<std::string>{}(normalized_where));
+}
+
 bool TelemetryLineMatchesFilter(const std::string& line, const TelemetryDumpOptions& opt) {
   const std::string name = ExtractJsonStringField(line, "name");
   const int success = ExtractJsonBoolField(line, "success");
@@ -1865,6 +1870,8 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
                 << ",\n";
       std::cout << "    \"negative_selector_count\": " << opt.exclude_events.size() << ",\n";
       std::cout << "    \"where_rpn_tokens\": " << opt.where_compiled.rpn.size() << ",\n";
+      std::cout << "    \"normalized_where_hash\": "
+                << StableWhereHash(opt.where_expression_normalized) << ",\n";
       std::cout << "    \"rpn_predicates\": " << rpn_predicates << ",\n";
       std::cout << "    \"rpn_not\": " << rpn_not << ",\n";
       std::cout << "    \"rpn_and\": " << rpn_and << ",\n";
