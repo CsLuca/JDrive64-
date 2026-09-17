@@ -376,6 +376,15 @@ int main(int argc, char** argv) {
                               "\"where\": \"event_starts_with==send.\""),
                      "telemetry-dump-mounted event_starts_with --where preserves predicate");
 
+    const auto telemetry_dump_where_ends_cmd = Quote(exe_path.string()) +
+                                               " telemetry-dump-mounted Z: --where \"event_ends_with==loopback\" --bundle";
+    const auto telemetry_dump_where_ends_r = Run(telemetry_dump_where_ends_cmd);
+    ok = ok && Check(telemetry_dump_where_ends_r.exit_code == 0,
+                     "telemetry-dump-mounted event_ends_with --where exits 0");
+    ok = ok && Check(Contains(telemetry_dump_where_ends_r.output,
+                              "\"where\": \"event_ends_with==loopback\""),
+                     "telemetry-dump-mounted event_ends_with --where preserves predicate");
+
     const auto telemetry_clear_cmd = Quote(exe_path.string()) + " telemetry-clear-mounted Z:";
     const auto telemetry_clear_r = Run(telemetry_clear_cmd);
     ok = ok && Check(telemetry_clear_r.exit_code == 0, "telemetry-clear-mounted exits 0");

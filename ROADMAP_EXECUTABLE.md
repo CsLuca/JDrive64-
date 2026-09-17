@@ -2304,7 +2304,7 @@ Status: done
 
 ## K41 - Event Starts-with Predicate Scaffold
 
-Status: in progress
+Status: done
 
 ### K41.1 Parser support
 
@@ -2345,6 +2345,50 @@ Status: in progress
 
 - Event starts-with predicate is integrated and test-covered.
 - Ready for K42 event ends-with predicate scaffold.
+
+## K42 - Event Ends-with Predicate Scaffold
+
+Status: in progress
+
+### K42.1 Parser support
+
+- Task: add explicit event ends-with predicate.
+- PASS:
+  - parser accepts `event_ends_with==...`.
+  - normalized where output preserves predicate form.
+- FAIL:
+  - parser rejects ends-with predicate.
+
+### K42.2 Evaluator support
+
+- Task: evaluate ends-with predicate against telemetry event name.
+- PASS:
+  - evaluator uses ends-with semantics on event name.
+  - deterministic behavior for empty/non-empty suffix.
+- FAIL:
+  - ends-with predicate is ignored or mis-evaluated.
+
+### K42.3 Regression coverage
+
+- Task: validate ends-with predicate in CLI smoke.
+- PASS:
+  - smoke executes `event_ends_with` query successfully.
+  - smoke asserts normalized output includes `event_ends_with`.
+- FAIL:
+  - no tests for ends-with predicate.
+
+### K42 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K42 exit criteria
+
+- Event ends-with predicate is integrated and test-covered.
+- Ready for K43 event detail case-insensitive predicate scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
