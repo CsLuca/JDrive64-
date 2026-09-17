@@ -1117,6 +1117,49 @@ std::uint64_t StableWhereHash(const std::string& normalized_where) {
   return static_cast<std::uint64_t>(std::hash<std::string>{}(normalized_where));
 }
 
+std::uint64_t ComputeWhereFeatureMask(const TelemetryWhereExpression& where_expression) {
+  std::uint64_t mask = 0;
+  for (const auto& token : where_expression.rpn) {
+    if (token.kind == TelemetryWhereExpression::CompiledToken::Kind::kNot) {
+      mask |= (1ull << 0);
+      continue;
+    }
+    if (token.kind == TelemetryWhereExpression::CompiledToken::Kind::kAnd) {
+      mask |= (1ull << 1);
+      continue;
+    }
+    if (token.kind == TelemetryWhereExpression::CompiledToken::Kind::kOr) {
+      mask |= (1ull << 2);
+      continue;
+    }
+
+    switch (token.predicate.kind) {
+      case TelemetryWherePredicate::Kind::kEventEquals:
+      case TelemetryWherePredicate::Kind::kEventIEquals:
+        mask |= (1ull << 3);
+        break;
+      case TelemetryWherePredicate::Kind::kEventIContains:
+      case TelemetryWherePredicate::Kind::kEventStartsWith:
+      case TelemetryWherePredicate::Kind::kEventEndsWith:
+      case TelemetryWherePredicate::Kind::kEventPrefix:
+      case TelemetryWherePredicate::Kind::kEventSuffix:
+      case TelemetryWherePredicate::Kind::kEventContains:
+        mask |= (1ull << 4);
+        break;
+      case TelemetryWherePredicate::Kind::kDetailPrefix:
+      case TelemetryWherePredicate::Kind::kDetailSuffix:
+      case TelemetryWherePredicate::Kind::kDetailContains:
+      case TelemetryWherePredicate::Kind::kDetailIContains:
+        mask |= (1ull << 5);
+        break;
+      case TelemetryWherePredicate::Kind::kSuccessEquals:
+        mask |= (1ull << 6);
+        break;
+    }
+  }
+  return mask;
+}
+
 bool TelemetryLineMatchesFilter(const std::string& line, const TelemetryDumpOptions& opt) {
   const std::string name = ExtractJsonStringField(line, "name");
   const int success = ExtractJsonBoolField(line, "success");
@@ -1936,6 +1979,8 @@ int CmdTelemetryDumpMountedFiltered(std::string mount_point, const TelemetryDump
       std::cout << "    \"where_rpn_tokens\": " << opt.where_compiled.rpn.size() << ",\n";
       std::cout << "    \"normalized_where_hash\": "
                 << StableWhereHash(opt.where_expression_normalized) << ",\n";
+      std::cout << "    \"where_feature_mask\": " << ComputeWhereFeatureMask(opt.where_compiled)
+                << ",\n";
       std::cout << "    \"rpn_predicates\": " << rpn_predicates << ",\n";
       std::cout << "    \"rpn_not\": " << rpn_not << ",\n";
       std::cout << "    \"rpn_and\": " << rpn_and << ",\n";

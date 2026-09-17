@@ -2541,7 +2541,7 @@ Status: done
 
 ## K47 - Explain Scan-efficiency Metadata Scaffold
 
-Status: in progress
+Status: done
 
 ### K47.1 Scan-efficiency fields
 
@@ -2573,6 +2573,41 @@ Status: in progress
 
 - Scan-efficiency metadata is integrated and test-covered.
 - Ready for K48 where-feature bitmask metadata scaffold.
+
+## K48 - Where-feature Bitmask Metadata Scaffold
+
+Status: in progress
+
+### K48.1 Feature bitmask field
+
+- Task: add compact where-feature bitmask in explain output.
+- PASS:
+  - explain output includes `where_feature_mask`.
+  - bitmask encodes logical operators and predicate family usage.
+- FAIL:
+  - explain output has no where-feature bitmask.
+
+### K48.2 Regression coverage
+
+- Task: validate bitmask metadata in CLI smoke.
+- PASS:
+  - smoke asserts `where_feature_mask` field presence.
+  - existing explain assertions remain green.
+- FAIL:
+  - no tests for where-feature bitmask metadata.
+
+### K48 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K48 exit criteria
+
+- Where-feature bitmask metadata is integrated and test-covered.
+- Ready for K49 explain output ordering/stability scaffold.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`
