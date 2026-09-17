@@ -821,7 +821,7 @@ Status: done
 
 ## K9 - DeviceIo Pipeline Scaffold
 
-Status: in progress
+Status: done
 
 ### K9.1 Injectable device IO abstraction
 
@@ -871,6 +871,59 @@ Status: in progress
 
 - Device-mode transport pipeline is integrated and test-covered.
 - Ready for K10 driver-side protocol/version handshake alignment.
+
+## K10 - Handshake and Capability Negotiation Scaffold
+
+Status: in progress
+
+### K10.1 Protocol constants and opcode
+
+- Task: formalize transport protocol version and read-only capability bitmask with dedicated handshake opcode.
+- PASS:
+  - protocol constants exist in `kernel_ioctl_protocol.hpp`.
+  - `KernelOpcode::kHandshake` exists and is used by device connect flow.
+- FAIL:
+  - no protocol version/capability constants.
+
+### K10.2 Connect-time handshake
+
+- Task: execute handshake immediately after device open.
+- PASS:
+  - device connect sends handshake request including protocol version and requested capabilities.
+  - connect fails and closes handle on handshake failure.
+- FAIL:
+  - device connect does not perform handshake.
+
+### K10.3 Negotiation enforcement
+
+- Task: require completed handshake before non-handshake requests and expose negotiated state.
+- PASS:
+  - non-handshake sends fail when handshake is incomplete.
+  - transport exposes handshake completion and negotiated capabilities.
+- FAIL:
+  - non-handshake requests can run before negotiation.
+
+### K10.4 Regression tests
+
+- Task: add tests for handshake success and mismatch failures.
+- PASS:
+  - tests validate handshake success path and negotiated capabilities.
+  - tests validate protocol mismatch and insufficient capability failures.
+- FAIL:
+  - no tests for negotiation behavior.
+
+### K10 verification commands
+
+- Build:
+  - `cmake -S . -B build`
+  - `cmake --build build --config Release`
+- Test:
+  - `ctest --test-dir build --output-on-failure`
+
+### K10 exit criteria
+
+- Handshake/version/capability negotiation is integrated and test-covered.
+- Ready for K11 driver contract expansion beyond read-only baseline.
 
 Release gate reference:
 - `V1_RELEASE_CHECKLIST.md`

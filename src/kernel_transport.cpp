@@ -144,12 +144,17 @@ bool KernelTransport::Connect(const std::string& image_path) {
     return false;
   }
 
+  handshake_complete_ = false;
+  negotiated_capabilities_ = 0;
+
   if (mode_ == Mode::kLoopback) {
     if (!bridge_.Initialize(image_path)) {
       last_error_ = bridge_.LastError();
       return false;
     }
     connected_ = true;
+    handshake_complete_ = true;
+    negotiated_capabilities_ = kKernelCapabilityAllReadOnly;
     last_error_.clear();
     return true;
   }
@@ -170,6 +175,70 @@ bool KernelTransport::Connect(const std::string& image_path) {
 
   device_handle_ = handle;
   connected_ = true;
+
+  KernelResponse handshake_response;
+  const KernelRequest handshake_request{
+      KernelOpcode::kHandshake,
+      "",
+      static_cast<std::uint64_t>(kKernelProtocolVersion),
+      static_cast<std::uint64_t>(kKernelCapabilityAllReadOnly),
+      0,
+  };
+  if (!Send(handshake_request, &handshake_response)) {
+    std::string close_error;
+    api->Close(device_handle_, &close_error);
+    device_handle_ = nullptr;
+    connected_ = false;
+    handshake_complete_ = false;
+    negotiated_capabilities_ = 0;
+    if (last_error_.empty()) {
+      last_error_ = "Kernel handshake failed";
+    }
+    return false;
+  }
+
+  if (handshake_response.data.size() < sizeof(std::uint32_t) + sizeof(std::uint32_t)) {
+    std::string close_error;
+    api->Close(device_handle_, &close_error);
+    device_handle_ = nullptr;
+    connected_ = false;
+    handshake_complete_ = false;
+    negotiated_capabilities_ = 0;
+    last_error_ = "Kernel handshake response is invalid";
+    return false;
+  }
+
+  std::uint32_t protocol_version = 0;
+  std::uint32_t capabilities = 0;
+  std::memcpy(&protocol_version, handshake_response.data.data(), sizeof(protocol_version));
+  std::memcpy(&capabilities,
+              handshake_response.data.data() + sizeof(protocol_version),
+              sizeof(capabilities));
+
+  if (protocol_version != kKernelProtocolVersion) {
+    std::string close_error;
+    api->Close(device_handle_, &close_error);
+    device_handle_ = nullptr;
+    connected_ = false;
+    handshake_complete_ = false;
+    negotiated_capabilities_ = 0;
+    last_error_ = "Kernel protocol version mismatch";
+    return false;
+  }
+
+  if ((capabilities & kKernelCapabilityAllReadOnly) != kKernelCapabilityAllReadOnly) {
+    std::string close_error;
+    api->Close(device_handle_, &close_error);
+    device_handle_ = nullptr;
+    connected_ = false;
+    handshake_complete_ = false;
+    negotiated_capabilities_ = 0;
+    last_error_ = "Kernel capabilities are insufficient";
+    return false;
+  }
+
+  handshake_complete_ = true;
+  negotiated_capabilities_ = capabilities;
   last_error_.clear();
   return true;
 }
@@ -182,6 +251,8 @@ bool KernelTransport::Disconnect() {
 
   if (mode_ == Mode::kLoopback) {
     connected_ = false;
+    handshake_complete_ = false;
+    negotiated_capabilities_ = 0;
     last_error_.clear();
     return true;
   }
@@ -200,6 +271,8 @@ bool KernelTransport::Disconnect() {
 
   device_handle_ = nullptr;
   connected_ = false;
+  handshake_complete_ = false;
+  negotiated_capabilities_ = 0;
   last_error_.clear();
   return true;
 }
@@ -225,6 +298,13 @@ bool KernelTransport::Send(const KernelRequest& request, KernelResponse* respons
 
   if (response == nullptr) {
     last_error_ = "Invalid response output";
+    return false;
+  }
+
+  if (request.opcode != KernelOpcode::kHandshake && !handshake_complete_) {
+    response->success = false;
+    response->error = "Kernel handshake is not completed";
+    last_error_ = response->error;
     return false;
   }
 
@@ -346,6 +426,10 @@ bool KernelTransport::ParseDeviceFrame(const std::vector<std::uint8_t>& frame,
 }
 
 bool KernelTransport::IsConnected() const { return connected_; }
+
+bool KernelTransport::IsHandshakeComplete() const { return handshake_complete_; }
+
+std::uint32_t KernelTransport::NegotiatedCapabilities() const { return negotiated_capabilities_; }
 
 const std::string& KernelTransport::LastError() const { return last_error_; }
 

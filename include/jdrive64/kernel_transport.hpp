@@ -38,6 +38,9 @@ class KernelTransport {
   bool Disconnect();
   bool Send(const KernelRequest& request, KernelResponse* response);
 
+  bool IsHandshakeComplete() const;
+  std::uint32_t NegotiatedCapabilities() const;
+
   bool BuildDeviceFrame(const KernelRequest& request, std::vector<std::uint8_t>* frame) const;
   bool ParseDeviceFrame(const std::vector<std::uint8_t>& frame, KernelResponse* response) const;
 
@@ -59,6 +62,8 @@ class KernelTransport {
   std::unique_ptr<DeviceIoApi> default_device_io_api_;
   DeviceIoApi* device_io_api_ = nullptr;
   KernelUserBridge bridge_;
+  bool handshake_complete_ = false;
+  std::uint32_t negotiated_capabilities_ = 0;
   std::string last_error_;
 };
 
