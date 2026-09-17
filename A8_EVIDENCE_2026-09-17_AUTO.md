@@ -3,12 +3,12 @@
 ## Environment
 
 - Date: 2026-09-17
-- Timestamp: 2026-09-17 22:55:01
+- Timestamp: 2026-09-17 22:58:03
 - Operator: LBiondi
 - Machine: CSW074
 - Windows version: Windows-11-10.0.26200-SP0
 - JDrive64 executable: `C:\Users\LBiondi\OneDrive - centrosoftware.com\Documenti\Default Project\JDrive64\build\jdrive64.exe`
-- JDrive64 commit: `681a4e4`
+- JDrive64 commit: `895b8d2`
 - Test image path: `C:\Users\LBiondi\AppData\Local\Temp\opencode\Jemu64\roms\tsuit215\Source1.d64`
 - Drive letter used: `R:`
 
